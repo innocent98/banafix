@@ -1,0 +1,58 @@
+@import "../../global.scss";
+
+.top {
+  height: 30px;
+  width: 100%;
+  background-color: $mainColor;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 80px;
+  overflow: hidden;
+  position: fixed;
+  z-index: 4;
+
+  .left {
+    width: 30%;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    @include mobile {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .cont {
+      display: flex;
+      align-items: center;
+
+      .icon {
+        font-size: 15px;
+        color: $subColor;
+        margin-right: 5px;
+      }
+      p {
+        color: white;
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin-top: 15px;
+        font-size: 12px;
+        font-weight: normal;
+      }
+    }
+  }
+
+  .right {
+    width: 10%;
+    display: flex;
+    justify-content: space-around;
+    @include mobile {
+      display: none;
+    }
+    img {
+      width: 25px;
+      height: 25px;
+      cursor: pointer;
+    }
+  }
+}

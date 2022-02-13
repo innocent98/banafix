@@ -1,0 +1,62 @@
+@import "../../global.scss";
+
+.events {
+  background-color: $mainColor;
+  padding: 60px 80px;
+  display: flex;
+  height: auto !important;
+  width: 100%;
+  @include mobile {
+    flex-direction: column;
+  }
+
+  .left {
+    flex: 0.5;
+    @include mobile {
+      flex: none;
+    }
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  .right {
+    flex: 0.5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    color: white;
+    padding-left: 60px;
+    @include mobile {
+      flex: none;
+      width: 100%;
+      padding-left: 0;
+    }
+
+    h2 {
+      overflow: hidden;
+      font-size: 2.5em;
+      @include mobile {
+        font-size: 1.8em;
+      }
+    }
+    h5 {
+      overflow: hidden;
+      font-size: 1em;
+      @include mobile {
+        font-size: 0.8em;
+      }
+    }
+    h1 {
+      overflow: hidden;
+      font-size: 3.5em;
+      margin-top: 15px;
+      @include mobile {
+        font-size: 2.5em;
+      }
+    }
+  }
+}

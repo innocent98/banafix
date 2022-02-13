@@ -1,0 +1,16 @@
+$mainColor: #182d42;
+$subColor: #f0b898c0;
+
+$tabWidth: 768px;
+$mobWidth: 480px;
+
+@mixin tab {
+  @media (max-width: #{$tabWidth}) {
+    @content;
+  }
+}
+@mixin mobile {
+  @media (max-width: #{$mobWidth}) {
+    @content;
+  }
+}

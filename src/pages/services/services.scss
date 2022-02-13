@@ -1,0 +1,94 @@
+@import "../../global.scss";
+
+.services {
+  height: auto !important;
+  display: flex;
+  padding: 60px 80px;
+  @include mobile {
+    flex-direction: column;
+  }
+
+  .left {
+    flex: 0.5;
+    display: flex;
+    flex-direction: column;
+    @include mobile {
+      flex: none;
+    }
+    h1 {
+      color: $mainColor;
+      overflow: hidden;
+    }
+    p {
+      width: 65%;
+      margin-top: 20px;
+      color: gray;
+      line-height: 2;
+      @include mobile {
+        width: 100%;
+      }
+    }
+    .group {
+      width: 85%;
+      word-spacing: 3px;
+      @include mobile {
+        width: 100%;
+      }
+      h4 {
+        color: $subColor;
+        font-size: 1.2em;
+        overflow: hidden;
+      }
+      p {
+        margin-top: 20px;
+        color: gray;
+        line-height: 2;
+      }
+    }
+  }
+
+  .right {
+    flex: 0.5;
+    img {
+      width: 100%;
+    }
+
+    .instrument {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      h2 {
+        font-size: 1.2em;
+        color: $mainColor;
+        font-weight: 600;
+        overflow: hidden;
+      }
+      .eachInstrument {
+        display: flex;
+        @include mobile {
+          flex-direction: column;
+        }
+
+        .cont {
+          width: 50%;
+          padding: 0px 5px;
+          @include mobile {
+            width: 100%;
+          }
+          h4 {
+            color: $subColor;
+            font-size: 1.1em;
+            overflow: hidden;
+          }
+          p {
+            color: gray;
+            line-height: 2;
+            font-size: 0.9em;
+          }
+        }
+      }
+    }
+  }
+}

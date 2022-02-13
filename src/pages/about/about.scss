@@ -1,0 +1,98 @@
+@import "../../global.scss";
+
+.about {
+  padding: 60px 80px;
+  display: flex;
+  height: auto !important;
+  @include mobile {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .left {
+    flex: 0.5;
+    display: flex;
+    flex-direction: column;
+    @include mobile {
+      flex: none;
+    }
+
+    h1 {
+      color: $mainColor;
+      overflow: hidden;
+    }
+    .who {
+      width: 65%;
+      word-spacing: 3px;
+      @include mobile {
+        width: 100%;
+      }
+      h4 {
+        color: $subColor;
+        font-size: 1.2em;
+        overflow: hidden;
+      }
+      p {
+        margin-top: 20px;
+        color: gray;
+        line-height: 2;
+      }
+      img {
+        width: 100%;
+        @include mobile {
+          display: none;
+        }
+      }
+    }
+  }
+
+  .right {
+    flex: 0.5;
+    @include mobile {
+      flex: none;
+    }
+    img {
+      width: 100%;
+      object-fit: cover;
+    }
+    .value {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      h2 {
+        font-size: 1.2em;
+        color: $mainColor;
+        font-weight: 600;
+        overflow: hidden;
+      }
+      .cores {
+        display: flex;
+        flex-wrap: wrap;
+        @include mobile {
+          flex-direction: column;
+        }
+
+        .cont {
+          width: 50%;
+          padding: 0px 5px;
+          @include mobile {
+            width: 100%;
+          }
+          h4 {
+            color: $subColor;
+            font-size: 1.1em;
+            overflow: hidden;
+          }
+          p {
+            color: gray;
+            line-height: 2;
+            font-size: 0.9em;
+          }
+        }
+      }
+    }
+  }
+}
