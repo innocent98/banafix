@@ -11,7 +11,8 @@ import Footer from "./components/footer/Footer";
 import Sidebar from "./components/sidebar/Sidebar";
 import { useState } from "react";
 import Testimony from "./pages/testimony/Testimony";
-
+import Faq from "./pages/faq/Faq";
+import Application from "./pages/application/Application";
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,11 +29,15 @@ function App() {
               <About />
               <Services />
               <Events />
+              <Faq />
               <Testimony />
               <Newsletter />
               <Footer />
             </div>
           </div>
+        </Route>
+        <Route path="/application">
+          <Application />
         </Route>
       </Switch>
     </Router>

@@ -7,4 +7,8 @@
   color: white;
   text-align: center;
   padding: 40px 80px;
+
+  @include mobile{
+    padding: 20px 30px;
+  }
 }

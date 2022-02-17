@@ -13,7 +13,9 @@ const Intro = () => {
           We offer music education for individuals of just about every age and
           skill level.
         </p>
-        <div className="learn">START LEARNING</div>
+        <div className="learn">
+          <a href="/application"> START LEARNING</a>
+        </div>
       </div>
     </div>
   );

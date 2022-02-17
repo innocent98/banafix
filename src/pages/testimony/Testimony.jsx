@@ -1,4 +1,3 @@
-import Gallery from "../gallery/Gallery";
 import "./testimony.scss";
 import { ArrowLeftOutlined, ArrowRightOutlined } from "@material-ui/icons";
 import { useState } from "react";
@@ -16,14 +15,8 @@ const Testimony = () => {
   };
   return (
     <div className="testimony">
-      <div className="left">
-        <h5>Gallery</h5>
-        <div className="gallery">
-          <Gallery />
-        </div>
-      </div>
-      <div className="right">
-        <h4>Listen to What our Parents and Students Says</h4>
+      <div className="testimonyCont">
+        <h4>Listen To What Our Parents And Students Says</h4>
         <div
           className="slider"
           style={{

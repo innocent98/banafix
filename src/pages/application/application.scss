@@ -1,0 +1,71 @@
+@import "../../global.scss";
+
+.applicationBody {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: white;
+
+  .application {
+    background-image: url("asset/6.jpg");
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.active {
+      opacity: 0.05;
+    }
+
+    .row {
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+      width: 30%;
+      @include mobile {
+        width: 100%;
+      }
+
+      .col-md-6 {
+        width: 100%;
+      }
+    }
+  }
+  .success {
+    position: absolute;
+    width: 30%;
+    height: auto;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: green;
+    overflow: hidden;
+    padding: 50px;
+    z-index: 2;
+    @include mobile {
+      width: 100%;
+    }
+
+    h5 {
+      overflow: hidden;
+      @include mobile {
+        text-align: center;
+      }
+    }
+    .check {
+      overflow: hidden;
+      color: green;
+      font-size: 200px;
+    }
+    a {
+      margin-top: 10px;
+    }
+  }
+}

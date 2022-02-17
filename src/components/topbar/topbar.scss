@@ -12,13 +12,17 @@
   align-items: center;
   z-index: 3;
 
+  @include mobile{
+    padding: 20px 30px;
+  }
+
   .left {
     flex: 1;
     a {
       font-size: 2em;
       font-weight: 700;
       font-family: "Playfair Display SC", serif;
-      font-style: italic;
+      font-style: normal;
       cursor: pointer;
       color: $mainColor;
       text-decoration: none;

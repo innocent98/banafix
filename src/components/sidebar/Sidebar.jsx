@@ -15,8 +15,13 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           </a>
         </li>
         <li>
-          <a href="#servies" onClick={() => setMenuOpen(!menuOpen)}>
+          <a href="#services" onClick={() => setMenuOpen(!menuOpen)}>
             Services
+          </a>
+        </li>
+        <li>
+          <a href="#faq" onClick={() => setMenuOpen(!menuOpen)}>
+            Faqs
           </a>
         </li>
         <li>

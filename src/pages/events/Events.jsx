@@ -4,16 +4,13 @@ export default function Events() {
   return (
     <div className="events">
       <div className="left">
-        <img src="assets/img/7.jpg" alt="" />
+        <img src="http://www.djtommyb.com/images/question-mark2.jpg" alt="" />
       </div>
       <div className="right">
         <h2>Next Event</h2>
-        <h5>03 Apr 2022</h5>
-        <h1>Concert in the Park</h1>
-        <p>
-          Come and visit with us, ask questions, try out a couple instruments
-          and enjoy some great music!
-        </p>
+        <h5>December, 2022.</h5>
+        <h1>The PLATFORM </h1>
+        <p>Periodic exhibitions of music performances.</p>
       </div>
     </div>
   );

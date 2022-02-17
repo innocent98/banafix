@@ -12,7 +12,9 @@
     "@testing-library/user-event": "^12.8.3",
     "axios": "^0.21.1",
     "bootstrap": "^5.0.2",
+    "ion-sdk-js": "^1.8.1",
     "react": "^17.0.2",
+    "react-copy-to-clipboard": "^5.0.4",
     "react-country-region-selector": "^3.1.0",
     "react-dom": "^17.0.2",
     "react-hook-form": "^7.12.0",
@@ -21,19 +23,16 @@
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.3",
     "sass": "^1.49.0",
-    "serve": "^13.0.2",
     "timeago.js": "^4.0.2",
     "use-location": "^0.0.1",
     "web-vitals": "^1.1.2"
   },
   "scripts": {
-    "dev": "react-scripts start",
-    "start": "serve -s build",
+    "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject",
-    "heroku-postbuild": "npm run build"
-    },
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",

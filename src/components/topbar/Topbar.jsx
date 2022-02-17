@@ -17,6 +17,9 @@ const Topbar = ({ menuOpen, setMenuOpen }) => {
           <a href="#services" className="link">
             Services
           </a>
+          <a href="#faq" className="link">
+            Faqs
+          </a>
           <a href="#contact" className="link">
             Contact
           </a>
