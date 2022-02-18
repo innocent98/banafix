@@ -11,6 +11,10 @@
     padding: 20px 30px;
     flex-direction: column;
   }
+  @include tab{
+    padding: 20px 30px;
+    flex-direction: column;
+  }
 
   .left {
     flex: 0.5;

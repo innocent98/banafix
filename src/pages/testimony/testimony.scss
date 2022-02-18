@@ -12,6 +12,11 @@
     flex-direction: column;
     padding: 20px 30px;
   }
+  @include tab {
+    flex-direction: column;
+    padding: 20px 30px;
+    margin-top: 50px;
+  }
 
   .testimonyCont {
     flex: 0.5;
@@ -22,6 +27,14 @@
       flex: none;
       margin-top: 30px;
       overflow: hidden;
+    }
+    @include tab {
+      flex: none;
+      margin-top: 30px;
+      overflow: hidden;
+    }
+    @include l {
+      flex: 0.6;
     }
     h4 {
       overflow: hidden;
@@ -47,12 +60,30 @@
         border-radius: 10px;
         margin-top: 0;
       }
+      @include tab {
+        background-color: rgb(243, 239, 239);
+        flex-direction: column;
+        position: relative;
+        width: 100%;
+        border-radius: 10px;
+        margin-top: 0;
+      }
+      @include l {
+        width: 160vw;
+      }
       .container {
         height: 50vh;
         display: flex;
         width: 100vw;
         @include mobile {
           flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 90%;
+          height: 100%;
+          padding: 30px 0;
+        }
+        @include tab {
           align-items: center;
           justify-content: center;
           width: 90%;
@@ -77,6 +108,14 @@
               width: 100px;
               height: 100px;
             }
+            @include tab {
+              width: 200px;
+              height: 200px;
+            }
+            @include l {
+              width: 200px;
+              height: 200px;
+            }
           }
         }
         .content {
@@ -98,6 +137,9 @@
           @include mobile {
             width: 100%;
           }
+          @include l {
+            // width: 90%;
+          }
         }
       }
     }
@@ -116,11 +158,20 @@
         @include mobile {
           display: none;
         }
+        @include tab {
+          display: none;
+        }
+        @include l {
+          margin-left: 200px;
+        }
       }
       @include mobile {
         position: relative;
         margin-top: -20px;
         margin-left: 150px;
+      }
+      @include l {
+        margin-left: 0;
       }
     }
   }

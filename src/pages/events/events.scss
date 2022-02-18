@@ -10,6 +10,9 @@
     flex-direction: column;
     padding: 20px 30px;
   }
+  @include tab {
+    padding: 20px 30px;
+  }
 
   .left {
     flex: 0.5;
@@ -44,6 +47,9 @@
       @include mobile {
         font-size: 1.8em;
       }
+      @include tab {
+        font-size: 2em;
+      }
     }
     h5 {
       overflow: hidden;
@@ -57,6 +63,9 @@
       font-size: 3.5em;
       margin-top: 15px;
       @include mobile {
+        font-size: 2.5em;
+      }
+      @include tab {
         font-size: 2.5em;
       }
     }

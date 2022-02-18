@@ -10,12 +10,21 @@
     justify-content: center;
     padding: 20px 30px;
   }
+  @include tab {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 30px;
+  }
 
   .left {
     flex: 0.5;
     display: flex;
     flex-direction: column;
     @include mobile {
+      flex: none;
+    }
+    @include tab {
       flex: none;
     }
 
@@ -27,6 +36,9 @@
       width: 65%;
       word-spacing: 3px;
       @include mobile {
+        width: 100%;
+      }
+      @include tab {
         width: 100%;
       }
       h4 {
@@ -42,6 +54,9 @@
       img {
         width: 100%;
         @include mobile {
+          display: none;
+        }
+        @include tab {
           display: none;
         }
       }

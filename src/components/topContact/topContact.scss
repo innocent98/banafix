@@ -12,7 +12,10 @@
   position: fixed;
   z-index: 4;
 
-  @include mobile{
+  @include mobile {
+    padding: 20px 30px;
+  }
+  @include tab {
     padding: 20px 30px;
   }
 
@@ -22,6 +25,10 @@
     align-items: center;
     justify-content: space-around;
     @include mobile {
+      width: 100%;
+      justify-content: space-between;
+    }
+    @include tab {
       width: 100%;
       justify-content: space-between;
     }
@@ -51,6 +58,9 @@
     display: flex;
     justify-content: space-around;
     @include mobile {
+      display: none;
+    }
+    @include tab {
       display: none;
     }
     img {

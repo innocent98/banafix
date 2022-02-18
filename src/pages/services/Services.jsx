@@ -30,7 +30,7 @@ const Services = () => {
           </p>
         </div>
         <div className="otherServices">
-          <h2>OUR SERVICES</h2>
+          <h2>OTHER SERVICES INCLUDE</h2>
           <p>
             *Musical instruments sales and merchandise *School Consultations:
             For music teaching, trainings and events. *Event management *Artist
