@@ -56,9 +56,10 @@
         background-color: rgb(243, 239, 239);
         flex-direction: column;
         position: relative;
-        width: 100%;
+        width: 100% !important;
         border-radius: 10px;
         margin-top: 0;
+        margin-left: 0 !important;
       }
       @include tab {
         background-color: rgb(243, 239, 239);
@@ -67,6 +68,7 @@
         width: 100%;
         border-radius: 10px;
         margin-top: 0;
+        margin-left: -200px;
       }
       @include l {
         width: 160vw;
@@ -84,6 +86,7 @@
           padding: 30px 0;
         }
         @include tab {
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           width: 90%;
@@ -136,9 +139,6 @@
           }
           @include mobile {
             width: 100%;
-          }
-          @include l {
-            // width: 90%;
           }
         }
       }

@@ -12,14 +12,14 @@
   align-items: center;
   z-index: 3;
 
-  @include mobile {
+  @include l {
     padding: 20px 30px;
   }
   @include tab {
     padding: 20px 30px;
   }
-  @include l {
-   padding: 20px 30px;   
+  @include mobile {
+    padding: 20px 30px;
   }
 
   .left {
@@ -37,6 +37,9 @@
 
   .right {
     flex: 1;
+    @include mobile{
+      flex: 1 !important;
+    }
     @include l {
       flex: 2;
     }
