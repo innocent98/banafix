@@ -1,0 +1,215 @@
+@import "../../global.scss";
+
+.student {
+  height: 100vh;
+  display: flex;
+
+  .left {
+    flex: 1;
+    background-color: $mainColor;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    img {
+      height: 150px;
+      width: 150px;
+      border-radius: 50%;
+      object-fit: cover;
+
+      @include mobile {
+        display: none;
+      }
+    }
+    .component {
+        margin-top: 20px;
+        margin-left: -20px;
+      .link {
+        text-decoration: none;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+      }
+    }
+  }
+
+  .right {
+    flex: 4;
+    background-color: rgba(241, 238, 238, 0.87);
+
+    &.disable {
+      opacity: 0.4;
+    }
+
+    .topb {
+      background-color: white;
+      height: 60px;
+      padding: 0px 20px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      @include mobile {
+        padding: 0px 30px;
+      }
+
+      .admin {
+        height: 60px;
+        width: 15%;
+        background-color: rgba(241, 238, 238, 0.87);
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        @include mobile {
+          width: 50%;
+        }
+
+        .txt {
+          font-weight: 700;
+        }
+        img {
+          height: 30px;
+          width: 30px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      .notification {
+        margin-left: 20px;
+        cursor: pointer;
+        @include mobile {
+          font-size: 0.6em;
+        }
+        &.status {
+          @include mobile {
+            width: 15%;
+          }
+        }
+        &.tog {
+          @include mobile {
+            width: 15%;
+          }
+        }
+        &.txt {
+          color: green;
+          font-weight: bold;
+          @include mobile {
+            margin-left: -10px;
+            width: 20%;
+          }
+        }
+        &.txtinactive {
+          color: orange;
+          font-weight: bold;
+          @include mobile {
+            margin-left: -10px;
+            width: 20%;
+          }
+        }
+
+        .bi {
+          &.active {
+            color: green;
+            font-size: 24px;
+            @include mobile {
+              font-size: 18px;
+            }
+          }
+          &.inactive {
+            color: rgba(241, 238, 238, 0.87);
+            font-size: 24px;
+            @include mobile {
+              font-size: 18px;
+            }
+          }
+        }
+      }
+      .none {
+        display: none;
+      }
+      .delete {
+        display: block;
+        position: relative;
+        z-index: 10;
+        margin-left: 40px;
+        @include mobile {
+          width: 20%;
+        }
+        .bi {
+          color: red;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .studentDetails {
+      padding: 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      .picture {
+        background-color: white;
+        height: 100px;
+        width: 100px;
+        border-radius: 50%;
+        img {
+          height: 100%;
+          width: 100%;
+          object-fit: cover;
+        }
+      }
+
+      .details {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-top: 15px;
+        // line-height: 1;
+        p {
+          overflow: hidden;
+          text-transform: capitalize;
+          color: $mainColor;
+          text-align: center;
+        }
+      }
+    }
+  }
+
+  .deletePopupNone {
+    display: none;
+
+    &.deletePopup {
+      position: absolute;
+      margin-top: 20%;
+      margin-left: 45%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 400px;
+      height: auto;
+      padding: 30px;
+      background-color: white;
+
+      h3 {
+        font-size: 1em;
+        text-align: center;
+      }
+      .button {
+        position: relative;
+        margin-left: 50%;
+        display: flex;
+        .cancel,
+        .proceed {
+          margin-right: 10px;
+          border: none;
+          padding: 5px;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+}
