@@ -1,16 +1,26 @@
 import "./testimony.scss";
 import { ArrowLeftOutlined, ArrowRightOutlined } from "@material-ui/icons";
-import { useState } from "react";
-import { testimony } from "../../dummyData";
+import { useEffect, useState } from "react";
+// import { testimony } from "../../dummyData";
+import axios from "axios";
 
 const Testimony = () => {
   const [slider, setSlider] = useState(0);
+  const [testimony, setTestimony] = useState([])
+
+  useEffect(()=>{
+    const fetchTestimony = async ()=>{
+      const res = await axios.get("/user/testimony")
+      setTestimony(res.data)
+    }
+    fetchTestimony();
+  },[setTestimony])
 
   const handleClick = (direction) => {
     if (direction === "left") {
-      setSlider(slider > 0 ? slider - 1 : 2);
+      setSlider(slider > 0 ? slider - 1 : testimony.length - 1);
     } else {
-      setSlider(slider < 2 ? slider + 1 : 0);
+      setSlider(slider < testimony.length - 1 ? slider + 1 : 0);
     }
   };
   return (
@@ -27,11 +37,11 @@ const Testimony = () => {
           {testimony.map((t) => (
             <div className="container" key={t.id}>
               <div className="picture">
-                <img src={t.picture} alt="" />
+                <img src={t.picture ? t.picture : "assets/img/avatar.png"} alt="" />
               </div>
               <div className="content">
-                <p>{t.testimonial}</p>
-                <h4> {t.firstName}</h4>
+                <p>{t.testimony}</p>
+                <h4> {t.name}</h4>
                 <h6>{t.instrument}</h6>
               </div>
             </div>

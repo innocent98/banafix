@@ -1,6 +1,6 @@
 @import "../../global.scss";
 
-.applicationBody {
+.postGallery {
   height: 100vh;
   width: 100%;
   display: flex;
@@ -9,11 +9,16 @@
   position: relative;
   background-color: white;
 
-  .application {
-    background-image: url("asset/6.jpg");
+  .postForm {
+    background-image: linear-gradient(
+        rgba(219, 230, 75, 0.1),
+        rgba(0, 0, 0, 0.651)
+      ),
+      url("asset/6.jpg");
     height: 100vh;
     width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 
@@ -24,44 +29,15 @@
     .row {
       background-color: white;
       display: flex;
+      flex-direction: column;
       padding: 40px;
-      width: 60%;
-      height: 85%;
+      width: 30%;
       @include mobile {
         width: 100%;
       }
 
-      h3 {
-        text-align: center;
-      }
       .col-md-6 {
-        width: 50%;
-        .form-control {
-          text-transform: capitalize;
-          &.email {
-            text-transform: lowercase;
-          }
-        }
-      }
-      .col-md-4 {
-        .progress {
-          width: 100%;
-          height: 20px;
-          font-size: 15px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-top: 5px;
-        }
-        .none {
-          display: none;
-        }
-        .button {
-          border: none;
-          padding: 5px 8px;
-          border-radius: 4px;
-          margin-top: 30px;
-        }
+        width: 100%;
       }
     }
   }

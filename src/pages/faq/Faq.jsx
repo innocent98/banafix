@@ -156,7 +156,7 @@ const Faq = () => {
           <Gallery />
         </div>
 
-        <h3>Watch Our Student Playing</h3>
+        <h3>Watch Our Student Presenting</h3>
         <div className="video">
           <video src="assets/img/presentation.mp4" controls></video>
         </div>

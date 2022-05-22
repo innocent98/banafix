@@ -1,0 +1,51 @@
+@import "../../global.scss";
+
+.data {
+  height: auto;
+
+  .paper {
+    padding: 20px;
+    .tableHead {
+      .tableRow {
+        .tableCell {
+          color: $mainColor;
+          font-size: 20px;
+          font-weight: bold;
+        }
+      }
+    }
+
+    .tableBody {
+      tr {
+        td {
+          text-align: center;
+          color: $mainColor;
+          .actions {
+            border: none;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: $mainColor;
+            color: white;
+            transition: all ease 1s;
+            text-decoration: none;
+            &:hover {
+              background-color: $subColor;
+            }
+          }
+          .active {
+            background-color: green;
+            height: 10px;
+            width: 10px;
+            border-radius: 50%;
+          }
+          .inactive {
+            background-color: yellow;
+            height: 10px;
+            width: 10px;
+            border-radius: 50%;
+          }
+        }
+      }
+    }
+  }
+}

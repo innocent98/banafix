@@ -24,6 +24,14 @@ export const testimony = [
     testimonial:
       "Lorem ipsum dolor sit amet consectetur adipisicing elit. Nesciunt voluptas perspiciatis, aut impedit dicta optio est obcaecati.",
   },
+   {
+    id: 3,
+    picture: "assets/img/download.jfif",
+    firstName: "Jane",
+    instrument: "Guitar",
+    testimonial:
+      "Lorem ipsum dolor sit amet consectetur adipisicing elit. Nesciunt voluptas perspiciatis, aut impedit dicta optio est obcaecati.",
+  },
 ];
 
 export const Books = [
