@@ -32,12 +32,16 @@ const Reducer = (state, action, accessToken, refreshToken) => {
       case "UPDATE_SUCCESS":
         return {
           user: action.payload,
+          accessToken: state.accessToken,
+          refreshToken: state.refreshToken,
           isFetching: false,
           error: false,
         };
       case "UPDATE_FAILURE":
         return {
           user: state.user,
+          accessToken: state.accessToken,
+          refreshToken: state.refreshToken,
           isFecting: false,
           error: true,
         };

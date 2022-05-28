@@ -2,7 +2,8 @@ import "./testimony.scss";
 import { ArrowLeftOutlined, ArrowRightOutlined } from "@material-ui/icons";
 import { useEffect, useState } from "react";
 // import { testimony } from "../../dummyData";
-import axios from "axios";
+// import axios from "axios";
+import { axiosInstance } from "../../config";
 
 const Testimony = () => {
   const [slider, setSlider] = useState(0);
@@ -10,7 +11,7 @@ const Testimony = () => {
 
   useEffect(()=>{
     const fetchTestimony = async ()=>{
-      const res = await axios.get("/user/testimony")
+      const res = await axiosInstance.get("/user/testimony")
       setTestimony(res.data)
     }
     fetchTestimony();

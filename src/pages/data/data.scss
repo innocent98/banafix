@@ -2,6 +2,43 @@
 
 .data {
   height: auto;
+  padding-top: 20px;
+  .search{
+    width: 15%;
+    border: 2px solid gray;
+    border-radius: 4px;
+    margin-left: 40px;
+    @include mobile{
+      width: 50%;
+    }
+    .searchForm{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      .form-control{
+        height: inherit;
+        border: none;
+        color: gray;
+        padding-left: 10px;
+        text-transform: capitalize;
+        &:focus {
+          outline:0px !important;
+          -webkit-appearance:none;
+          box-shadow: none !important;
+        }
+        &:hover{
+          outline: none !important;
+        }
+        &::placeholder {
+          color: gray;
+        }
+      }
+      .searchIcon{
+        color: gray;
+        padding-right: 10px;
+      }
+    }
+  }
 
   .paper {
     padding: 20px;
@@ -20,6 +57,7 @@
         td {
           text-align: center;
           color: $mainColor;
+          text-transform: capitalize;
           .actions {
             border: none;
             padding: 5px;
@@ -39,7 +77,7 @@
             border-radius: 50%;
           }
           .inactive {
-            background-color: yellow;
+            background-color: orange;
             height: 10px;
             width: 10px;
             border-radius: 50%;

@@ -26,7 +26,9 @@ import PostPresentation from "./pages/postPresentaion/PostPresentation";
 import PostGallery from "./pages/postGallery/PostGallery";
 import Data from "./pages/data/Data";
 import StudentPage from "./pages/studentPage/StudentPage";
+import Settings from "./pages/settings/Settings";
 import { Context } from "./context/Context";
+import Auth from "./pages/auth/Auth";
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,6 +74,8 @@ function App() {
           {user ? <PostGallery /> : <AdminLogin />}
         </Route>
         <Route path="/student">{user ? <StudentPage /> : <AdminLogin />}</Route>
+        <Route path="/settings">{user ? <Settings /> : <AdminLogin />}</Route>
+        <Route path="/auth">{user ? <Auth /> : <AdminLogin />}</Route>
       </Switch>{" "}
     </Router>
   );

@@ -1,0 +1,101 @@
+@import "../../global.scss";
+
+.settings {
+  height: 100vh;
+  display: flex;
+
+  .left {
+    flex: 1;
+    background-color: $mainColor;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    img {
+      height: 100px;
+      width: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    @include mobile {
+      display: none;
+    }
+
+    .component{
+        margin-top: 10px;
+        margin-left: -25px;
+    }
+  }
+
+  .right {
+    flex: 4;
+    background-color: rgba(241, 238, 238, 0.87);
+
+    .top {
+      background-color: white;
+      height: 60px;
+      padding: 0px 20px;
+      display: flex;
+      align-items: center;
+      @include mobile {
+        justify-content: space-between;
+      }
+
+      .admin {
+        height: 60px;
+        width: 15%;
+        background-color: rgba(241, 238, 238, 0.87);
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        @include mobile {
+          width: 50%;
+        }
+
+        .txt {
+          font-weight: 700;
+        }
+        img {
+          height: 30px;
+          width: 30px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      .notification {
+        margin-left: 20px;
+        cursor: pointer;
+      }
+    }
+
+    .form-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-top: 50px;
+      .row {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        .col-md-4 {
+          .bi {
+            position: relative;
+            float: right;
+            top: -30px;
+            right: 10px;
+            cursor: pointer;
+          }
+          .btn {
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+}

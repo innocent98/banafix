@@ -5,19 +5,23 @@ import { useLocation } from "react-router";
 import avatarp from "./assets/download.png";
 import Logout from "../../components/logout/Logout";
 import { Link } from "react-router-dom";
-import axios from "axios";
+// import axios from "axios";
+import { axiosInstance } from "../../config";
+import { Context } from "../../context/Context";
+import { decode } from "jsonwebtoken";
 
 const StudentPage = () => {
   const [student, setStudent] = useState([]);
-  //   const { user } = useContext(Context);
+  const { user } = useContext(Context);
+  const accessToken = useContext(Context);
+  const { dispatch } = useContext(Context);
 
   const location = useLocation();
   const path = location.pathname.split("/")[2];
-  console.log(location);
 
   useEffect(() => {
     const fetchSingleEngr = async () => {
-      const res = await axios.get(`/student/students/${path}`);
+      const res = await axiosInstance.get(`/student/students/${path}`);
       setStudent(res.data);
     };
     fetchSingleEngr();
@@ -32,15 +36,17 @@ const StudentPage = () => {
   const handleStatusChange = async () => {
     try {
       if (isActive) {
-        // await axios.put(`/engineer/remove/${path}`, {
-        //   //   adminId: user._id,
-        //   isActive: false,
-        // });
+        await axiosInstance.put(`/user/edit/student/${path}`, {
+          accessToken: accessToken.accessToken,
+          isActive: false,
+        });
+        alert("Student status updated successfully from active to inactive");
       } else {
-        // await axios.post(`/engineer/restore/${path}`, {
-        //   //   adminId: user._id,
-        //   isActive: true,
-        // });
+        await axiosInstance.put(`/user/edit/student/${path}`, {
+          accessToken: accessToken.accessToken,
+          isActive: true,
+        });
+        alert("Student status updated successfully from inactive to active");
       }
     } catch (err) {}
     setIsActive(!isActive);
@@ -50,20 +56,43 @@ const StudentPage = () => {
 
   const handleDelete = async () => {
     try {
-      //   await axios.delete(`/engineer/engineer/delete/${path}`, {
-      // data: { adminId: user._id },
-      //   });
-      //   window.location.replace("/auto/engineer-ae-admin/ae-board");
-    } catch (err) {}
+      await axiosInstance.delete(`/user/students/${path}`, {
+        data: { accessToken: accessToken.accessToken },
+      });
+      alert("Student successfully deleted");
+      window.location.replace("/data");
+    } catch (err) {
+      if (err.response.status === 404) {
+        alert("Student not found");
+      } else {
+        alert("Connection Error!");
+      }
+    }
   };
+
+  //logout a user automatically when session expired
+  const handleLogout = async () => {
+    dispatch({ type: "LOGOUT" });
+  };
+
+  useEffect(() => {
+    const token = accessToken.accessToken;
+    if (token) {
+      const decodedToken = decode(token);
+      if (decodedToken.exp * 1000 < new Date().getTime()) {
+        handleLogout();
+        return alert("Session expired! kindly login again to continue");
+      }
+    }
+  });
 
   return (
     <div className="student">
       <div className="left">
-          <img src="/assets/img/banafix.jpg" alt="" />
+        <img src="/assets/img/banafix.jpg" alt="" />
         <div className="component">
           <ul>
-            <Link to={`/auto/engineer-ae-admin/ae-settings/`} className="link">
+            <Link to={`/settings/${user.other._id}`} className="link">
               <li>Settings</li>
             </Link>
             <li>
@@ -72,17 +101,16 @@ const StudentPage = () => {
           </ul>
         </div>
       </div>
-      
+
       <div className={"right " + (popup && "disable")}>
         <div className="topb">
           <div className="admin">
-            {/* <div className="txt">{user.username}</div> */}
-            <img
-              src="/assets/img/banafix.jpg"
-              alt=""
-            />
+            <div className="txt">{user.username}</div>
+            <img src="/assets/img/banafix.jpg" alt="" />
           </div>
-          <div className="notification status">Change Student Active Status</div>
+          <div className="notification status">
+            Change Student Active Status
+          </div>
           <div className="notification tog">
             {popup ? (
               <i className="bi bi-toggle-off inactive"></i>
@@ -117,22 +145,43 @@ const StudentPage = () => {
           </div>
           <div className="details">
             <p>
-              Full Name: <b>{" "}
-              {student.firstName +
-                " " +
-                student.lastName +
-                " " +
-                student.otherName}</b>
+              Full Name:{" "}
+              <b>
+                {" "}
+                {student.firstName +
+                  " " +
+                  student.lastName +
+                  " " +
+                  student.otherName}
+              </b>
             </p>
-            <p>Gender: <b> {student.gender}</b></p>
-            <p>Phone Number: <b> {student.phone}</b></p>
-            <p>Birthday: <b> {student.birthday}</b></p>
-            <p>Email: <b> {student.email}</b></p>
-            <p>Center Choice: <b> {student.centreChoice}</b></p>
-            <p>Instrument: <b>{student.instrument}</b></p>
-            <p>Schedule: <b> {student.schedule}</b></p>
-            <p>Duration: <b> {student.duration}</b></p>
-            <p>Level: <b> {student.level}</b></p>
+            <p>
+              Gender: <b> {student.gender}</b>
+            </p>
+            <p>
+              Phone Number: <b> {student.phone}</b>
+            </p>
+            <p>
+              Birthday: <b> {student.birthday}</b>
+            </p>
+            <p>
+              Email: <b> {student.email}</b>
+            </p>
+            <p>
+              Center Choice: <b> {student.centreChoice}</b>
+            </p>
+            <p>
+              Instrument: <b>{student.instrument}</b>
+            </p>
+            <p>
+              Schedule: <b> {student.schedule}</b>
+            </p>
+            <p>
+              Duration: <b> {student.duration}</b>
+            </p>
+            <p>
+              Level: <b> {student.level}</b>
+            </p>
           </div>
         </div>
       </div>

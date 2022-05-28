@@ -3,7 +3,8 @@ import "./application.scss";
 import { uploadBytesResumable, getDownloadURL, ref } from "firebase/storage";
 import storage from "../../firebase";
 import { CheckCircle } from "@material-ui/icons";
-import axios from "axios";
+// import axios from "axios";
+import { axiosInstance } from "../../config";
 
 const Application = () => {
   const [success, setSuccess] = useState(false);
@@ -71,7 +72,7 @@ const Application = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/student/apply", newApplicant);
+      await axiosInstance.post("/student/apply", newApplicant);
       setSuccess(true);
     } catch (error) {}
   };
@@ -306,13 +307,13 @@ const Application = () => {
             </div>
           </div>
           <div className="col-md-4">
-            <button
+            <div
               className="button btn-success"
               style={picture ? { display: "block" } : { display: "none" }}
               onClick={handleClick}
             >
               Upload picture
-            </button>
+            </div>
           </div>
           <div className="col-md-12">
             <div class="form-check">

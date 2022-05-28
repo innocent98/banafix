@@ -22,9 +22,11 @@ export const UpdateStart = (userCredentials) => ({
   type: "UPDATE_START",
 });
 
-export const UpdateSuccess = (user) => ({
+export const UpdateSuccess = (user, accessToken, refreshToken) => ({
   type: "UPDATE_SUCCESS",
   payload: user,
+  accessToken: accessToken,
+  refreshToken: refreshToken
 });
 
 export const UpdateFailure = (error) => ({

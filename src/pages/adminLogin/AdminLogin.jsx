@@ -1,6 +1,7 @@
 import "./adminLogin.scss";
 import { useContext, useRef, useState } from "react";
-import axios from "axios";
+// import axios from "axios";
+import { axiosInstance } from "../../config";
 import { Context } from "../../context/Context";
 
 const AdminLogin = () => {
@@ -14,7 +15,7 @@ const AdminLogin = () => {
     setError(false);
     dispatch({ type: "LOGIN_START" });
     try {
-      const res = await axios.post("/user/login", {
+      const res = await axiosInstance.post("/user/login", {
         username: usernameRef.current.value,
         password: passwordRef.current.value,
       });
@@ -29,7 +30,8 @@ const AdminLogin = () => {
         setError(true);
         dispatch({ type: "LOGIN_FAILURE", payload: err });
       } else {
-        error && alert("Connection Error! Please check your connection and try again");
+        error &&
+          alert("Connection Error! Please check your connection and try again");
         setError(true);
         dispatch({ type: "LOGIN_FAILURE", payload: err });
       }

@@ -6,7 +6,8 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
-import axios from 'axios';
+// import axios from 'axios';
+import { axiosInstance } from "../../config";
 import { useEffect, useState } from 'react';
 
 const columns = [
@@ -75,7 +76,7 @@ export default function StickyHeadTable() {
 
  useEffect(() => {
     const fetchStudents = async () => {
-      const res = await axios.get("/student/students");
+      const res = await axiosInstance.get("/student/students");
       setStudents(res.data);
     };
     fetchStudents();
