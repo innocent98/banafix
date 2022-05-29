@@ -130,6 +130,11 @@ const Auth = () => {
                 Update
               </button>
             </div>
+            <div className="col-md-4">
+            <Link to={`/settings/${user.user._id}`}>
+              Update Password
+            </Link>
+            </div>
           </form>
         </div>
       </div>

@@ -92,7 +92,7 @@ const StudentPage = () => {
         <img src="/assets/img/banafix.jpg" alt="" />
         <div className="component">
           <ul>
-            <Link to={`/settings/${user.other._id}`} className="link">
+            <Link to={`/settings/${user.user._id}`} className="link">
               <li>Settings</li>
             </Link>
             <li>
@@ -105,7 +105,7 @@ const StudentPage = () => {
       <div className={"right " + (popup && "disable")}>
         <div className="topb">
           <div className="admin">
-            <div className="txt">{user.username}</div>
+            <div className="txt">{user.user.username}</div>
             <img src="/assets/img/banafix.jpg" alt="" />
           </div>
           <div className="notification status">

@@ -38,12 +38,12 @@ const Settings = () => {
       dispatch({ type: "UPDATE_FAILURE" });
       if (error.response.status === 400) {
         alert("Invalid Auth");
-      }else if (error.response.status === 406) {
+      } else if (error.response.status === 406) {
         alert("Current password doesnt match");
-      }else if (error.response.status === 403) {
+      } else if (error.response.status === 403) {
         alert("You cannot perform this action!");
-      }else{
-        alert("Connection Error!")
+      } else {
+        alert("Connection Error!");
       }
     }
   };
@@ -129,6 +129,9 @@ const Settings = () => {
               <button className="btn btn-primary shadow-none" type="submit">
                 Update
               </button>
+            </div>
+            <div className="col-md-4">
+              <Link to={`/auth/${user.user._id}`}>Update Auth</Link>
             </div>
           </form>
         </div>
