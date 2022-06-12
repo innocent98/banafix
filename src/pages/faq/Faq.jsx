@@ -1,10 +1,6 @@
-import Gallery from "../gallery/Gallery";
 import "./faq.scss";
 import { ContactSupport } from "@material-ui/icons";
-import { useEffect, useState } from "react";
-// import axios from "axios";
-import { axiosInstance } from "../../config";
-// import ReactPlayer from "react-player/lazy";
+import { useState } from "react";
 
 const Faq = () => {
   const [faq, setFaq] = useState(false);
@@ -17,22 +13,13 @@ const Faq = () => {
   const [faq7, setFaq7] = useState(false);
 
   // fetch gallery
-  const [presentation, setPresentation] = useState([]);
 
-  useEffect(() => {
-    const fetchPresentation = async () => {
-      const res = await axiosInstance.get("/user/presentation");
-      setPresentation(res.data);
-    };
-    fetchPresentation();
-  }, [setPresentation]);
   return (
     <div className="faq" id="faq">
-      <div className="left">
         <div className="popularQ">
-          <h3>
+          <h2>
             Popular Questions <ContactSupport />
-          </h3>
+          </h2>
           <div className="content">
             <div className="wrapper">
               <i
@@ -162,37 +149,6 @@ const Faq = () => {
               training package you chose. <hr />
             </p>
           </div>
-        </div>
-      </div>
-      <div className="right">
-        <h5>Gallery</h5>
-        <div className="gallery">
-          <Gallery />
-        </div>
-
-        <h3>Watch Our Student Presenting</h3>
-        {presentation.map((p) => (
-          <div className="video" key={p._id}>
-            {/* <ReactPlayer
-              className="react-player"
-              url={p.picture ? p.picture : "assets/img/presentation.mp4"}
-              controls={true}
-              loop={true}
-              playing={true}
-              // light
-              volume={1}
-              // muted
-              onPause
-            /> */}
-            <video
-              src={p.picture ? p.picture : "assets/img/presentation.mp4"}
-              controls
-              autoplay
-              loop
-              muted
-            ></video>
-          </div>
-        ))}
       </div>
     </div>
   );

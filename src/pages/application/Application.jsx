@@ -5,8 +5,12 @@ import storage from "../../firebase";
 import { CheckCircle } from "@material-ui/icons";
 // import axios from "axios";
 import { axiosInstance } from "../../config";
+import { useRef } from "react";
+import emailjs from "@emailjs/browser";
 
 const Application = () => {
+  const formRef = useRef();
+
   const [success, setSuccess] = useState(false);
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -73,6 +77,21 @@ const Application = () => {
     e.preventDefault();
     try {
       await axiosInstance.post("/student/apply", newApplicant);
+      emailjs
+        .sendForm(
+          "service_k9taoqe",
+          "template_1a267mi",
+          formRef.current,
+          "AKzrg6RY738qBeVa0"
+        )
+        .then(
+          (result) => {
+            console.log(result.text);
+          },
+          (error) => {
+            console.log(error);
+          }
+        );
       setSuccess(true);
     } catch (error) {}
   };
@@ -96,16 +115,18 @@ const Application = () => {
         <form className="row g-3" onSubmit={handleSubmit}>
           <h3>Application Form</h3>
           <div className="col-md-6">
-            <label htmlFor="lastName" className="form-label">
-              Last Name
-            </label>
-            <input
-              type="text"
-              name="lastName"
-              required
-              className="form-control form-control-sm shadow-none"
-              onChange={(e) => setLastName(e.target.value.toLowerCase())}
-            />
+            <form ref={formRef} onSubmit={handleSubmit}>
+              <label htmlFor="lastName" className="form-label">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                required
+                className="form-control form-control-sm shadow-none"
+                onChange={(e) => setLastName(e.target.value.toLowerCase())}
+              />
+            </form>
           </div>
           <div className="col-md-6">
             <label htmlFor="firstName" className="form-label">

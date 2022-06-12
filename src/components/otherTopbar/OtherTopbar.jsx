@@ -1,23 +1,23 @@
-import "./topbar.scss";
+import "./otherTopbar.scss";
 
-const Topbar = ({ menuOpen, setMenuOpen }) => {
+const OtherTopbar = ({ menuOpen, setMenuOpen }) => {
   return (
     <div className={"topbar " + (menuOpen && "active")}>
       <div className="left">
-        <a href="#intro">Banafix</a>
+        <a href="/">Banafix</a>
       </div>
       <div className="right">
         <div className="navLink">
-          <a href="#intro" className="link active">
+          <a href="/" className="link active">
             Home
           </a>
           <a href="/about" className="link">
             About Us
           </a>
-          <a href="#services" className="link">
+          <a href="/" className="link">
             Services
           </a>
-          <a href="#faq" className="link">
+          <a href="/" className="link">
             Faqs
           </a>
           <a href="/gallery" className="link">
@@ -41,4 +41,4 @@ const Topbar = ({ menuOpen, setMenuOpen }) => {
   );
 };
 
-export default Topbar;
+export default OtherTopbar;

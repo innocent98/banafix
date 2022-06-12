@@ -29,6 +29,8 @@ import StudentPage from "./pages/studentPage/StudentPage";
 import Settings from "./pages/settings/Settings";
 import { Context } from "./context/Context";
 import Auth from "./pages/auth/Auth";
+import Gallery from "./pages/gallery/Gallery";
+import Contact from "./pages/contact/Contact";
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -43,7 +45,6 @@ function App() {
             <Sidebar menuOpen={menuOpen} setMenuOpen={setMenuOpen} />{" "}
             <div className="section">
               <Intro />
-              <About />
               <Services />
               <Events />
               <Faq />
@@ -53,6 +54,15 @@ function App() {
             </div>{" "}
           </div>{" "}
         </Route>{" "}
+        <Route path="/about">
+          <About />
+        </Route>
+        <Route path="/contact">
+          <Contact />
+        </Route>
+        <Route path="/gallery">
+          <Gallery />
+        </Route>
         <Route path="/application">
           <Application />
         </Route>{" "}

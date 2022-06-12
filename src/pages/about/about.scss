@@ -1,111 +1,119 @@
 @import "../../global.scss";
 
 .about {
-  padding: 60px 80px;
+  // height: auto !important;
+  width: 100%;
   display: flex;
-  height: auto !important;
-  @include mobile {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 30px;
-  }
-  @include tab {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 30px;
-  }
+  flex-direction: column;
 
-  .left {
-    flex: 0.5;
+  .body {
+    padding: 60px 80px;
     display: flex;
-    flex-direction: column;
+    margin-top: 120px;
+    background-color: gainsboro;
     @include mobile {
-      flex: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 30px;
     }
     @include tab {
-      flex: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 30px;
     }
-
-    h1 {
-      color: $mainColor;
-      overflow: hidden;
-    }
-    .who {
-      width: 65%;
-      word-spacing: 3px;
+    .left {
+      flex: 0.5;
+      display: flex;
+      flex-direction: column;
       @include mobile {
-        width: 100%;
+        flex: none;
       }
       @include tab {
-        width: 100%;
+        flex: none;
       }
-      h4 {
-        color: $subColor;
-        font-size: 1.2em;
+
+      h1 {
+        color: $mainColor;
         overflow: hidden;
       }
-      p {
-        margin-top: 20px;
-        color: gray;
-        line-height: 2;
+      .who {
+        width: 65%;
+        word-spacing: 3px;
+        @include mobile {
+          width: 100%;
+        }
+        @include tab {
+          width: 100%;
+        }
+        h4 {
+          color: $subColor;
+          font-size: 1.3em;
+          overflow: hidden;
+          font-weight: 600;
+        }
+        p {
+          margin-top: 20px;
+          color: gray;
+          line-height: 2;
+        }
+        img {
+          width: 100%;
+          @include mobile {
+            display: none;
+          }
+          @include tab {
+            display: none;
+          }
+        }
+      }
+    }
+
+    .right {
+      flex: 0.5;
+      @include mobile {
+        flex: none;
       }
       img {
         width: 100%;
-        @include mobile {
-          display: none;
-        }
-        @include tab {
-          display: none;
-        }
+        object-fit: cover;
       }
-    }
-  }
-
-  .right {
-    flex: 0.5;
-    @include mobile {
-      flex: none;
-    }
-    img {
-      width: 100%;
-      object-fit: cover;
-    }
-    .value {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      h2 {
-        font-size: 1.2em;
-        color: $mainColor;
-        font-weight: 600;
-        overflow: hidden;
-      }
-      .cores {
+      .value {
+        margin-top: 10px;
         display: flex;
-        flex-wrap: wrap;
-        @include mobile {
-          flex-direction: column;
-        }
+        flex-direction: column;
+        align-items: center;
 
-        .cont {
-          width: 50%;
-          padding: 0px 5px;
+        h2 {
+          font-size: 1.2em;
+          color: $mainColor;
+          font-weight: 600;
+          overflow: hidden;
+        }
+        .cores {
+          display: flex;
+          flex-wrap: wrap;
           @include mobile {
-            width: 100%;
+            flex-direction: column;
           }
-          h4 {
-            color: $subColor;
-            font-size: 1.1em;
-            overflow: hidden;
-          }
-          p {
-            color: gray;
-            line-height: 2;
-            font-size: 0.9em;
+
+          .cont {
+            width: 50%;
+            padding: 0px 5px;
+            @include mobile {
+              width: 100%;
+            }
+            h4 {
+              color: $subColor;
+              font-size: 1.1em;
+              overflow: hidden;
+            }
+            p {
+              color: gray;
+              line-height: 2;
+              font-size: 0.9em;
+            }
           }
         }
       }

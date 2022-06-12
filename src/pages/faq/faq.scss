@@ -3,45 +3,63 @@
 .faq {
   width: 100%;
   height: auto !important;
+  // background-color: gainsboro;
   padding: 60px 80px;
   display: flex;
   justify-content: center;
 
-  @include mobile{
+  @include mobile {
     padding: 20px 30px;
     flex-direction: column;
   }
-  @include tab{
+  @include tab {
     padding: 20px 30px;
     flex-direction: column;
   }
 
-  .left {
-    flex: 0.5;
-    .popularQ {
-      h3 {
-        overflow: hidden;
-        color: $mainColor;
-        margin-bottom: 30px;
+  .popularQ {
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    @include mobile{
+      width: 100%;
+    }
+    h2 {
+      overflow: hidden;
+      color: $mainColor;
+      margin-bottom: 30px;
+      font-size: 3em;
+      @include mobile{
+        text-align: center;
+        font-size: 2.5em;
       }
-      .content {
-        .wrapper {
-          display: flex;
-          .fa-solid {
-            cursor: pointer;
-            flex: 1;
-          }
-          h3 {
-            flex: 10;
-            font-size: 1.2em;
-            color: $mainColor;
-            overflow: hidden;
-            cursor: pointer;
-          }
+    }
+    h3 {
+      overflow: hidden;
+      color: $mainColor;
+      margin-bottom: 30px;
+      font-size: 3em;
+
+    }
+    .content {
+      .wrapper {
+        display: flex;
+        .fa-solid {
+          cursor: pointer;
+          flex: 1;
         }
-        p {
-          color: gray;
+        h3 {
+          flex: 10;
+          font-size: 1.2em;
+          color: $mainColor;
+          overflow: hidden;
+          cursor: pointer;
         }
+      }
+      p {
+        color: gray;
       }
     }
   }
@@ -61,23 +79,23 @@
       display: flex;
       width: 100%;
     }
-    h3{
+    h3 {
       overflow: hidden;
       margin-top: 40px;
       text-align: center;
       color: $mainColor;
       font-size: 1.5em;
-      @include mobile{
+      @include mobile {
         font-size: 1.3em;
         margin-bottom: 20px;
       }
     }
-    .video{
+    .video {
       width: 100%;
       height: 300px;
       overflow: hidden;
 
-      video{
+      video {
         height: 100%;
         width: 100%;
         object-fit: cover;

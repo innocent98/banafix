@@ -82,8 +82,12 @@ const Settings = () => {
       <div className="right">
         <div className="top">
           <div className="admin">
-            <div className="txt">Admin</div>
-            <img src="/assets/img/banafix.jpg" alt="" />
+            <div className="txt">
+              <a href="/dashboard">Admin</a>
+            </div>
+            <a href="/dashboard">
+              <img src="/assets/img/banafix.jpg" alt="" />
+            </a>
           </div>
           <div className="notification">
             <NotificationsOutlined />

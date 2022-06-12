@@ -159,7 +159,7 @@ export default function PostEvent() {
             <label htmlFor="desc" className="form-label">
               Event Description
             </label>
-            <input
+            <textarea
               type="text"
               required
               name="desc"

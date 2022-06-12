@@ -32,8 +32,8 @@ const Services = () => {
         <div className="otherServices">
           <h2>OTHER SERVICES INCLUDE</h2>
           <p>
-            *Musical instruments sales and merchandise *School Consultations:
-            For music teaching, trainings and events. *Event management *Artist
+            *Musical instruments sales and merchandise</p> <p>*School Consultations:
+            For music teaching, trainings and events.</p> <p>*Event management *Artist
             Management *Music production.
           </p>
         </div>

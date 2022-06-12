@@ -54,6 +54,10 @@
 
         .txt {
           font-weight: 700;
+          a{
+            text-decoration: none;
+            color: $mainColor;
+          }
         }
         img {
           height: 30px;

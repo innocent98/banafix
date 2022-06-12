@@ -27,7 +27,7 @@ const Testimony = () => {
   return (
     <div className="testimony">
       <div className="testimonyCont">
-        <h4>Listen To What Our Parents And Students Says</h4>
+        <h4>Read What Our Parents And Students Say About Us</h4>
         <div
           className="slider"
           style={{

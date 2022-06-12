@@ -1,11 +1,11 @@
-import "./sidebar.scss";
+import "./otherSidebar.scss";
 
-export default function Sidebar({ menuOpen, setMenuOpen }) {
+export default function OtherSidebar({ menuOpen, setMenuOpen }) {
   return (
     <div className={"side " + (menuOpen && "active")}>
       <ul>
         <li>
-          <a href="#intro" onClick={() => setMenuOpen(!menuOpen)}>
+          <a href="/" onClick={() => setMenuOpen(!menuOpen)}>
             Home
           </a>
         </li>
@@ -15,12 +15,12 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
           </a>
         </li>
         <li>
-          <a href="#services" onClick={() => setMenuOpen(!menuOpen)}>
+          <a href="/" onClick={() => setMenuOpen(!menuOpen)}>
             Services
           </a>
         </li>
         <li>
-          <a href="#faq" onClick={() => setMenuOpen(!menuOpen)}>
+          <a href="/ " onClick={() => setMenuOpen(!menuOpen)}>
             Faqs
           </a>
         </li>
