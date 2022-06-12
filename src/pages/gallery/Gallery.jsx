@@ -76,7 +76,6 @@ const Gallery = () => {
             <video
               src={p.picture ? p.picture : "assets/img/presentation.mp4"}
               controls
-              autoplay
               loop
               muted
             ></video>
@@ -87,10 +86,10 @@ const Gallery = () => {
       <h3>Album</h3>
       <div className="galleryList">
         <div className="gallery">
-          {items.map((item) => (
+          {img.map((item) => (
             <img
-              src={`${item.img}?w=164&h=164&fit=crop&auto=format`}
-              srcSet={`${item.img}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
+              src={`${item.picture}?w=164&h=164&fit=crop&auto=format`}
+              srcSet={`${item.picture}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
               alt={item.title}
               className="images"
               key={item._id}
