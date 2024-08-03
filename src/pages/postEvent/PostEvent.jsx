@@ -72,7 +72,7 @@ export default function PostEvent() {
         alert("You are not authenticated");
       } else {
         alert("Connection Error!");
-        console.log(res.status);
+        // console.log(res.status);
       }
     }
   };

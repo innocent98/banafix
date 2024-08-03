@@ -75,7 +75,9 @@ const Data = () => {
   };
   useEffect(() => {
     const fetchStudents = async () => {
-      const res = await axiosInstance.get(`/student/students/filter/?students=${query}`);
+      const res = await axiosInstance.get(
+        `/student/students/filter/?students=${query}`
+      );
       setStudents(res.data);
     };
     fetchStudents();
