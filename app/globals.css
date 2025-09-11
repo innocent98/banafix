@@ -1,26 +1,168 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0.15 258.338); /* Blue-700 #1247A8 */
+  --primary-foreground: oklch(1 0 0); /* White text on blue */
+  --secondary: oklch(0.922 0 0); /* Light grey for secondary elements */
+  --secondary-foreground: oklch(0.205 0.15 258.338);
+  --muted: oklch(0.97 0 0); /* Off-white muted */
+  --muted-foreground: oklch(0.556 0 0); /* Grey-600 for secondary text */
+  --accent: oklch(0.75 0.15 85.87); /* Gold-500 #D4AF37 */
+  --accent-foreground: oklch(0.145 0 0); /* Dark text on gold */
+  --destructive: oklch(0.577 0.245 27.325); /* Red-600 */
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.922 0 0); /* Grey-200 for borders */
+  --input: oklch(1 0 0); /* White input backgrounds */
+  --ring: oklch(0.708 0.15 258.338); /* Blue ring for focus */
+
+  /* Added Banafix-specific color tokens */
+  --blue-900: oklch(0.18 0.15 258.338); /* #0C2A5E - nav/footer BG */
+  --blue-700: oklch(0.35 0.15 258.338); /* #1247A8 - primary buttons */
+  --blue-600: oklch(0.45 0.15 258.338); /* #1B5FCC - links */
+  --blue-100: oklch(0.95 0.05 258.338); /* #E8F1FF - info backgrounds */
+  --gold-700: oklch(0.55 0.15 85.87); /* #A67C00 - emphasis */
+  --gold-500: oklch(0.75 0.15 85.87); /* #D4AF37 - accent */
+  --gold-100: oklch(0.97 0.05 85.87); /* #FFF5D8 - accent background */
+  --orange-600: oklch(0.65 0.2 45); /* #FF6A00 - CTA alt */
+  --grey-900: oklch(0.145 0 0); /* #0F172A - body text */
+  --grey-600: oklch(0.456 0 0); /* #475569 - secondary text */
+  --grey-200: oklch(0.922 0 0); /* #E2E8F0 - dividers */
+
+  --chart-1: oklch(0.35 0.15 258.338); /* Blue primary */
+  --chart-2: oklch(0.75 0.15 85.87); /* Gold */
+  --chart-3: oklch(0.65 0.2 45); /* Orange */
+  --chart-4: oklch(0.577 0.245 27.325); /* Red */
+  --chart-5: oklch(0.6 0.118 184.704); /* Teal */
+  --radius: 0.5rem; /* 8px radius as per spec */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.35 0.15 258.338);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.75 0.15 85.87);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0.15 258.338);
+}
+
+.dark {
+  --background: oklch(0.18 0.15 258.338); /* Blue-900 for dark bg */
+  --foreground: oklch(0.985 0 0); /* White text */
+  --card: oklch(0.25 0.1 258.338); /* Darker blue for cards */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.25 0.1 258.338);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.75 0.15 85.87); /* Gold primary in dark mode */
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.35 0.1 258.338);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.35 0.1 258.338);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.75 0.15 85.87);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.35 0.1 258.338);
+  --input: oklch(0.35 0.1 258.338);
+  --ring: oklch(0.75 0.15 85.87);
+  --chart-1: oklch(0.75 0.15 85.87);
+  --chart-2: oklch(0.45 0.15 258.338);
+  --chart-3: oklch(0.65 0.2 45);
+  --chart-4: oklch(0.577 0.245 27.325);
+  --chart-5: oklch(0.6 0.118 184.704);
+  --sidebar: oklch(0.25 0.1 258.338);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.75 0.15 85.87);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.35 0.1 258.338);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.35 0.1 258.338);
+  --sidebar-ring: oklch(0.75 0.15 85.87);
 }
 
 @theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sora);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Added Banafix brand color utilities */
+  --color-blue-900: var(--blue-900);
+  --color-blue-700: var(--blue-700);
+  --color-blue-600: var(--blue-600);
+  --color-blue-100: var(--blue-100);
+  --color-gold-700: var(--gold-700);
+  --color-gold-500: var(--gold-500);
+  --color-gold-100: var(--gold-100);
+  --color-orange-600: var(--orange-600);
+  --color-grey-900: var(--grey-900);
+  --color-grey-600: var(--grey-600);
+  --color-grey-200: var(--grey-200);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
+  body {
+    @apply bg-background text-foreground;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Added typography classes for Banafix design system */
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
+  }
 }
