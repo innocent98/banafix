@@ -475,7 +475,6 @@ export default function AdminPage() {
                             <Switch
                               checked={session.status === "Open"}
                               onCheckedChange={() => toggleSessionStatus(session.id)}
-                              size="sm"
                             />
                           </div>
                         </TableCell>
