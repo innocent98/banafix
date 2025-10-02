@@ -1,23 +1,17 @@
-import type React from "react"
 import type { Metadata } from "next"
-import { Suspense } from "react"
-import { Inter } from "next/font/google"
-import { Sora } from "next/font/google"
-import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
+import { Inter, Sora } from "next/font/google"
 import "./globals.css"
 
 const inter = Inter({
   subsets: ["latin"],
-  display: "swap",
   variable: "--font-inter",
+  display: "swap",
 })
 
 const sora = Sora({
   subsets: ["latin"],
-  display: "swap",
   variable: "--font-sora",
-  weight: ["400", "600", "700"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -28,15 +22,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en" className={`${inter.variable} ${sora.variable}`}>
-      <body className={`font-sans ${inter.variable} ${sora.variable} ${GeistMono.variable} antialiased`}>
-        <Suspense fallback={null}>{children}</Suspense>
-        <Analytics />
-      </body>
+      <body className="font-sans">{children}</body>
     </html>
   )
 }

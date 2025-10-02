@@ -27,13 +27,13 @@ export function Footer() {
 
   return (
     <footer className="bg-slate-900 text-white">
-      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-16 lg:py-20">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16 mb-12">
           {/* Brand Section */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-6">
-              <span className="font-heading text-2xl font-bold">Banafix</span>
+              <span className="font-heading text-2xl font-bold">Marviotone</span>
             </Link>
             <p className="text-slate-400 mb-6 leading-relaxed">
               Empowering musicians through quality education and personalized instruction since 2015.
@@ -100,8 +100,8 @@ export function Footer() {
               </li>
               <li className="flex items-start">
                 <Mail className="h-5 w-5 text-amber-400 mr-3 flex-shrink-0 mt-0.5" />
-                <a href="mailto:info@Banafix.com" className="text-slate-400 hover:text-amber-400 transition-colors">
-                  info@Banafix.com
+                <a href="mailto:info@marviotone.com" className="text-slate-400 hover:text-amber-400 transition-colors">
+                  info@marviotone.com
                 </a>
               </li>
               <li className="flex items-start">
@@ -118,7 +118,7 @@ export function Footer() {
         <div className="pt-8 border-t border-slate-800">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-slate-400 text-sm">
-              © {new Date().getFullYear()} Banafix. All rights reserved.
+              © {new Date().getFullYear()} Marviotone. All rights reserved.
             </p>
             <div className="flex space-x-6">
               <Link href="/privacy" className="text-slate-400 hover:text-amber-400 text-sm transition-colors">

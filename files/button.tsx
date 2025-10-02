@@ -40,7 +40,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, rounded, ...props }, ref) => {
     return (
       <button
-        className={`${buttonVariants({ variant, size, rounded })} ${className || ""} cursor-pointer`}
+        className={`${buttonVariants({ variant, size, rounded })} ${className || ""}`}
         ref={ref}
         {...props}
       />

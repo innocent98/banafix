@@ -3,13 +3,10 @@
 import { useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { Button } from "@/components/ui/button"
+import { InstructorFilters } from "@/components/instructors/instructor-filters"
+import { InstructorCard } from "@/components/instructors/instructor-card"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Star, Award, Users, MapPin, Calendar } from "lucide-react"
+import { Users, Sparkles, TrendingUp, Target } from "lucide-react"
 
 const instructorData = [
   {
@@ -146,210 +143,127 @@ export default function InstructorsPage() {
     })
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
       <Navigation />
 
-      {/* Header */}
-      <section className="bg-gradient-to-r from-blue-900 to-blue-700 text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-heading font-bold mb-4">Meet Our Expert Instructors</h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-              Learn from certified professionals with years of experience and proven track records
+      {/* Enhanced Header */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
+
+        {/* Decorative Elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-white/10 to-transparent rounded-full blur-3xl transform translate-x-48 -translate-y-48"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-400/20 to-transparent rounded-full blur-2xl transform -translate-x-32 translate-y-32"></div>
+
+        <div className="relative container mx-auto px-4 py-16 lg:py-20">
+          <div className="text-center text-white">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="p-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+                <Sparkles className="h-8 w-8 text-amber-400" />
+              </div>
+              <h1 className="text-4xl lg:text-6xl font-heading font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                Meet Our Expert Instructors
+              </h1>
+            </div>
+            <p className="text-xl lg:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed mb-8">
+              Learn from certified professionals with years of experience and proven track records in music education
             </p>
+
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-blue-200">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">All instructors verified</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">Average 4.8★ rating</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">3,200+ students taught</span>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Bottom Wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-full h-8 lg:h-12">
+            <path d="M0,60 C300,120 500,0 800,60 C1000,120 1200,0 1200,60 L1200,120 L0,120 Z" className="fill-slate-50"></path>
+          </svg>
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <section className="py-8 bg-muted">
+      {/* Enhanced Stats */}
+      <section className="py-12 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-2xl font-bold text-primary">50+</div>
-              <div className="text-sm text-muted-foreground">Expert Instructors</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-primary">3,200+</div>
-              <div className="text-sm text-muted-foreground">Students Taught</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-primary">4.8</div>
-              <div className="text-sm text-muted-foreground">Average Rating</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-primary">20+</div>
-              <div className="text-sm text-muted-foreground">Instruments Covered</div>
-            </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-blue-50 to-blue-100 p-6 text-center group hover:scale-105 transition-transform duration-300">
+              <div className="p-3 bg-blue-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-blue-600 transition-colors">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-3xl font-bold text-blue-900 mb-1">50+</div>
+              <div className="text-sm font-medium text-blue-700">Expert Instructors</div>
+            </Card>
+
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-purple-50 to-purple-100 p-6 text-center group hover:scale-105 transition-transform duration-300">
+              <div className="p-3 bg-purple-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-purple-600 transition-colors">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-3xl font-bold text-purple-900 mb-1">3,200+</div>
+              <div className="text-sm font-medium text-purple-700">Students Taught</div>
+            </Card>
+
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-amber-50 to-amber-100 p-6 text-center group hover:scale-105 transition-transform duration-300">
+              <div className="p-3 bg-amber-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-amber-600 transition-colors">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-3xl font-bold text-amber-900 mb-1">4.8★</div>
+              <div className="text-sm font-medium text-amber-700">Average Rating</div>
+            </Card>
+
+            <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-green-50 to-green-100 p-6 text-center group hover:scale-105 transition-transform duration-300">
+              <div className="p-3 bg-green-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-green-600 transition-colors">
+                <Target className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-3xl font-bold text-green-900 mb-1">20+</div>
+              <div className="text-sm font-medium text-green-700">Instruments Covered</div>
+            </Card>
           </div>
         </div>
       </section>
 
       {/* Filters */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search instructors or instruments..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Specialty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Specialties</SelectItem>
-                  <SelectItem value="Guitar">Guitar</SelectItem>
-                  <SelectItem value="Piano">Piano</SelectItem>
-                  <SelectItem value="Drums">Drums</SelectItem>
-                  <SelectItem value="Vocals">Vocals</SelectItem>
-                  <SelectItem value="Violin">Violin</SelectItem>
-                  <SelectItem value="Music Production">Production</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  <SelectItem value="Lagos">Lagos</SelectItem>
-                  <SelectItem value="Abuja">Abuja</SelectItem>
-                  <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                  <SelectItem value="Enugu">Enugu</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rating">Rating</SelectItem>
-                  <SelectItem value="experience">Experience</SelectItem>
-                  <SelectItem value="students">Students</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {filteredInstructors.length} of {instructorData.length} instructors
-          </div>
-        </div>
-      </section>
+      <InstructorFilters
+        searchTerm={searchTerm}
+        selectedSpecialty={selectedSpecialty}
+        selectedLocation={selectedLocation}
+        sortBy={sortBy}
+        onSearchChange={setSearchTerm}
+        onSpecialtyChange={setSelectedSpecialty}
+        onLocationChange={setSelectedLocation}
+        onSortChange={setSortBy}
+        resultsCount={filteredInstructors.length}
+        totalCount={instructorData.length}
+      />
 
       {/* Instructors Grid */}
-      <section className="pb-12">
+      <section className="pb-16">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredInstructors.map((instructor) => (
-              <Card key={instructor.id} className="group hover:shadow-lg transition-all duration-300 cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative">
-                      <Avatar className="w-16 h-16">
-                        <AvatarImage src={instructor.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>
-                          {instructor.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      {instructor.verified && (
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center">
-                          <Award className="h-3 w-3 text-accent-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
-                        {instructor.name}
-                      </h3>
-                      <div className="flex items-center mb-2">
-                        <Star className="h-4 w-4 text-accent fill-current mr-1" />
-                        <span className="text-sm font-medium">{instructor.rating}</span>
-                        <span className="text-sm text-muted-foreground ml-1">({instructor.students} students)</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {instructor.specialties.slice(0, 2).map((specialty) => (
-                          <Badge key={specialty} variant="outline" className="text-xs">
-                            {specialty}
-                          </Badge>
-                        ))}
-                        {instructor.specialties.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{instructor.specialties.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-muted-foreground text-sm mb-4 line-clamp-2">{instructor.bio}</p>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center text-muted-foreground">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Experience
-                      </div>
-                      <span className="font-medium">{instructor.experience}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        Location
-                      </div>
-                      <span className="font-medium">{instructor.location}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center text-muted-foreground">
-                        <Users className="h-4 w-4 mr-2" />
-                        Courses
-                      </div>
-                      <span className="font-medium">{instructor.courses} active</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">From</div>
-                      <div className="font-bold text-primary">₦{instructor.hourlyRate.toLocaleString()}/hr</div>
-                    </div>
-                    <Badge variant="secondary" className="bg-accent/10 text-accent">
-                      {instructor.availability}
-                    </Badge>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button className="flex-1" asChild>
-                      <a href={`/instructors/${instructor.id}`}>View Profile</a>
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Contact
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <InstructorCard key={instructor.id} instructor={instructor} />
             ))}
           </div>
 
           {filteredInstructors.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No instructors found</h3>
-              <p className="text-muted-foreground">
-                Try adjusting your filters or search terms to find more instructors.
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Users className="h-12 w-12 text-slate-400" />
+              </div>
+              <h3 className="text-2xl font-heading font-bold text-slate-900 mb-3">No instructors found</h3>
+              <p className="text-slate-600 max-w-md mx-auto leading-relaxed">
+                Try adjusting your filters or search terms to discover more amazing instructors.
               </p>
             </div>
           )}
