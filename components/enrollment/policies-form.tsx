@@ -119,7 +119,7 @@ export function PoliciesForm({ formData, onInputChange }: PoliciesFormProps) {
                     <li>Excessive absences may result in course termination</li>
                   </ul>
                   <p className="text-sm">
-                    <strong>Punctuality:</strong> Sessions start promptly. Late arrivals (>15 minutes)
+                    <strong>Punctuality:</strong> Sessions start promptly. Late arrivals ({">"}15 minutes)
                     may be considered absent.
                   </p>
                 </div>

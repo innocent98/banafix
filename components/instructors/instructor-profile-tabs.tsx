@@ -204,7 +204,6 @@ export function InstructorProfileTabs({ instructor, reviews }: InstructorProfile
 
                   <Button
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl px-6"
-                    asChild
                   >
                     <a href={`/courses/${course.id}`}>View Course</a>
                   </Button>

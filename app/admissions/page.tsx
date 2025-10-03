@@ -25,7 +25,7 @@ export default function AdmissionsPage() {
                 programs. Our admissions process is designed to match you with the perfect learning path.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                <Button size="lg" className="bg-primary hover:bg-primary/90">
                   <Link href="/enroll">Apply Now</Link>
                 </Button>
                 <Button
@@ -312,7 +312,7 @@ export default function AdmissionsPage() {
             application away.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90" asChild>
+            <Button size="lg" variant="primary" className="bg-white text-primary hover:bg-white/90">
               <Link href="/enroll">
                 Apply Now
                 <ArrowRight className="w-4 h-4 ml-2" />

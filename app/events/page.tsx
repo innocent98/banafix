@@ -239,7 +239,7 @@ export default function EventsPage() {
 
                     <div className="flex gap-2">
                       <Button className="flex-1">Register Now</Button>
-                      <Button variant="outline" size="icon">
+                      <Button variant="outline">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
