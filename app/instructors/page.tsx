@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { InstructorFilters } from "@/components/instructors/instructor-filters"
@@ -8,118 +8,65 @@ import { InstructorCard } from "@/components/instructors/instructor-card"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Sparkles, TrendingUp, Target } from "lucide-react"
 
-const instructorData = [
-  {
-    id: 1,
-    name: "John Adebayo",
-    avatar: "https://images.unsplash.com/photo-1624955032270-5fd19de8d36b?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    specialties: ["Guitar", "Bass Guitar"],
-    experience: "15 years",
-    rating: 4.9,
-    students: 156,
-    location: "Lagos",
-    bio: "Professional guitarist with 15+ years of teaching experience. Specializes in acoustic and electric guitar across multiple genres.",
-    credentials: ["Certified Music Educator", "Berklee Graduate", "500+ Students Taught"],
-    courses: 8,
-    languages: ["English", "Yoruba"],
-    availability: "Mon-Fri",
-    hourlyRate: 5000,
-    verified: true,
-  },
-  {
-    id: 2,
-    name: "Sarah Okafor",
-    avatar: "https://images.unsplash.com/photo-1624955032270-5fd19de8d36b?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    specialties: ["Piano", "Keyboard"],
-    experience: "12 years",
-    rating: 4.8,
-    students: 89,
-    location: "Abuja",
-    bio: "Classical pianist turned contemporary music educator. Expert in both traditional and modern piano techniques.",
-    credentials: ["Royal Academy Certified", "Jazz Performance Diploma", "300+ Students"],
-    courses: 6,
-    languages: ["English", "Hausa"],
-    availability: "Tue-Sat",
-    hourlyRate: 6000,
-    verified: true,
-  },
-  {
-    id: 3,
-    name: "Michael Eze",
-    avatar: "https://images.unsplash.com/photo-1624955032270-5fd19de8d36b?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    specialties: ["Drums", "Percussion"],
-    experience: "10 years",
-    rating: 4.7,
-    students: 67,
-    location: "Lagos",
-    bio: "Dynamic drummer with expertise in Afrobeat, Jazz, and contemporary styles. Known for energetic teaching methods.",
-    credentials: ["Percussion Institute Graduate", "Studio Session Pro", "200+ Students"],
-    courses: 4,
-    languages: ["English", "Igbo"],
-    availability: "Mon-Sat",
-    hourlyRate: 4500,
-    verified: true,
-  },
-  {
-    id: 4,
-    name: "Grace Nwosu",
-    avatar: "/instructor-grace.jpg",
-    specialties: ["Vocals", "Voice Training"],
-    experience: "18 years",
-    rating: 5.0,
-    students: 234,
-    location: "Port Harcourt",
-    bio: "Renowned vocal coach with extensive performance and teaching background. Specializes in contemporary and gospel vocals.",
-    credentials: ["Voice Pedagogy Certified", "Professional Singer", "Gospel Music Award Winner"],
-    courses: 10,
-    languages: ["English", "Igbo"],
-    availability: "Mon-Fri",
-    hourlyRate: 7000,
-    verified: true,
-  },
-  {
-    id: 5,
-    name: "David Okonkwo",
-    avatar: "/instructor-david.jpg",
-    specialties: ["Violin", "Viola"],
-    experience: "20 years",
-    rating: 4.9,
-    students: 45,
-    location: "Enugu",
-    bio: "Classical violinist with international performance experience. Brings European conservatory training to Nigerian students.",
-    credentials: ["Vienna Conservatory Graduate", "Orchestra Principal", "Chamber Music Specialist"],
-    courses: 5,
-    languages: ["English", "German", "Igbo"],
-    availability: "Wed-Sun",
-    hourlyRate: 8000,
-    verified: true,
-  },
-  {
-    id: 6,
-    name: "Alex Taiwo",
-    avatar: "https://images.unsplash.com/photo-1624955032270-5fd19de8d36b?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    specialties: ["Music Production", "Audio Engineering"],
-    experience: "8 years",
-    rating: 4.6,
-    students: 178,
-    location: "Lagos",
-    bio: "Award-winning producer and audio engineer. Teaches modern production techniques and industry-standard workflows.",
-    credentials: ["Audio Engineering Certified", "Grammy-Nominated Producer", "Industry Professional"],
-    courses: 7,
-    languages: ["English", "Yoruba"],
-    availability: "Mon-Thu",
-    hourlyRate: 10000,
-    verified: true,
-  },
-]
+interface Instructor {
+  id: string
+  name: string
+  avatar: string | null
+  bio: string | null
+  credentials: string[]
+  rating: number
+  experience: string
+  availability: string | null
+  verified: boolean
+  course: {
+    id: string
+    title: string
+    instrument: string
+    level: string
+    duration: string
+    location: string
+    image: string | null
+  } | null
+  specialties: string[]
+  students: number
+  location: string
+  courses: number
+  languages: string[]
+  hourlyRate: number
+}
 
 export default function InstructorsPage() {
+  const [instructors, setInstructors] = useState<Instructor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSpecialty, setSelectedSpecialty] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
   const [sortBy, setSortBy] = useState("rating")
 
-  const filteredInstructors = instructorData
+  useEffect(() => {
+    loadInstructors()
+  }, [])
+
+  const loadInstructors = async () => {
+    try {
+      const response = await fetch('/api/instructors')
+
+      if (response.ok) {
+        const data = await response.json()
+        setInstructors(data.instructors)
+      } else {
+        setError('Failed to load instructors')
+      }
+    } catch (err) {
+      setError('Failed to load instructors')
+      console.error('Error loading instructors:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredInstructors = instructors
     .filter((instructor) => {
       const matchesSearch =
         instructor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -141,6 +88,52 @@ export default function InstructorsPage() {
           return 0
       }
     })
+
+  // Calculate dynamic stats
+  const totalInstructors = instructors.length
+  const totalStudents = instructors.reduce((sum, instructor) => sum + instructor.students, 0)
+  const averageRating = instructors.length > 0 ?
+    (instructors.reduce((sum, instructor) => sum + instructor.rating, 0) / instructors.length).toFixed(1) :
+    "0.0"
+  const uniqueInstruments = new Set(instructors.flatMap(instructor => instructor.specialties)).size
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+              <p className="mt-4 text-slate-600">Loading instructors...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900 mb-4">
+              Unable to load instructors
+            </h1>
+            <p className="text-slate-600 mb-6">{error}</p>
+            <button
+              onClick={loadInstructors}
+              className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
@@ -202,7 +195,7 @@ export default function InstructorsPage() {
               <div className="p-3 bg-blue-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-blue-600 transition-colors">
                 <Users className="h-6 w-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-blue-900 mb-1">50+</div>
+              <div className="text-3xl font-bold text-blue-900 mb-1">{totalInstructors}</div>
               <div className="text-sm font-medium text-blue-700">Expert Instructors</div>
             </Card>
 
@@ -210,7 +203,7 @@ export default function InstructorsPage() {
               <div className="p-3 bg-purple-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-purple-600 transition-colors">
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-purple-900 mb-1">3,200+</div>
+              <div className="text-3xl font-bold text-purple-900 mb-1">{totalStudents}</div>
               <div className="text-sm font-medium text-purple-700">Students Taught</div>
             </Card>
 
@@ -218,7 +211,7 @@ export default function InstructorsPage() {
               <div className="p-3 bg-amber-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-amber-600 transition-colors">
                 <Sparkles className="h-6 w-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-amber-900 mb-1">4.8★</div>
+              <div className="text-3xl font-bold text-amber-900 mb-1">{averageRating}★</div>
               <div className="text-sm font-medium text-amber-700">Average Rating</div>
             </Card>
 
@@ -226,7 +219,7 @@ export default function InstructorsPage() {
               <div className="p-3 bg-green-500 rounded-2xl w-fit mx-auto mb-4 group-hover:bg-green-600 transition-colors">
                 <Target className="h-6 w-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-green-900 mb-1">20+</div>
+              <div className="text-3xl font-bold text-green-900 mb-1">{uniqueInstruments}</div>
               <div className="text-sm font-medium text-green-700">Instruments Covered</div>
             </Card>
           </div>
@@ -244,7 +237,7 @@ export default function InstructorsPage() {
         onLocationChange={setSelectedLocation}
         onSortChange={setSortBy}
         resultsCount={filteredInstructors.length}
-        totalCount={instructorData.length}
+        totalCount={instructors.length}
       />
 
       {/* Instructors Grid */}

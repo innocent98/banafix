@@ -2,6 +2,7 @@
 
 import React from "react"
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -32,38 +33,49 @@ const steps = [
   { id: 5, title: "Done", icon: CheckCircle },
 ]
 
-const mockCourses = [
-  {
-    id: 1,
-    title: "Guitar Fundamentals",
-    instructor: "John Adebayo",
-    level: "Beginner",
-    duration: "12 weeks",
-    price: 25000,
-    type: "One-on-One",
-    schedule: "Flexible",
-    seatsLeft: 8,
-  },
-  {
-    id: 2,
-    title: "Piano Mastery Program",
-    instructor: "Sarah Okafor",
-    level: "Intermediate",
-    duration: "16 weeks",
-    price: 30000,
-    type: "Online",
-    schedule: "Tue & Thu 6PM",
-    seatsLeft: 3,
-  },
-]
+interface Course {
+  id: string
+  title: string
+  instrument: string
+  level: string
+  duration: string
+  location: string
+  session: string
+  sessionStartDate: string
+  modes: string[]
+  pricing: Record<string, number>
+  price: number
+  totalSeats: number
+  seatsLeft: number
+  outcomes: string[]
+  equipment: string[]
+  image: string | null
+  instructor: {
+    name: string
+    rating: number
+    experience: string
+    verified: boolean
+  } | null
+  students: number
+  rating: number
+  createdAt: string
+  updatedAt: string
+}
 
 export default function EnrollmentPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const courseId = searchParams.get('courseId')
+
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedCourse, setSelectedCourse] = useState<number | null>(1)
+  const [course, setCourse] = useState<Course | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [seatHoldTimer, setSeatHoldTimer] = useState(600) // 10 minutes in seconds
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [paymentError, setPaymentError] = useState("")
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [enrollmentData, setEnrollmentData] = useState<any>(null)
 
   const [formData, setFormData] = useState({
     // Personal Info
@@ -79,6 +91,7 @@ export default function EnrollmentPage() {
     guardianName: "",
     guardianPhone: "",
     guardianEmail: "",
+    selectedMode: "",
     priorLevel: "",
     schedulePreference: "",
     preferredDays: [] as string[],
@@ -135,23 +148,96 @@ export default function EnrollmentPage() {
     handleInputChange("preferredDays", updatedDays)
   }
 
+  // Fetch course data on component mount
+  useEffect(() => {
+    if (!courseId) {
+      setError("No course selected. Please select a course first.")
+      setLoading(false)
+      return
+    }
+
+    fetchCourse()
+  }, [courseId])
+
+  const fetchCourse = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/courses/${courseId}`)
+
+      if (response.ok) {
+        const data = await response.json()
+        setCourse(data.course)
+        setError("")
+      } else {
+        setError("Course not found or not available for enrollment")
+      }
+    } catch (err) {
+      setError("Failed to load course information")
+      console.error("Error fetching course:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handlePayment = async () => {
+    if (!course) return
+
     setIsProcessingPayment(true)
     setPaymentError("")
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const success = Math.random() > 0.1 // 90% success rate for demo
-      if (success) {
-        setCurrentStep(5)
-      } else {
-        setPaymentError("Payment failed. Please check your details and try again.")
+    try {
+      // Create enrollment with payment
+      const enrollmentData = {
+        ...formData,
+        courseId: course.id,
+        selectedMode: formData.selectedMode || course.modes[0], // Use first available mode if not selected
       }
+
+      const response = await fetch('/api/enrollments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(enrollmentData),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        // Store enrollment data for success screen
+        setEnrollmentData(result.enrollment)
+
+        // Redirect to Paystack payment page
+        window.location.href = result.payment.authorization_url
+      } else {
+        setPaymentError(result.message || "Failed to process enrollment")
+      }
+    } catch (err) {
+      setPaymentError("Network error. Please try again.")
+      console.error("Enrollment error:", err)
+    } finally {
       setIsProcessingPayment(false)
-    }, 2000)
+    }
   }
 
-  const selectedCourseData = mockCourses.find((course) => course.id === selectedCourse)
+  // Transform course data to match expected format for existing components
+  const selectedCourseData = course ? {
+    id: course.id,
+    title: course.title,
+    instructor: course.instructor?.name || "TBA",
+    level: course.level,
+    duration: course.duration,
+    price: course.price,
+    type: course.modes[0] || "Online", // Use first available mode
+    schedule: course.session || "Flexible",
+    seatsLeft: course.seatsLeft,
+    totalSeats: course.totalSeats,
+    location: course.location,
+    pricing: course.pricing,
+    modes: course.modes,
+    outcomes: course.outcomes,
+    equipment: course.equipment,
+  } : null
 
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -160,6 +246,41 @@ export default function EnrollmentPage() {
   }
 
   const isCourseFullSimulation = selectedCourseData?.seatsLeft === 0
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-4 text-lg text-slate-600">Loading course information...</span>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error || !course) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Course Not Available</h2>
+            <p className="text-slate-600 mb-4">{error || "The selected course could not be found."}</p>
+            <Button onClick={() => router.push('/courses')} className="bg-blue-600 text-white">
+              Browse All Courses
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -170,7 +291,7 @@ export default function EnrollmentPage() {
         <div className="container mx-auto px-4">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold mb-6 tracking-tighter">
-              Enroll in Your <span className="text-amber-400">Course</span>
+              Enroll in <span className="text-amber-400">{course.title}</span>
             </h1>
             <p className="text-xl lg:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
               Complete your enrollment in just a few simple steps and start your musical journey today.

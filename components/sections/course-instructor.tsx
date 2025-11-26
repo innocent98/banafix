@@ -10,17 +10,31 @@ import Link from "next/link"
 interface CourseInstructorProps {
   instructor: {
     name: string
-    avatar: string
-    bio: string
+    avatar: string | null
+    bio: string | null
     credentials: string[]
     rating: number
     experience: string
     verified: boolean
-    availability: string
-  }
+    availability: string | null
+  } | null
 }
 
 export function CourseInstructor({ instructor }: CourseInstructorProps) {
+  if (!instructor) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Award className="h-12 w-12 text-slate-400" />
+        </div>
+        <h3 className="text-2xl font-heading font-bold text-slate-900 mb-4">Instructor Information Coming Soon</h3>
+        <p className="text-slate-600 text-lg leading-relaxed">
+          Instructor details will be available once assigned to this course.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       {/* Main Instructor Card */}
@@ -85,7 +99,7 @@ export function CourseInstructor({ instructor }: CourseInstructorProps) {
                 </div>
               </div>
 
-              <p className="text-slate-600 leading-relaxed mb-6 text-lg">{instructor.bio}</p>
+              <p className="text-slate-600 leading-relaxed mb-6 text-lg">{instructor.bio || "No biography available."}</p>
 
               {/* Availability */}
               <div className="p-4 bg-slate-50 rounded-2xl mb-6">
@@ -93,7 +107,7 @@ export function CourseInstructor({ instructor }: CourseInstructorProps) {
                   <Clock className="h-5 w-5 text-slate-600" />
                   <span className="font-semibold text-slate-900">Availability</span>
                 </div>
-                <p className="text-slate-600 font-medium">{instructor.availability}</p>
+                <p className="text-slate-600 font-medium">{instructor.availability || "Availability to be determined"}</p>
               </div>
 
               {/* Credentials */}

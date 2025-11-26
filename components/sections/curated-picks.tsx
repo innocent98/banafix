@@ -9,7 +9,7 @@ interface CuratedPicksProps {
   curatedPicks: {
     id: number
     title: string
-    courses: number[]
+    courses: string[]
     badge: string
   }[]
   courseData: any[]

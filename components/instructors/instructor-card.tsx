@@ -8,17 +8,17 @@ import { Star, Award, Users, MapPin, Calendar, Clock, MessageCircle } from "luci
 
 interface InstructorCardProps {
   instructor: {
-    id: number
+    id: string | number
     name: string
-    avatar: string
+    avatar: string | null
     specialties: string[]
     experience: string
     rating: number
     students: number
     location: string
-    bio: string
+    bio: string | null
     courses: number
-    availability: string
+    availability: string | null
     hourlyRate: number
     verified: boolean
   }
@@ -87,7 +87,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
         <div className="p-6 pt-4">
           {/* Bio */}
           <p className="text-slate-600 text-sm mb-4 line-clamp-2 leading-relaxed">
-            {instructor.bio}
+            {instructor.bio || "No biography available."}
           </p>
 
           {/* Stats Grid */}
@@ -120,18 +120,18 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
               <Clock className="h-4 w-4 text-slate-400" />
               <div>
                 <div className="text-xs text-slate-500">Available</div>
-                <div className="font-semibold text-slate-700 text-sm">{instructor.availability}</div>
+                <div className="font-semibold text-slate-700 text-sm">{instructor.availability || "TBA"}</div>
               </div>
             </div>
           </div>
 
           {/* Price and Actions */}
           <div className="flex items-center justify-between mb-4">
-            <div className="text-left">
+            {/* <div className="text-left">
               <div className="text-xs text-slate-500">From</div>
               <div className="font-bold text-lg text-blue-600">₦{instructor.hourlyRate.toLocaleString()}</div>
               <div className="text-xs text-slate-500">per hour</div>
-            </div>
+            </div> */}
 
             <Badge
               variant="secondary"
@@ -142,7 +142,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <Button
               className="flex-1 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-700 rounded-xl"
             >
@@ -155,7 +155,7 @@ export function InstructorCard({ instructor }: InstructorCardProps) {
             >
               <MessageCircle className="h-4 w-4" />
             </Button>
-          </div>
+          </div> */}
         </div>
       </CardContent>
     </Card>

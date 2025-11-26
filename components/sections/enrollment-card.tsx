@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Timer, CheckCircle, Clock, Users, Award, BookOpen } from "lucide-react"
+import { CheckCircle, Clock, Users, Award, BookOpen, Calendar } from "lucide-react"
 import Link from "next/link"
 
 interface EnrollmentCardProps {
@@ -17,14 +16,34 @@ interface EnrollmentCardProps {
     prices: { [key: string]: number }
     totalSeats: number
     seatsLeft: number
-    sessions: { date: string; time: string; available: boolean }[]
+    sessionStartDate: string | Date
+    sessions?: { date: string; time: string; available: boolean }[]
   }
 }
 
 export function EnrollmentCard({ courseDetails }: EnrollmentCardProps) {
   const [selectedMode, setSelectedMode] = useState(courseDetails.modes[0])
-  const [selectedSession, setSelectedSession] = useState("")
   const [homeAddress, setHomeAddress] = useState("")
+
+  // Format the session start date
+  const formatSessionDate = (dateInput: string | Date) => {
+    const date = new Date(dateInput)
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  const formatSessionTime = (dateInput: string | Date) => {
+    const date = new Date(dateInput)
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
 
   const seatProgress = ((courseDetails.totalSeats - courseDetails.seatsLeft) / courseDetails.totalSeats) * 100
   const currentPrice = courseDetails.prices[selectedMode]
@@ -77,29 +96,26 @@ export function EnrollmentCard({ courseDetails }: EnrollmentCardProps) {
             </RadioGroup>
           </div>
 
-          {/* Session Selection */}
+          {/* Session Information */}
           <div>
             <Label className="text-base font-semibold text-slate-900 mb-4 block">
-              Select Start Date & Time
+              Course Starts
             </Label>
-            <Select value={selectedSession} onValueChange={setSelectedSession}>
-              <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-2xl">
-                <SelectValue placeholder="Choose your preferred schedule" />
-              </SelectTrigger>
-              <SelectContent>
-                {courseDetails.sessions.map((session, index) => (
-                  <SelectItem
-                    key={index}
-                    value={`${session.date}-${session.time}`}
-                    disabled={!session.available}
-                  >
-                    {session.date} at {session.time}
-                    {!session.available && " (Full)"}
-                    {session.available && " (Available)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-900">
+                    {formatSessionDate(courseDetails.sessionStartDate)}
+                  </div>
+                  <div className="text-sm text-slate-600 font-medium">
+                    at {formatSessionTime(courseDetails.sessionStartDate)}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Home Training Address */}
@@ -150,21 +166,6 @@ export function EnrollmentCard({ courseDetails }: EnrollmentCardProps) {
           </Button> */}
         </div>
 
-        {/* Seat Hold Timer */}
-        {selectedSession && (
-          <div className="mb-8 p-4 bg-amber-50 rounded-2xl border border-amber-200">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="flex items-center text-amber-800 font-medium">
-                <Timer className="h-4 w-4 mr-2" />
-                Seat Hold Timer:
-              </span>
-              <span className="font-mono font-bold text-xl text-amber-600">09:45</span>
-            </div>
-            <p className="text-xs text-amber-700 leading-relaxed">
-              Your selected seat is reserved for 10 minutes. Complete enrollment to secure your spot.
-            </p>
-          </div>
-        )}
 
         {/* Course Features */}
         <div className="space-y-4">

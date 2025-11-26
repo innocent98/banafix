@@ -21,7 +21,7 @@ const sora = Sora({
 })
 
 export const metadata: Metadata = {
-  title: "Marviotone - Master Violin and String Instruments",
+  title: "Banafix - Master Violin and String Instruments",
   description: "Nigeria's premier music academy. Learn violin, guitar, piano, drums, and more with expert tutors. Flexible online and in-person classes available.",
   keywords: ["music academy", "violin lessons", "guitar lessons", "music school nigeria", "online music classes"],
 }

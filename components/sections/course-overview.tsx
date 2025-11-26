@@ -2,14 +2,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { VideoPlayer } from "@/components/ui/video-player"
 import { CheckCircle, Play, Target, BookOpen } from "lucide-react"
 
 interface CourseOverviewProps {
   courseDetails: {
-    image: string
+    image: string | null
     title: string
     outcomes: string[]
     equipment: string[]
+    sampleVideoUrl?: string
+    sampleVideoTitle?: string
+    sampleVideoDuration?: string
   }
 }
 
@@ -97,30 +101,24 @@ export function CourseOverview({ courseDetails }: CourseOverviewProps) {
       </Card>
 
       {/* Sample Lesson Preview */}
-      <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-        <CardHeader>
-          <CardTitle className="text-xl font-heading font-bold text-slate-900">
-            Sample Lesson Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="aspect-video bg-slate-100 rounded-2xl flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Play className="h-8 w-8 text-white ml-1" />
-              </div>
-              <p className="text-slate-600 font-medium mb-4">Preview: Your First Guitar Lesson</p>
-              <Button
-                variant="outline"
-                className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100 rounded-full px-6 py-2 font-semibold"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Watch Preview (3:45)
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {courseDetails.sampleVideoUrl && (
+        <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+          <CardHeader>
+            <CardTitle className="text-xl font-heading font-bold text-slate-900">
+              {courseDetails.sampleVideoTitle || "Sample Lesson Preview"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VideoPlayer
+              videoUrl={courseDetails.sampleVideoUrl}
+              title={courseDetails.sampleVideoTitle}
+              duration={courseDetails.sampleVideoDuration}
+              className="rounded-2xl shadow-lg"
+              showTitle={false} // Don't show title overlay since it's in the card header
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

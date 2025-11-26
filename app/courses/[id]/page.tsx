@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,11 @@ import { CourseInstructor } from "@/components/sections/course-instructor"
 import { EnrollmentCard } from "@/components/sections/enrollment-card"
 import {
   Guitar,
+  Piano,
+  Drum,
+  Mic,
+  AudioLines as Violin,
+  Music,
   Clock,
   Star,
   MapPin,
@@ -21,121 +27,149 @@ import {
   FileText,
 } from "lucide-react"
 
-// Mock course data - in real app this would come from API/database
-const courseDetails = {
-  id: 1,
-  title: "Guitar Fundamentals",
-  instrument: "Guitar",
-  level: "Beginner",
-  modes: ["One-on-One", "Online", "Home Training"],
-  duration: "12 weeks",
-  location: "Lagos",
-  prices: {
-    "One-on-One": 25000,
-    Online: 20000,
-    "Home Training": 30000,
-  },
+// Icon mapping for instruments
+const instrumentIcons = {
+  Guitar: Guitar,
+  Piano: Piano,
+  Drums: Drum,
+  Vocals: Mic,
+  Violin: Violin,
+  Production: Music,
+}
+
+interface CourseDetails {
+  id: string
+  title: string
+  description: string
+  instrument: string
+  level: string
+  duration: string
+  location: string
+  session: string
+  sessionStartDate: string
+  modes: string[]
+  prices: Record<string, number>
+  totalSeats: number
+  seatsLeft: number
+  outcomes: string[]
+  equipment: string[]
+  image: string | null
+  sampleVideoUrl?: string
+  sampleVideoTitle?: string
+  sampleVideoDuration?: string
   instructor: {
-    name: "John Adebayo",
-    avatar: "/instructor-john.jpg",
-    bio: "Professional guitarist with 15+ years of teaching experience. Specializes in acoustic and electric guitar across multiple genres.",
-    credentials: ["Certified Music Educator", "Berklee Graduate", "500+ Students Taught"],
-    rating: 4.9,
-    experience: "15 years",
-    verified: true,
-    availability: "Mon-Fri: 9AM-6PM, Sat: 10AM-4PM",
-  },
-  rating: 4.9,
-  students: 156,
-  totalSeats: 20,
-  seatsLeft: 8,
-  image: "https://images.unsplash.com/photo-1613047747166-a7f33950fd4f?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-  description:
-    "Master the fundamentals of guitar playing with our comprehensive beginner program. This course covers everything from basic chord progressions to your first complete songs.",
-  outcomes: [
-    "Learn 20+ essential chords and transitions",
-    "Master 5+ strumming patterns and techniques",
-    "Play 5 complete songs from start to finish",
-    "Understand basic music theory and chord progressions",
-    "Develop proper posture and finger techniques",
-    "Gain confidence for live performance opportunities",
-  ],
-  equipment: [
-    "Acoustic or electric guitar (rental available)",
-    "Guitar picks (provided in starter kit)",
-    "Digital tuner or tuning app",
-    "Music stand (optional but recommended)",
-  ],
-  curriculum: [
-    {
-      module: 1,
-      title: "Guitar Basics & First Chords",
-      weeks: "Weeks 1-2",
-      outcomes: ["Proper guitar posture and hand positioning", "Learn G, C, D, Em chords", "Basic strumming technique"],
-      tasks: ["Daily 15-minute chord practice", "Memorize chord shapes", "Practice chord transitions"],
-    },
-    {
-      module: 2,
-      title: "Rhythm & Strumming Patterns",
-      weeks: "Weeks 3-4",
-      outcomes: ["Master down-up strumming", "Learn 3 essential patterns", "Play with metronome"],
-      tasks: ["Rhythm exercises", "Pattern practice", "First simple songs"],
-    },
-    {
-      module: 3,
-      title: "Expanding Your Chord Vocabulary",
-      weeks: "Weeks 5-7",
-      outcomes: ["Add Am, F, Dm chords", "Barre chord introduction", "Chord progression patterns"],
-      tasks: ["Chord transition drills", "Song practice", "Finger strength exercises"],
-    },
-    {
-      module: 4,
-      title: "Songs & Performance",
-      weeks: "Weeks 8-10",
-      outcomes: ["Play 3 complete songs", "Basic fingerpicking", "Performance techniques"],
-      tasks: ["Song memorization", "Performance practice", "Recording exercises"],
-    },
-    {
-      module: 5,
-      title: "Advanced Techniques",
-      weeks: "Weeks 11-12",
-      outcomes: ["Advanced strumming", "Basic lead guitar", "Music theory application"],
-      tasks: ["Solo practice", "Improvisation exercises", "Final performance preparation"],
-    },
-  ],
-  sessions: [
+    name: string
+    bio: string | null
+    avatar: string | null
+    credentials: string[]
+    rating: number
+    experience: string
+    availability: string | null
+    verified: boolean
+  } | null
+  curriculum: Array<{
+    module: number
+    title: string
+    weeks: string
+    outcomes: string[]
+    tasks: string[]
+  }>
+  faqs: Array<{
+    question: string
+    answer: string
+  }>
+  students: number
+  rating: number
+  createdAt: string
+  updatedAt: string
+}
+
+export default function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const [courseDetails, setCourseDetails] = useState<CourseDetails | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const loadCourse = async () => {
+      try {
+        const resolvedParams = await params
+        const response = await fetch(`/api/courses/${resolvedParams.id}`)
+
+        if (response.ok) {
+          const data = await response.json()
+          setCourseDetails(data.course)
+        } else if (response.status === 404) {
+          setError('Course not found')
+        } else {
+          setError('Failed to load course')
+        }
+      } catch (err) {
+        setError('Failed to load course')
+        console.error('Error loading course:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadCourse()
+  }, [params])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+              <p className="mt-4 text-slate-600">Loading course...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !courseDetails) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navigation />
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900 mb-4">
+              {error || 'Course not found'}
+            </h1>
+            <p className="text-slate-600 mb-6">
+              The course you're looking for doesn't exist or has been removed.
+            </p>
+            <Button onClick={() => window.history.back()}>
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Get instrument icon
+  const InstrumentIcon = instrumentIcons[courseDetails.instrument as keyof typeof instrumentIcons] || Music
+
+  // Default policies for now since they're not in the API
+  const policies = {
+    refund: "Full refund available within 7 days of course start. 50% refund available within 14 days.",
+    attendance: "Minimum 80% attendance required for certification. Makeup sessions available for missed classes.",
+    materials: "All course materials and recordings remain accessible for 6 months after course completion.",
+  }
+
+  // Mock sessions for now since they're not in the API
+  const sessions = [
     { date: "Jan 15, 2025", time: "10:00 AM", available: true },
     { date: "Jan 15, 2025", time: "2:00 PM", available: true },
     { date: "Jan 22, 2025", time: "10:00 AM", available: false },
     { date: "Jan 22, 2025", time: "2:00 PM", available: true },
     { date: "Feb 5, 2025", time: "10:00 AM", available: true },
     { date: "Feb 5, 2025", time: "4:00 PM", available: true },
-  ],
-  faqs: [
-    {
-      question: "Do I need my own guitar to start?",
-      answer:
-        "While having your own guitar is ideal for practice, we offer rental guitars for the first month to help you get started. This gives you time to find the right instrument for your needs.",
-    },
-    {
-      question: "What if I miss a session?",
-      answer:
-        "We offer makeup sessions for missed classes. You can reschedule up to 24 hours in advance through your student dashboard or by contacting your instructor directly.",
-    },
-    {
-      question: "Can I switch between training modes?",
-      answer:
-        "Yes, you can switch between One-on-One, Online, and Home Training modes during the course, subject to availability and any price differences.",
-    },
-  ],
-  policies: {
-    refund: "Full refund available within 7 days of course start. 50% refund available within 14 days.",
-    attendance: "Minimum 80% attendance required for certification. Makeup sessions available for missed classes.",
-    materials: "All course materials and recordings remain accessible for 6 months after course completion.",
-  },
-}
-
-export default function CourseDetailPage() {
+  ]
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
@@ -147,7 +181,7 @@ export default function CourseDetailPage() {
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center">
-                  <Guitar className="h-6 w-6 text-white" />
+                  <InstrumentIcon className="h-6 w-6 text-white" />
                 </div>
                 <Badge className="bg-white/20 text-white border-white/30 px-3 py-1 rounded-full font-semibold">
                   {courseDetails.level}
@@ -329,7 +363,14 @@ export default function CourseDetailPage() {
 
           {/* Enrollment Sidebar */}
           <div className="lg:col-span-1">
-            <EnrollmentCard courseDetails={courseDetails} />
+            <EnrollmentCard courseDetails={{
+              modes: courseDetails.modes,
+              prices: courseDetails.prices,
+              totalSeats: courseDetails.totalSeats,
+              seatsLeft: courseDetails.seatsLeft,
+              sessionStartDate: courseDetails.sessionStartDate,
+              sessions,
+            }} />
           </div>
         </div>
       </div>

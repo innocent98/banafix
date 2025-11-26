@@ -1,0 +1,275 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Admin Authentication
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // Hashed password
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+// Global Delivery Modes Configuration
+model DeliveryMode {
+  id        String   @id @default(cuid())
+  name      String   @unique // "On-site", "One-on-One", "Online", "Home Training"
+  isActive  Boolean  @default(true)
+  order     Int      @default(0) // For display ordering
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("delivery_modes")
+}
+
+// Core Course Management
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  instrument  String   // Guitar, Piano, Drums, Vocals, Violin, Production
+  level       String   // Beginner, Intermediate, Advanced, All Levels
+  duration    String   // "12 weeks", "8 weeks"
+  location    String   // "Lagos", "Abuja", "Online"
+
+  // Session fields
+  session          String?   // "Fall 2024", "Summer 2025", "Spring 2025"
+  sessionStartDate DateTime? // Actual start date for the session
+
+  // Delivery modes and pricing (JSON objects for flexibility)
+  availableModes   String[]  // Array of delivery mode names that are active for this course
+  pricing          Json      // {"On-site": 25000, "One-on-One": 30000, "Online": 20000, "Home Training": 35000}
+
+  // Capacity management
+  totalSeats  Int      @default(20)
+  seatsLeft   Int      @default(20)
+
+  // Course content
+  outcomes    String[] // Learning outcomes
+  equipment   String[] // Required equipment
+  image       String?  // Course image URL
+
+  // Sample lesson video
+  sampleVideoUrl      String? // URL to sample lesson video (YouTube, Vimeo, direct URL)
+  sampleVideoTitle    String? // Title of sample video
+  sampleVideoDuration String? // Duration display (e.g., "3:45")
+
+  // Course status
+  isActive    Boolean  @default(true)
+  isPublished Boolean  @default(false)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  instructor  Instructor?
+  curriculum  CurriculumModule[]
+  faqs        CourseFAQ[]
+  enrollments Enrollment[]
+
+  @@map("courses")
+}
+
+// Instructor model
+model Instructor {
+  id           String @id @default(cuid())
+  courseId     String @unique
+  name         String
+  bio          String?
+  avatar       String?
+  credentials  String[] // Array of credentials
+  rating       Float    @default(0)
+  experience   String?  // "15 years"
+  availability String?  // "Mon-Fri: 9AM-6PM"
+  verified     Boolean  @default(false)
+
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("instructors")
+}
+
+// Course curriculum modules
+model CurriculumModule {
+  id       String @id @default(cuid())
+  courseId String
+  module   Int    // Module number
+  title    String
+  weeks    String // "Weeks 1-2"
+  outcomes String[] // Learning outcomes for this module
+  tasks    String[] // Tasks/assignments
+  order    Int    @default(0)
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("curriculum_modules")
+}
+
+// Course-specific FAQs
+model CourseFAQ {
+  id       String @id @default(cuid())
+  courseId String
+  question String
+  answer   String
+  order    Int    @default(0)
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_faqs")
+}
+
+// Enhanced enrollment tracking with comprehensive student information
+model Enrollment {
+  id           String   @id @default(cuid())
+  courseId     String
+
+  // Student Information
+  email        String
+  firstName    String
+  lastName     String
+  phone        String?
+  dateOfBirth  DateTime?
+
+  // Guardian Information (for students under 18)
+  guardianName  String?
+  guardianPhone String?
+  guardianEmail String?
+
+  // Address Information (for home training)
+  address      String?
+  landmark     String?
+
+  // Course Preferences
+  selectedMode       String   // Selected delivery mode
+  priorLevel         String?  // complete-beginner, some-experience, intermediate, advanced
+  schedulePreference String?  // weekday-morning, weekday-afternoon, etc.
+  preferredDays      String[] // Array of preferred days for home training
+  musicExperience    String?
+  goals              String?
+  specialRequests    String?
+
+  // Policy Agreements
+  agreeToTerms        Boolean @default(false)
+  agreeToRefundPolicy Boolean @default(false)
+  consentToEmails     Boolean @default(false)
+
+  // Application Fee Payment (₦2,000 non-refundable)
+  applicationPaid     Boolean @default(false)
+  applicationFeeAmount Int    @default(2000)
+
+  // Enrollment Status
+  status       String   @default("pending") // pending, application_paid, enrolled, cancelled
+
+  // Additional Information
+  couponCode   String?
+  waitlistNotes String?
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  course              Course              @relation(fields: [courseId], references: [id])
+  applicationPayments ApplicationPayment[]
+  tuitionPayments     TuitionPayment[]
+
+  @@map("enrollments")
+}
+
+// Application fee payment tracking (₦2,000 non-refundable)
+model ApplicationPayment {
+  id                String   @id @default(cuid())
+  enrollmentId      String
+
+  // Payment Details
+  amount            Int      @default(2000) // ₦2,000 application fee
+  currency          String   @default("NGN")
+  paymentMethod     String   // card, bank-transfer, ussd, paypal
+
+  // Paystack Integration
+  paystackReference String?  @unique
+  paystackStatus    String   @default("pending") // pending, success, failed, abandoned
+  authorizationCode String?
+
+  // Payment Status
+  status            String   @default("pending") // pending, completed, failed, refunded
+  paidAt            DateTime?
+
+  // Receipt Information
+  receiptNumber     String   @unique
+  receiptGenerated  Boolean  @default(false)
+  receiptSent       Boolean  @default(false)
+
+  // Billing Information
+  billingEmail      String
+  billingName       String
+  billingAddress    String?
+  billingCity       String?
+  billingState      String?
+
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  enrollment        Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("application_payments")
+}
+
+// Tuition payment tracking (managed by admin)
+model TuitionPayment {
+  id            String   @id @default(cuid())
+  enrollmentId  String
+
+  // Payment Details
+  amount        Int      // Variable tuition amount
+  currency      String   @default("NGN")
+  paymentMethod String   // cash, bank-transfer, card, etc.
+  description   String?  // Payment description/notes
+
+  // Payment Status
+  status        String   @default("pending") // pending, completed, partial, cancelled
+  paidAt        DateTime?
+
+  // Receipt Information
+  receiptNumber String   @unique
+  receiptGenerated Boolean @default(false)
+  receiptSent   Boolean  @default(false)
+
+  // Admin Information
+  recordedBy    String?  // Admin ID who recorded the payment
+  adminNotes    String?
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("tuition_payments")
+}
+
+// System Settings for global configuration
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique // e.g., "platform_name", "contact_email"
+  value String
+  type  String @default("text") // text, boolean, number, json
+
+  @@map("system_settings")
+}

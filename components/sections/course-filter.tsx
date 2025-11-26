@@ -4,6 +4,12 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 
+interface DeliveryMode {
+  id: string
+  name: string
+  order: number
+}
+
 interface CourseFilterProps {
   searchTerm: string
   setSearchTerm: (value: string) => void
@@ -17,6 +23,7 @@ interface CourseFilterProps {
   setSelectedLocation: (value: string) => void
   filteredCourses: any[]
   totalCourses: number
+  deliveryModes: DeliveryMode[]
 }
 
 export function CourseFilter({
@@ -32,6 +39,7 @@ export function CourseFilter({
   setSelectedLocation,
   filteredCourses,
   totalCourses,
+  deliveryModes,
 }: CourseFilterProps) {
   return (
     <section className="py-8 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
@@ -83,9 +91,11 @@ export function CourseFilter({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Modes</SelectItem>
-                <SelectItem value="One-on-One">One-on-One</SelectItem>
-                <SelectItem value="Online">Online</SelectItem>
-                <SelectItem value="Home Training">Home Training</SelectItem>
+                {deliveryModes.map((mode) => (
+                  <SelectItem key={mode.id} value={mode.name}>
+                    {mode.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
