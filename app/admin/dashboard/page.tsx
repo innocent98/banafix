@@ -66,37 +66,7 @@ export default function AdminDashboardPage() {
     activeInstructors: 0
   })
 
-  const [recentActivity] = useState<RecentActivity[]>([
-    {
-      id: "1",
-      type: "enrollment",
-      title: "New enrollment in Guitar Fundamentals",
-      description: "Adunni Olatunji enrolled",
-      timestamp: "2 minutes ago",
-    },
-    {
-      id: "2",
-      type: "payment",
-      title: "Payment received",
-      description: "Piano Mastery course payment",
-      timestamp: "15 minutes ago",
-      amount: 30000
-    },
-    {
-      id: "3",
-      type: "course_created",
-      title: "New course published",
-      description: "Advanced Violin Techniques",
-      timestamp: "1 hour ago",
-    },
-    {
-      id: "4",
-      type: "instructor_assigned",
-      title: "Instructor assigned",
-      description: "Sarah Johnson assigned to Drums Basics",
-      timestamp: "3 hours ago",
-    }
-  ])
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
   useEffect(() => {
     loadDashboardData()
@@ -110,7 +80,7 @@ export default function AdminDashboardPage() {
         return
       }
 
-      const response = await fetch("/api/admin/courses", {
+      const response = await fetch("/api/admin/dashboard/stats", {
         headers: {
           "Authorization": `Bearer ${token}`,
         },
@@ -118,31 +88,14 @@ export default function AdminDashboardPage() {
 
       if (response.ok) {
         const data = await response.json()
-        calculateStats(data.courses)
+        setStats(data.stats)
+        setRecentActivity(data.recentActivity)
       }
     } catch (error) {
       console.error("Failed to load dashboard data:", error)
     } finally {
       setLoading(false)
     }
-  }
-
-  const calculateStats = (courses: any[]) => {
-    const publishedCount = courses.filter(c => c.isPublished).length
-    const totalEnrollments = courses.reduce((sum, c) => sum + c._count.enrollments, 0)
-    const totalSeats = courses.reduce((sum, c) => sum + c.totalSeats, 0)
-    const usedSeats = courses.reduce((sum, c) => sum + (c.totalSeats - c.seatsLeft), 0)
-
-    setStats({
-      totalCourses: courses.length,
-      publishedCourses: publishedCount,
-      totalEnrollments,
-      totalRevenue: totalEnrollments * 25000,
-      registrationsThisWeek: Math.floor(totalEnrollments * 0.3),
-      seatsFilled: totalSeats > 0 ? Math.round((usedSeats / totalSeats) * 100) : 0,
-      waitlisted: Math.floor(totalEnrollments * 0.15),
-      activeInstructors: Math.floor(courses.length * 0.8)
-    })
   }
 
   const formatCurrency = (amount: number) => {

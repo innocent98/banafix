@@ -30,7 +30,18 @@ import {
   Edit,
   Trash2,
   GripVertical,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  RefreshCcw,
 } from "lucide-react"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 interface Course {
   id: string
@@ -90,7 +101,7 @@ interface DeliveryMode {
 
 const INSTRUMENTS = ['Guitar', 'Piano', 'Drums', 'Vocals', 'Violin', 'Production']
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'All Levels']
-const LOCATIONS = ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Online']
+const LOCATIONS = ['Lagos', 'Abuja', 'Akure', 'Ondo', 'Port Harcourt', 'Ibadan', 'Online', 'Diaspora']
 
 export default function EditCoursePage() {
   const router = useRouter()
@@ -445,11 +456,35 @@ export default function EditCoursePage() {
     )
   }
 
+  const isTabComplete = (tab: string) => {
+    if (!course) return false
+    switch (tab) {
+      case "basic":
+        return !!(course.title && course.instrument && course.level && course.duration)
+      case "delivery":
+        return (course.availableModes?.length || 0) > 0 && course.availableModes.every(mode => (course.pricing?.[mode] || 0) > 0)
+      case "content":
+        return (course.outcomes?.some(o => o.trim()) || false) && (course.equipment?.some(e => e.trim()) || false)
+      case "instructor":
+        return !!course.instructor
+      case "curriculum":
+        return (course.curriculum?.length || 0) > 0
+      case "faqs":
+        return (course.faqs?.length || 0) > 0
+      case "schedule":
+        return !!course.sessionStartDate
+      case "settings":
+        return true // Always complete as it's optional/config
+      default:
+        return false
+    }
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between sticky top-0 z-10 bg-background/95 backdrop-blur py-4 border-b">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -511,37 +546,37 @@ export default function EditCoursePage() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full h-auto grid-cols-4 lg:grid-cols-8">
               <TabsTrigger value="basic" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
+                {isTabComplete("basic") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BookOpen className="h-4 w-4" />}
                 <span className="hidden sm:inline">Basic Info</span>
                 <span className="sm:hidden">Basic</span>
               </TabsTrigger>
               <TabsTrigger value="delivery" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
+                {isTabComplete("delivery") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Settings className="h-4 w-4" />}
                 <span className="hidden sm:inline">Delivery & Pricing</span>
                 <span className="sm:hidden">Delivery</span>
               </TabsTrigger>
               <TabsTrigger value="content" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
+                {isTabComplete("content") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BookOpen className="h-4 w-4" />}
                 <span className="hidden sm:inline">Course Content</span>
                 <span className="sm:hidden">Content</span>
               </TabsTrigger>
               <TabsTrigger value="instructor" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+                {isTabComplete("instructor") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <User className="h-4 w-4" />}
                 <span className="hidden sm:inline">Instructor</span>
                 <span className="sm:hidden">Teacher</span>
               </TabsTrigger>
               <TabsTrigger value="curriculum" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
+                {isTabComplete("curriculum") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Settings className="h-4 w-4" />}
                 <span className="hidden sm:inline">Curriculum</span>
                 <span className="sm:hidden">Modules</span>
               </TabsTrigger>
               <TabsTrigger value="faqs" className="flex items-center gap-2">
-                <HelpCircle className="h-4 w-4" />
+                {isTabComplete("faqs") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <HelpCircle className="h-4 w-4" />}
                 <span className="hidden sm:inline">FAQs</span>
                 <span className="sm:hidden">FAQs</span>
               </TabsTrigger>
               <TabsTrigger value="schedule" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                {isTabComplete("schedule") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Calendar className="h-4 w-4" />}
                 <span className="hidden sm:inline">Schedule</span>
                 <span className="sm:hidden">Time</span>
               </TabsTrigger>
@@ -684,13 +719,31 @@ export default function EditCoursePage() {
                     <Label htmlFor="image" className="text-sm font-semibold">
                       Course Image URL
                     </Label>
-                    <Input
-                      id="image"
-                      value={course.image || ""}
-                      onChange={(e) => setCourse(prev => ({ ...prev!, image: e.target.value }))}
-                      placeholder="https://example.com/course-image.jpg"
-                      className="mt-2"
-                    />
+                    <div className="flex gap-4 items-start mt-2">
+                      <div className="flex-1">
+                        <Input
+                          id="image"
+                          value={course.image || ""}
+                          onChange={(e) => setCourse(prev => ({ ...prev!, image: e.target.value }))}
+                          placeholder="https://example.com/course-image.jpg"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Provide a direct URL to an image (JPG, PNG, WebP)
+                        </p>
+                      </div>
+                      {course.image && (
+                        <div className="w-24 h-24 rounded-lg border overflow-hidden bg-muted flex-shrink-0 relative">
+                          <img 
+                            src={course.image} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://placehold.co/400x400?text=Invalid+Image"
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <Button
@@ -724,8 +777,40 @@ export default function EditCoursePage() {
                     <Label className="text-sm font-semibold mb-4 block">
                       Available Delivery Modes *
                     </Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {deliveryModes.map((mode) => (
+                    {deliveryModes.length === 0 ? (
+                      <div className="text-center py-8 border rounded-lg bg-muted/50">
+                        <p className="text-muted-foreground mb-4">No delivery modes found.</p>
+                        <Button 
+                          onClick={async () => {
+                            try {
+                              setIsSaving(true)
+                              const token = localStorage.getItem("admin_token")
+                              const res = await fetch("/api/admin/delivery-modes/seed", {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${token}` }
+                              })
+                              if (res.ok) {
+                                await loadDeliveryModes()
+                                setSuccess("Delivery modes seeded successfully")
+                              } else {
+                                setError("Failed to seed delivery modes")
+                              }
+                            } catch (err) {
+                              setError("An error occurred")
+                            } finally {
+                              setIsSaving(false)
+                            }
+                          }}
+                          variant="outline"
+                          disabled={isSaving}
+                        >
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                          Seed Default Modes
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {deliveryModes.map((mode) => (
                         <div key={mode.id} className="space-y-3">
                           <div className="flex items-center space-x-3">
                             <Checkbox
@@ -759,6 +844,7 @@ export default function EditCoursePage() {
                         </div>
                       ))}
                     </div>
+                  )}
                   </div>
 
                   <Button
@@ -1018,66 +1104,69 @@ export default function EditCoursePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* Curriculum Tab */}
             <TabsContent value="curriculum" className="space-y-6 mt-6">
               {/* Existing Modules */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Course Modules ({course.curriculum.length})</CardTitle>
+                  <CardTitle>Course Modules ({course.curriculum?.length || 0})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {course.curriculum.length > 0 ? (
-                    <div className="space-y-4">
-                      {course.curriculum
-                        .sort((a, b) => a.order - b.order)
-                        .map((module) => (
-                          <div key={module.id} className="border border-slate-200 rounded-lg p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge variant="outline">Module {module.module}</Badge>
-                                  <h3 className="font-semibold">{module.title}</h3>
-                                </div>
-                                <p className="text-sm text-slate-600 mb-3">{module.weeks}</p>
-                                <div className="space-y-2">
-                                  <div>
-                                    <span className="text-sm font-medium text-slate-700">Outcomes:</span>
-                                    <ul className="text-sm text-slate-600 ml-4">
-                                      {module.outcomes.map((outcome, i) => (
-                                        <li key={i}>• {outcome}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium text-slate-700">Tasks:</span>
-                                    <ul className="text-sm text-slate-600 ml-4">
-                                      {module.tasks.map((task, i) => (
-                                        <li key={i}>• {task}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => deleteCurriculumModule(module.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                  {(!course.curriculum || course.curriculum.length === 0) ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No modules added yet. Use the form below to add your first module.
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <BookOpen className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2">No Modules Yet</h3>
-                      <p className="text-slate-600">Add your first curriculum module below</p>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full space-y-2">
+                      {course.curriculum
+                        .sort((a, b) => a.module - b.module)
+                        .map((module) => (
+                        <AccordionItem key={module.id} value={module.id} className="border rounded-lg px-4">
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center gap-4 text-left">
+                              <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center shrink-0">
+                                {module.module}
+                              </Badge>
+                              <div>
+                                <p className="font-medium">{module.title}</p>
+                                <p className="text-xs text-muted-foreground">{module.weeks}</p>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-4 space-y-4">
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2">Learning Outcomes</h4>
+                              <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                {module.outcomes.map((outcome, i) => (
+                                  <li key={i}>{outcome}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2">Tasks & Assignments</h4>
+                              <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                {module.tasks.map((task, i) => (
+                                  <li key={i}>{task}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="flex justify-end pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteCurriculumModule(module.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove Module
+                              </Button>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
                   )}
                 </CardContent>
               </Card>

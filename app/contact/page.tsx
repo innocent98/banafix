@@ -15,18 +15,18 @@ export default function ContactPage() {
       <ContactHero />
 
       {/* Main Content Section */}
-      <section className="py-10 lg:py-10 -mt-4 relative z-10">
-        <div className="container mx-auto px-4">
+      <section className="py-0 lg:py-0 -mt-0 relative z-10">
+        <div className="container mx-auto px-0">
           <div className="grid lg:grid-cols-2 gap-16 mb-20">
             {/* Contact Form */}
-            <div>
+            {/* <div>
               <ContactForm />
-            </div>
+            </div> */}
 
             {/* Contact Information */}
-            <div>
+            {/* <div>
               <ContactInfoCards />
-            </div>
+            </div> */}
           </div>
 
           {/* Centered Campus Location Section */}

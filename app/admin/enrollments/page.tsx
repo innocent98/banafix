@@ -467,7 +467,7 @@ export default function EnrollmentsPage() {
                             {enrollment.applicationPaid ? (
                               <div>
                                 <p className="text-sm font-medium text-green-600">
-                                  ₦2,000 Paid
+                                  ₦{(enrollment.applicationPayments[0]?.amount || 0).toLocaleString()} Paid
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {enrollment.applicationPayments[0]?.paidAt &&

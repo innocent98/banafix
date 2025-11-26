@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
+import { calculateApplicationFee } from '@/lib/application-fee'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
 export async function POST(req: NextRequest) {
@@ -148,6 +149,9 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Calculate application fee based on course location
+    const applicationFeeData = calculateApplicationFee(course.location)
+
     // Generate unique receipt number for application payment
     const receiptNumber = `APP-${Date.now()}-${enrollment.id.slice(-6)}`
 
@@ -155,8 +159,8 @@ export async function POST(req: NextRequest) {
     const applicationPayment = await prisma.applicationPayment.create({
       data: {
         enrollmentId: enrollment.id,
-        amount: 2000, // ₦2,000 application fee
-        currency: 'NGN',
+        amount: applicationFeeData.amount,
+        currency: applicationFeeData.currency,
         paymentMethod: 'pending', // Will be updated after payment
         paystackReference: generatePaymentReference('app_fee'),
         receiptNumber,
@@ -169,6 +173,14 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Update enrollment with calculated application fee
+    await prisma.enrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        applicationFeeAmount: applicationFeeData.amount,
+      },
+    })
+
     // Initialize Paystack payment
     const paymentData = createApplicationFeePayment({
       email,
@@ -176,6 +188,7 @@ export async function POST(req: NextRequest) {
       lastName,
       enrollmentId: enrollment.id,
       courseId,
+      applicationFee: applicationFeeData.amount,
     })
 
     // Override the reference to use the one we created
@@ -210,7 +223,7 @@ export async function POST(req: NextRequest) {
           sessionStartDate: course.sessionStartDate,
         },
         applicationFee: {
-          amount: 2000,
+          amount: applicationFeeData.amount,
           receiptNumber,
         },
       },

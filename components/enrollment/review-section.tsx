@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Clock, Info, Eye, CheckCircle } from "lucide-react"
+import { calculateApplicationFee } from "@/lib/application-fee"
 
 interface ReviewSectionProps {
   formData: any
@@ -19,6 +20,9 @@ export function ReviewSection({
   formatTimer,
 }: ReviewSectionProps) {
   const isTimerCritical = seatHoldTimer < 120
+  
+  // Calculate application fee based on course location
+  const applicationFee = selectedCourseData ? calculateApplicationFee(selectedCourseData.location).amount : 2000
 
   return (
     <div className="space-y-8">
@@ -204,7 +208,7 @@ export function ReviewSection({
               </div>
               <div className="flex justify-between items-center py-3 border-b border-slate-100">
                 <span className="text-slate-600 font-medium">Registration Fee:</span>
-                <span className="text-lg font-semibold text-slate-900">₦2,000</span>
+                <span className="text-lg font-semibold text-slate-900">₦{applicationFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-slate-100">
                 <span className="text-slate-600 font-medium">VAT (7.5%):</span>
@@ -226,7 +230,7 @@ export function ReviewSection({
                 <span className="text-2xl font-bold text-amber-600">
                   ₦{(
                     (selectedCourseData?.price || 0) +
-                    2000 +
+                    applicationFee +
                     Math.round((selectedCourseData?.price || 0) * 0.075) -
                     (formData.couponCode ? 5000 : 0)
                   ).toLocaleString()}

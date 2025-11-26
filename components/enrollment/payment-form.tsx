@@ -28,16 +28,16 @@ export function PaymentForm({ formData, onInputChange, paymentError }: PaymentFo
       <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-white">
         <CardContent className="p-6 lg:p-8">
           <Label className="text-lg font-heading font-bold text-slate-900 mb-6 block">
-            Select Payment Method *
+            Payment Method *
           </Label>
           <RadioGroup
             value={formData.paymentMethod}
             onValueChange={(value) => onInputChange("paymentMethod", value)}
             className="space-y-4"
           >
-            {/* Credit/Debit Card */}
+            {/* Credit/Debit Card - Only Option */}
             <div className="group">
-              <div className="flex items-center space-x-2 p-6 border-2 border-slate-200 rounded-3xl hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-300 group-hover:shadow-lg">
+              <div className="flex items-center space-x-2 p-6 border-2 border-blue-300 bg-blue-50/50 rounded-3xl shadow-lg">
                 <RadioGroupItem value="card" id="card" className="border-slate-400" />
                 <Label htmlFor="card" className="flex-1 cursor-pointer">
                   <div className="flex items-center justify-between">
@@ -47,7 +47,7 @@ export function PaymentForm({ formData, onInputChange, paymentError }: PaymentFo
                       </div>
                       <div>
                         <div className="font-semibold text-slate-900 text-lg">Credit/Debit Card</div>
-                        <p className="text-sm text-slate-500">Instant processing • Most popular</p>
+                        <p className="text-sm text-slate-500">Secure payment via Paystack</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -57,82 +57,22 @@ export function PaymentForm({ formData, onInputChange, paymentError }: PaymentFo
                       <div className="w-10 h-6 bg-red-500 rounded flex items-center justify-center">
                         <span className="text-white text-xs font-bold">MC</span>
                       </div>
-                    </div>
-                  </div>
-                </Label>
-              </div>
-            </div>
-
-            {/* Bank Transfer */}
-            <div className="group">
-              <div className="flex items-center space-x-2 p-6 border-2 border-slate-200 rounded-3xl hover:border-green-300 hover:bg-green-50/50 transition-all duration-300 group-hover:shadow-lg">
-                <RadioGroupItem value="bank-transfer" id="bank-transfer" className="border-slate-400" />
-                <Label htmlFor="bank-transfer" className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                        <Building className="h-6 w-6 text-green-600" />
+                      <div className="w-10 h-6 bg-orange-500 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">VV</span>
                       </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 text-lg">Bank Transfer</div>
-                        <p className="text-sm text-slate-500">Direct bank payment • Secure</p>
-                      </div>
-                    </div>
-                    <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                      Instant verification
-                    </div>
-                  </div>
-                </Label>
-              </div>
-            </div>
-
-            {/* USSD */}
-            <div className="group">
-              <div className="flex items-center space-x-2 p-6 border-2 border-slate-200 rounded-3xl hover:border-purple-300 hover:bg-purple-50/50 transition-all duration-300 group-hover:shadow-lg">
-                <RadioGroupItem value="ussd" id="ussd" className="border-slate-400" />
-                <Label htmlFor="ussd" className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                        <Smartphone className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 text-lg">USSD Payment</div>
-                        <p className="text-sm text-slate-500">Pay with your mobile phone</p>
-                      </div>
-                    </div>
-                    <div className="text-right text-xs text-slate-500">
-                      <div>*737# (GTBank)</div>
-                      <div>*894# (Access)</div>
-                    </div>
-                  </div>
-                </Label>
-              </div>
-            </div>
-
-            {/* PayPal */}
-            <div className="group">
-              <div className="flex items-center space-x-2 p-6 border-2 border-slate-200 rounded-3xl hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-300 group-hover:shadow-lg">
-                <RadioGroupItem value="paypal" id="paypal" className="border-slate-400" />
-                <Label htmlFor="paypal" className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                        <Globe className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 text-lg">PayPal</div>
-                        <p className="text-sm text-slate-500">International payments accepted</p>
-                      </div>
-                    </div>
-                    <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                      Global
                     </div>
                   </div>
                 </Label>
               </div>
             </div>
           </RadioGroup>
+          
+          {/* Info Note */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> All payments are processed securely through Paystack. We accept Visa, Mastercard, and Verve cards.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -241,65 +181,6 @@ export function PaymentForm({ formData, onInputChange, paymentError }: PaymentFo
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Other Payment Method Instructions */}
-      {formData.paymentMethod && formData.paymentMethod !== "card" && (
-        <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-white">
-          <CardContent className="p-6 lg:p-8">
-            <h3 className="text-xl font-heading font-bold text-slate-900 mb-4">
-              {formData.paymentMethod === "bank-transfer" && "Bank Transfer Instructions"}
-              {formData.paymentMethod === "ussd" && "USSD Payment Instructions"}
-              {formData.paymentMethod === "paypal" && "PayPal Payment"}
-            </h3>
-
-            {formData.paymentMethod === "bank-transfer" && (
-              <div className="space-y-4">
-                <p className="text-slate-600">You will be redirected to complete your bank transfer securely.</p>
-                <div className="p-4 bg-blue-50 rounded-2xl">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> Bank transfers are processed instantly through our secure banking partner.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {formData.paymentMethod === "ussd" && (
-              <div className="space-y-4">
-                <p className="text-slate-600">Choose your bank's USSD code to complete payment:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50 rounded-2xl">
-                    <div className="font-semibold text-slate-900">GTBank</div>
-                    <div className="text-sm text-slate-600">Dial *737# on your phone</div>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl">
-                    <div className="font-semibold text-slate-900">Access Bank</div>
-                    <div className="text-sm text-slate-600">Dial *901# on your phone</div>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl">
-                    <div className="font-semibold text-slate-900">First Bank</div>
-                    <div className="text-sm text-slate-600">Dial *894# on your phone</div>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl">
-                    <div className="font-semibold text-slate-900">UBA</div>
-                    <div className="text-sm text-slate-600">Dial *919# on your phone</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {formData.paymentMethod === "paypal" && (
-              <div className="space-y-4">
-                <p className="text-slate-600">You will be redirected to PayPal to complete your payment securely.</p>
-                <div className="p-4 bg-blue-50 rounded-2xl">
-                  <p className="text-sm text-blue-800">
-                    <strong>International students:</strong> PayPal accepts major currencies and converts automatically.
-                  </p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}

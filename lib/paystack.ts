@@ -250,7 +250,7 @@ export function getPaystackPublicKey(): string | undefined {
 }
 
 /**
- * Create application fee payment data for ₦2,000
+ * Create application fee payment data (location-based pricing)
  */
 export function createApplicationFeePayment(enrollmentData: {
   email: string
@@ -258,10 +258,11 @@ export function createApplicationFeePayment(enrollmentData: {
   lastName: string
   enrollmentId: string
   courseId: string
+  applicationFee: number // Amount in Naira
 }): PaystackTransaction {
   return {
     email: enrollmentData.email,
-    amount: 2000, // ₦2,000 application fee
+    amount: enrollmentData.applicationFee, // Location-based application fee
     currency: 'NGN',
     reference: generatePaymentReference('app_fee'),
     callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/enroll/success`,
@@ -271,6 +272,6 @@ export function createApplicationFeePayment(enrollmentData: {
       payment_type: 'application_fee',
       student_name: `${enrollmentData.firstName} ${enrollmentData.lastName}`,
     },
-    channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+    channels: ['card', 'bank', 'ussd', 'bank_transfer'], // Paystack-supported channels only
   }
 }

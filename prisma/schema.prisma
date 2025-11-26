@@ -166,9 +166,9 @@ model Enrollment {
   agreeToRefundPolicy Boolean @default(false)
   consentToEmails     Boolean @default(false)
 
-  // Application Fee Payment (₦2,000 non-refundable)
+  // Application Fee Payment (location-based: Lagos/Abuja ₦5,000, Online/Other ₦2,000, Diaspora ₦8,000)
   applicationPaid     Boolean @default(false)
-  applicationFeeAmount Int    @default(2000)
+  applicationFeeAmount Int?    // Calculated based on course location
 
   // Enrollment Status
   status       String   @default("pending") // pending, application_paid, enrolled, cancelled
@@ -189,15 +189,15 @@ model Enrollment {
   @@map("enrollments")
 }
 
-// Application fee payment tracking (₦2,000 non-refundable)
+// Application fee payment tracking (location-based pricing)
 model ApplicationPayment {
   id                String   @id @default(cuid())
   enrollmentId      String
 
   // Payment Details
-  amount            Int      @default(2000) // ₦2,000 application fee
+  amount            Int      // Application fee (varies by course location)
   currency          String   @default("NGN")
-  paymentMethod     String   // card, bank-transfer, ussd, paypal
+  paymentMethod     String   // Paystack payment channel (card, bank, ussd, bank_transfer)
 
   // Paystack Integration
   paystackReference String?  @unique

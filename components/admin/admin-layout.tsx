@@ -62,34 +62,34 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: "/admin/enrollments",
       description: "Student enrollments & payments"
     },
-    {
-      id: "students",
-      label: "Students",
-      icon: Calendar,
-      href: "/admin/students",
-      description: "Manage student records"
-    },
-    {
-      id: "payments",
-      label: "Payments",
-      icon: DollarSign,
-      href: "/admin/payments",
-      description: "Financial transactions"
-    },
-    {
-      id: "testimonials",
-      label: "Testimonials",
-      icon: MessageSquare,
-      href: "/admin/testimonials",
-      description: "Student feedback"
-    },
-    {
-      id: "faqs",
-      label: "FAQs",
-      icon: HelpCircle,
-      href: "/admin/faqs",
-      description: "Knowledge base"
-    },
+    // {
+    //   id: "students",
+    //   label: "Students",
+    //   icon: Calendar,
+    //   href: "/admin/students",
+    //   description: "Manage student records"
+    // },
+    // {
+    //   id: "payments",
+    //   label: "Payments",
+    //   icon: DollarSign,
+    //   href: "/admin/payments",
+    //   description: "Financial transactions"
+    // },
+    // {
+    //   id: "testimonials",
+    //   label: "Testimonials",
+    //   icon: MessageSquare,
+    //   href: "/admin/testimonials",
+    //   description: "Student feedback"
+    // },
+    // {
+    //   id: "faqs",
+    //   label: "FAQs",
+    //   icon: HelpCircle,
+    //   href: "/admin/faqs",
+    //   description: "Knowledge base"
+    // },
     {
       id: "settings",
       label: "Settings",
@@ -101,9 +101,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     checkAuth()
-  }, [])
+  }, [pathname])
 
-  const checkAuth = () => {
+  const checkAuth = async () => {
     const token = localStorage.getItem("admin_token")
     const adminData = localStorage.getItem("admin_user")
 
@@ -113,9 +113,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
 
     try {
+      // Optimistic update to show UI immediately
       setAdmin(JSON.parse(adminData))
+
+      // Verify token validity with server
+      const response = await fetch("/api/admin/verify-session", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        cache: 'no-store'
+      })
+
+      if (!response.ok) {
+        throw new Error("Session expired or invalid")
+      }
     } catch (error) {
-      console.error("Error parsing admin data:", error)
+      console.error("Auth error:", error)
+      localStorage.removeItem("admin_token")
+      localStorage.removeItem("admin_user")
       router.push("/admin/login")
     }
   }

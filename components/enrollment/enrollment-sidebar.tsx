@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Shield, Clock, MapPin, User, Award, CheckCircle } from "lucide-react"
+import { calculateApplicationFee } from "@/lib/application-fee"
 
 interface EnrollmentSidebarProps {
   selectedCourseData: any
@@ -12,8 +13,12 @@ interface EnrollmentSidebarProps {
 
 export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }: EnrollmentSidebarProps) {
   const hasDiscount = formData.couponCode
+  
+  // Calculate application fee based on course location
+  const applicationFee = selectedCourseData ? calculateApplicationFee(selectedCourseData.location).amount : 2000
+  
   const totalPrice = selectedCourseData ?
-    (selectedCourseData.price + 2000 + Math.round(selectedCourseData.price * 0.075) - (hasDiscount ? 5000 : 0)) : 0
+    (selectedCourseData.price + applicationFee + Math.round(selectedCourseData.price * 0.075) - (hasDiscount ? 5000 : 0)) : 0
 
   return (
     <div className="sticky top-6 space-y-6">
@@ -76,7 +81,7 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Registration Fee:</span>
-                    <span className="font-semibold text-slate-900">₦2,000</span>
+                    <span className="font-semibold text-slate-900">₦{applicationFee.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">VAT (7.5%):</span>
