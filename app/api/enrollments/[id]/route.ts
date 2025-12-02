@@ -133,7 +133,7 @@ export async function POST(
       })
 
       // Update enrollment status and reduce course seats
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         await tx.enrollment.update({
           where: { id: enrollmentId },
           data: {
