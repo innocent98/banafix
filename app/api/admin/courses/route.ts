@@ -65,7 +65,7 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
     ])
 
     // Transform courses to include expiration status
-    const transformedCourses = courses.map((course) => {
+    const transformedCourses = courses.map((course: any) => {
       const statusInfo = getCourseStatus({
         sessionStartDate: course.sessionStartDate,
         isActive: course.isActive,
