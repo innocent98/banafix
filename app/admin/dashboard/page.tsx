@@ -358,7 +358,7 @@ export default function AdminDashboardPage() {
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Course
                   </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/sessions')}>
+                  {/* <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/sessions')}>
                     <Calendar className="h-4 w-4 mr-2" />
                     Manage Sessions
                   </Button>
@@ -369,7 +369,7 @@ export default function AdminDashboardPage() {
                   <Button variant="outline" className="w-full justify-start" onClick={() => router.push('/admin/settings')}>
                     <Clock className="h-4 w-4 mr-2" />
                     Platform Settings
-                  </Button>
+                  </Button> */}
                 </div>
               </CardContent>
             </Card>
