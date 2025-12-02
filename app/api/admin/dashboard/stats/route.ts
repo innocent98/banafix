@@ -124,16 +124,16 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
     // Format recent activity
     const recentActivity = [
       // Recent enrollments
-      ...recentEnrollments.map(enrollment => ({
+      ...recentEnrollments.map((enrollment: any) => ({
         id: enrollment.id,
         type: 'enrollment' as const,
         title: `New enrollment in ${enrollment.course.title}`,
         description: `${enrollment.firstName} ${enrollment.lastName} enrolled`,
         timestamp: enrollment.createdAt.toISOString(),
       })),
-      
+
       // Recent payments
-      ...recentPayments.map(payment => ({
+      ...recentPayments.map((payment: any) => ({
         id: payment.id,
         type: 'payment' as const,
         title: 'Payment received',
@@ -141,9 +141,9 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         timestamp: payment.paidAt?.toISOString() || payment.createdAt.toISOString(),
         amount: payment.amount
       })),
-      
+
       // Recent courses
-      ...recentCourses.map(course => ({
+      ...recentCourses.map((course: any) => ({
         id: course.id,
         type: 'course_created' as const,
         title: 'New course published',
@@ -151,9 +151,9 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         timestamp: course.createdAt.toISOString(),
       }))
     ]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 10)
-    .map(activity => ({
+    .map((activity: any) => ({
       ...activity,
       timestamp: getRelativeTime(new Date(activity.timestamp))
     }))
