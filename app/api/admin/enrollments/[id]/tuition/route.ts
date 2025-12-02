@@ -77,7 +77,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     })
 
     // Calculate total paid so far
-    const totalPaid = enrollment.tuitionPayments.reduce((sum, payment) => sum + payment.amount, 0) + amount
+    const totalPaid = enrollment.tuitionPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) + amount
 
     // Generate and send receipt if requested
     if (sendReceipt) {

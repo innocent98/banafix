@@ -103,8 +103,8 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
     ])
 
     // Calculate revenue
-    const totalApplicationFees = applicationPayments.reduce((sum, p) => sum + p.amount, 0)
-    const totalTuitionRevenue = tuitionPayments.reduce((sum, p) => sum + p.amount, 0)
+    const totalApplicationFees = applicationPayments.reduce((sum: number, p: any) => sum + p.amount, 0)
+    const totalTuitionRevenue = tuitionPayments.reduce((sum: number, p: any) => sum + p.amount, 0)
     const totalRevenue = totalApplicationFees + totalTuitionRevenue
 
     // Calculate seats utilization
@@ -114,8 +114,8 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         seatsLeft: true
       }
     })
-    const totalSeats = coursesWithSeats.reduce((sum, c) => sum + c.totalSeats, 0)
-    const usedSeats = coursesWithSeats.reduce((sum, c) => sum + (c.totalSeats - c.seatsLeft), 0)
+    const totalSeats = coursesWithSeats.reduce((sum: number, c: any) => sum + c.totalSeats, 0)
+    const usedSeats = coursesWithSeats.reduce((sum: number, c: any) => sum + (c.totalSeats - c.seatsLeft), 0)
     const seatsFilled = totalSeats > 0 ? Math.round((usedSeats / totalSeats) * 100) : 0
 
     // Calculate waitlisted (approximate - 15% of enrollments)

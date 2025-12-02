@@ -54,8 +54,8 @@ export const GET = withAuth(async (req: NextRequest, admin, context: { params: P
 
     // Calculate total paid up to this payment
     const totalPaid = payment.enrollment.tuitionPayments
-      .filter(p => p.paidAt && p.paidAt <= payment.paidAt!)
-      .reduce((sum, p) => sum + p.amount, 0)
+      .filter((p: any) => p.paidAt && p.paidAt <= payment.paidAt!)
+      .reduce((sum: number, p: any) => sum + p.amount, 0)
 
     // Prepare receipt data
     const receiptData: TuitionReceiptData = {
@@ -164,8 +164,8 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
 
     // Calculate total paid up to this payment
     const totalPaid = payment.enrollment.tuitionPayments
-      .filter(p => p.paidAt && p.paidAt <= payment.paidAt!)
-      .reduce((sum, p) => sum + p.amount, 0)
+      .filter((p: any) => p.paidAt && p.paidAt <= payment.paidAt!)
+      .reduce((sum: number, p: any) => sum + p.amount, 0)
 
     // Prepare receipt data
     const receiptData: TuitionReceiptData = {
