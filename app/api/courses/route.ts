@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     ])
 
     // Transform courses to match frontend expectations
-    const transformedCourses = courses.map((course) => ({
+    const transformedCourses = courses.map((course: any) => ({
       id: course.id,
       title: course.title,
       description: course.description,

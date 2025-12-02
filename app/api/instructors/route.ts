@@ -35,7 +35,7 @@ export async function GET() {
     })
 
     // Transform instructors to match the expected frontend format
-    const transformedInstructors = instructors.map((instructor) => ({
+    const transformedInstructors = instructors.map((instructor: any) => ({
       id: instructor.id,
       name: instructor.name,
       avatar: instructor.avatar,

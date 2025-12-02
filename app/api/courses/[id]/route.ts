@@ -64,14 +64,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         availability: course.instructor.availability,
         verified: course.instructor.verified,
       } : null,
-      curriculum: course.curriculum.map((module) => ({
+      curriculum: course.curriculum.map((module: any) => ({
         module: module.module,
         title: module.title,
         weeks: module.weeks,
         outcomes: module.outcomes,
         tasks: module.tasks,
       })),
-      faqs: course.faqs.map((faq) => ({
+      faqs: course.faqs.map((faq: any) => ({
         question: faq.question,
         answer: faq.answer,
       })),
