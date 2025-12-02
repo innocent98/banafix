@@ -38,7 +38,7 @@ export const DELETE = withAuth(async (req: NextRequest, admin, { params }: { par
           has: await prisma.deliveryMode.findUnique({
             where: { id },
             select: { name: true }
-          }).then(mode => mode?.name)
+          }).then((mode: any) => mode?.name)
         }
       }
     })
