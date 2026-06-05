@@ -1,37 +1,19 @@
 "use client"
 
-import { Award, BookOpen, Network, Clock, Star, GraduationCap } from "lucide-react"
+import { Landmark, Trophy } from "lucide-react"
 
 const features = [
   {
-    title: "Experienced Tutors",
-    icon: Award,
-    description: "Learn from certified professionals with years of expertise",
+    title: "Legacy",
+    icon: Landmark,
+    description:
+      "We are committed to raising a generation that will pass on values, skill, and impact — creating a lasting influence through music.",
   },
   {
-    title: "Structured Curriculum",
-    icon: BookOpen,
-    description: "Progressive learning paths designed for success",
-  },
-  {
-    title: "Marketing Growth",
-    icon: Network,
-    description: "Build your network and grow as a musician",
-  },
-  {
-    title: "Flexible Schedule",
-    icon: Clock,
-    description: "Classes that adapt to your lifestyle",
-  },
-  {
-    title: "A Blend of Plans",
-    icon: Star,
-    description: "Choose from various training modes",
-  },
-  {
-    title: "Positive-driven Teaching",
-    icon: GraduationCap,
-    description: "Encouraging environment for all levels",
+    title: "Excellence",
+    icon: Trophy,
+    description:
+      "We pursue the highest standards in training and performance, shaping students to stand out with skill, confidence, and distinction.",
   },
 ]
 
@@ -42,7 +24,7 @@ export function WhyChooseSection() {
         {/* Section Header */}
         <div className="text-center mb-12 lg:mb-16">
           <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 lg:mb-6 text-slate-900 tracking-tighter">
-            Why choose Marviotone?
+            Why Choose Banafix Music Academy
           </h2>
           <p className="text-slate-600 text-lg lg:text-xl max-w-3xl mx-auto leading-relaxed">
             Discover what makes us the preferred choice for music education in Nigeria
@@ -50,7 +32,7 @@ export function WhyChooseSection() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 max-w-4xl mx-auto">
           {features.map((feature, index) => (
             <div
               key={feature.title}

@@ -94,7 +94,7 @@ export function TrainingModesSection() {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent"></div>
           <div className="relative">
             <h3 className="font-heading text-3xl lg:text-4xl font-bold mb-6 tracking-tighter">
-              Over 58 students trust Marviotone with their bass training
+              Over 58 students trust Banafix with their bass training
             </h3>
             <p className="text-slate-300 text-lg lg:text-xl mb-10 max-w-3xl mx-auto leading-relaxed font-light">
               Join thousands of satisfied students who have transformed their musical abilities with our expert guidance

@@ -18,7 +18,7 @@ export function CTASection() {
           Ready to Start Your Musical Journey?
         </h2>
         <p className="text-slate-300 text-lg lg:text-xl mb-12 lg:mb-16 max-w-3xl mx-auto leading-relaxed font-light">
-          Join thousands of students who have discovered their musical passion with Marviotone. Get started today with a free trial session.
+          Start your musical journey today with Banafix Music Academy. Book a free trial session and let us discover the music in you.
         </p>
         <div className="flex flex-col sm:flex-row gap-6 justify-center">
           <Button

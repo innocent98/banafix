@@ -26,14 +26,14 @@ export function HeroSection() {
             </Badge>
 
             <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 lg:mb-8 leading-tight tracking-tighter">
-              Master Violin and String Instruments With{" "}
+              Where Passion Meets Excellence and Music Becomes{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500">
-                Banafix
+                Purpose.
               </span>
             </h1>
 
             <p className="text-lg sm:text-xl lg:text-2xl text-slate-300 mb-10 lg:mb-12 leading-relaxed max-w-3xl mx-auto lg:mx-0 font-light">
-              Whether you're a complete beginner or looking to refine your skills, our expert tutors will guide you on every step of your musical journey.
+              We discover the music in you, develop your potential, and shape you into a person of excellence and impact.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-6 mb-12 lg:mb-16 justify-center lg:justify-start">

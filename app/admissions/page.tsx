@@ -320,7 +320,7 @@ export default function AdmissionsPage() {
             </Button>
             <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 bg-transparent">
               <Phone className="w-4 h-4 mr-2" />
-              Call Admissions: +234 801 234 5678
+              Call Admissions: 0903 856 3822
             </Button>
           </div>
         </div>

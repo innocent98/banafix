@@ -95,7 +95,7 @@ export function ContactInfoCards() {
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-slate-900">Admissions Office</h4>
-              <p className="text-sm text-slate-700">+234 801 234 5678</p>
+              <p className="text-sm text-slate-700">0903 856 3822</p>
             </div>
           </div>
 
@@ -105,7 +105,7 @@ export function ContactInfoCards() {
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-slate-900">General Inquiries</h4>
-              <p className="text-sm text-slate-700">hello@banafix.com</p>
+              <p className="text-sm text-slate-700">info@banafix.com</p>
             </div>
           </div>
 
@@ -115,7 +115,7 @@ export function ContactInfoCards() {
             </div>
             <div className="flex-1">
               <h4 className="font-semibold text-slate-900">WhatsApp Support</h4>
-              <p className="text-sm text-slate-700">+234 801 234 5679</p>
+              <p className="text-sm text-slate-700">0903 856 3822</p>
             </div>
           </div>
         </CardContent>

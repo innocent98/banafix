@@ -93,7 +93,7 @@ export function CoursesSection() {
               </div>
 
               {/* Content Section */}
-              <CardContent className="p-6 lg:p-8">
+              <CardContent className="p-6">
                 <div className="mb-4">
                   <h3 className="font-heading font-bold text-xl lg:text-2xl text-slate-900 mb-2">
                     {instrument.name}
@@ -102,7 +102,7 @@ export function CoursesSection() {
                 </div>
 
                 {/* Price and Enroll */}
-                <div className="flex items-center justify-between py-4 mb-4 border-t border-slate-100">
+                <div className="flex items-center justify-between py-4 border-t border-slate-100">
                   <div>
                     <div className="text-sm text-slate-500 mb-1 font-medium">Starting from</div>
                     <div className="font-bold text-xl text-slate-900">{instrument.price}</div>
@@ -118,7 +118,7 @@ export function CoursesSection() {
                 </div>
 
                 {/* Seats Progress */}
-                <div className="pt-4 border-t border-slate-100">
+                {/* <div className="pt-4 border-t border-slate-100">
                   <div className="flex justify-between text-sm text-slate-600 mb-3 font-medium">
                     <span>Available seats</span>
                     <span className="text-amber-600 font-bold">{instrument.seats} left</span>
@@ -132,7 +132,7 @@ export function CoursesSection() {
                   <div className="text-xs text-slate-500 mt-2 font-medium">
                     {Math.round((instrument.seats / instrument.total) * 100)}% available
                   </div>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           ))}

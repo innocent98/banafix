@@ -46,9 +46,9 @@ export function LocationDetails() {
                 </div>
 
                 <div className="space-y-3 text-slate-700">
-                  <p className="text-lg font-semibold">123 Harmony Street</p>
-                  <p className="text-lg">Victoria Island, Lagos</p>
-                  <p className="text-lg">Nigeria 101241</p>
+                  <p className="text-lg font-semibold">32, Road 8 Greenland Estate</p>
+                  <p className="text-lg">Olokonla Bus Stop, Eti-Osa</p>
+                  <p className="text-lg">Lekki, Lagos</p>
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -78,8 +78,8 @@ export function LocationDetails() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-green-900 mb-1">Public Transport</h4>
-                    <p className="text-sm text-green-800">5 min walk from Victoria Island Bus Stop</p>
-                    <p className="text-sm text-green-800">BRT: Tafawa Balewa Square (10 min drive)</p>
+                    <p className="text-sm text-green-800">Short walk from Olokonla Bus Stop</p>
+                    <p className="text-sm text-green-800">Along the Lekki-Epe Expressway corridor</p>
                   </div>
                 </div>
 

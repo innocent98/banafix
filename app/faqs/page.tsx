@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone } from "lucide-react"
+import { Navigation } from "@/components/navigation"
+import { Footer } from "@/components/footer"
 
 export default function FAQsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -13,11 +15,11 @@ export default function FAQsPage() {
   const [expandedItems, setExpandedItems] = useState<number[]>([])
 
   const categories = [
-    { id: "all", name: "All FAQs", count: 24 },
-    { id: "admissions", name: "Admissions", count: 6 },
-    { id: "payments", name: "Payments", count: 5 },
-    { id: "sessions", name: "Sessions", count: 7 },
-    { id: "online-vs-home", name: "Online vs Home", count: 4 },
+    { id: "all", name: "All FAQs", count: 14 },
+    { id: "admissions", name: "Admissions", count: 3 },
+    { id: "payments", name: "Payments", count: 2 },
+    { id: "sessions", name: "Sessions", count: 4 },
+    { id: "online-vs-home", name: "Online vs Home", count: 3 },
     { id: "policies", name: "Policies", count: 2 },
   ]
 
@@ -25,21 +27,53 @@ export default function FAQsPage() {
     {
       id: 1,
       category: "admissions",
-      question: "What are the admission requirements for Banafix courses?",
+      question: "Who can enroll?",
       answer:
-        "No prior musical experience is required for beginner courses. For intermediate and advanced levels, we conduct a brief assessment to ensure proper placement. You must be at least 8 years old to enroll.",
-      tags: ["requirements", "age", "assessment"],
+        "Interested candidates: children, teenagers, and adults. Beginners are absolutely welcome.",
+      tags: ["enroll", "age", "beginners"],
     },
     {
       id: 2,
       category: "admissions",
-      question: "How do I know which course level is right for me?",
+      question: "Do I need prior experience?",
       answer:
-        "We offer a free 15-minute consultation where our instructors assess your current skill level and recommend the most suitable course. You can also take our online skill assessment quiz.",
-      tags: ["level", "consultation", "assessment"],
+        "No. We specialize in discovering and developing raw musical potential.",
+      tags: ["experience", "beginners"],
     },
     {
       id: 3,
+      category: "sessions",
+      question: "What learning options do you offer?",
+      answer:
+        "We offer flexible options: in-center classes, home lessons, and online sessions.",
+      tags: ["in-center", "home", "online"],
+    },
+    {
+      id: 4,
+      category: "online-vs-home",
+      question: "Are online classes effective?",
+      answer:
+        "Yes, our online classes are interactive, personalized, and results-driven.",
+      tags: ["online", "effectiveness"],
+    },
+    {
+      id: 5,
+      category: "sessions",
+      question: "How are classes scheduled?",
+      answer:
+        "Schedules are flexible and arranged to fit your availability.",
+      tags: ["schedule", "flexibility"],
+    },
+    {
+      id: 6,
+      category: "admissions",
+      question: "How do I enroll or get pricing?",
+      answer:
+        "Simply contact us via phone, WhatsApp, or the website to get started.",
+      tags: ["enroll", "pricing", "contact"],
+    },
+    {
+      id: 7,
       category: "payments",
       question: "What payment methods do you accept?",
       answer:
@@ -47,7 +81,7 @@ export default function FAQsPage() {
       tags: ["payment", "methods", "plans"],
     },
     {
-      id: 4,
+      id: 8,
       category: "payments",
       question: "Can I get a refund if I'm not satisfied?",
       answer:
@@ -55,7 +89,7 @@ export default function FAQsPage() {
       tags: ["refund", "guarantee", "satisfaction"],
     },
     {
-      id: 5,
+      id: 9,
       category: "sessions",
       question: "How long are the training sessions?",
       answer:
@@ -63,7 +97,7 @@ export default function FAQsPage() {
       tags: ["duration", "session", "timing"],
     },
     {
-      id: 6,
+      id: 10,
       category: "sessions",
       question: "Can I reschedule my sessions?",
       answer:
@@ -71,7 +105,7 @@ export default function FAQsPage() {
       tags: ["reschedule", "flexibility", "dashboard"],
     },
     {
-      id: 7,
+      id: 11,
       category: "online-vs-home",
       question: "What's the difference between Online and Home training?",
       answer:
@@ -79,7 +113,7 @@ export default function FAQsPage() {
       tags: ["online", "home", "difference"],
     },
     {
-      id: 8,
+      id: 12,
       category: "online-vs-home",
       question: "Do I need my own instrument for online sessions?",
       answer:
@@ -87,7 +121,7 @@ export default function FAQsPage() {
       tags: ["instrument", "equipment", "rental"],
     },
     {
-      id: 9,
+      id: 13,
       category: "policies",
       question: "What is your attendance policy?",
       answer:
@@ -95,7 +129,7 @@ export default function FAQsPage() {
       tags: ["attendance", "policy", "certification"],
     },
     {
-      id: 10,
+      id: 14,
       category: "policies",
       question: "Can I switch instructors during my course?",
       answer:
@@ -120,6 +154,7 @@ export default function FAQsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4 text-center">
@@ -220,6 +255,7 @@ export default function FAQsPage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

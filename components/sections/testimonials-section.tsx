@@ -7,7 +7,7 @@ import { Star } from "lucide-react"
 const testimonials = [
   {
     content:
-      "I've been interested in learning how to play the violin for a long time now. Thanks to Marviotone, I can learn at a pace that's comfortable for me. I'm so glad I joined this bass program!",
+      "I've been interested in learning how to play the violin for a long time now. Thanks to Banafix, I can learn at a pace that's comfortable for me. I'm so glad I joined this bass program!",
     author: "Adunni Okafor",
     role: "Piano Student",
     rating: 5,
@@ -23,7 +23,7 @@ const testimonials = [
   },
   {
     content:
-      "Marviotone transformed my musical journey. The structured approach and expert guidance helped me progress faster than I ever imagined!",
+      "Banafix transformed my musical journey. The structured approach and expert guidance helped me progress faster than I ever imagined!",
     author: "James Okoro",
     role: "Guitar Graduate",
     rating: 5,

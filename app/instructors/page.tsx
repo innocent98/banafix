@@ -188,7 +188,7 @@ export default function InstructorsPage() {
       </section>
 
       {/* Enhanced Stats */}
-      <section className="py-12 bg-white">
+      {/* <section className="py-12 bg-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="border-0 shadow-lg rounded-3xl bg-gradient-to-br from-blue-50 to-blue-100 p-6 text-center group hover:scale-105 transition-transform duration-300">
@@ -224,7 +224,7 @@ export default function InstructorsPage() {
             </Card>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Filters */}
       <InstructorFilters

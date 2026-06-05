@@ -8,7 +8,7 @@ export function Footer() {
     { label: "About Us", href: "/about" },
     { label: "Our Tutors", href: "/tutors" },
     { label: "Testimonials", href: "/testimonials" },
-    { label: "FAQ", href: "/faq" },
+    { label: "FAQs", href: "/faqs" },
   ]
 
   const courses = [
@@ -94,20 +94,20 @@ export function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start">
                 <Phone className="h-5 w-5 text-amber-400 mr-3 flex-shrink-0 mt-0.5" />
-                <a href="tel:+2348012345678" className="text-slate-400 hover:text-amber-400 transition-colors">
-                  +234 801 234 5678
+                <a href="tel:+2349038563822" className="text-slate-400 hover:text-amber-400 transition-colors">
+                  0903 856 3822
                 </a>
               </li>
               <li className="flex items-start">
                 <Mail className="h-5 w-5 text-amber-400 mr-3 flex-shrink-0 mt-0.5" />
-                <a href="mailto:info@Banafix.com" className="text-slate-400 hover:text-amber-400 transition-colors">
-                  info@Banafix.com
+                <a href="mailto:info@banafix.com" className="text-slate-400 hover:text-amber-400 transition-colors">
+                  info@banafix.com
                 </a>
               </li>
               <li className="flex items-start">
                 <MapPin className="h-5 w-5 text-amber-400 mr-3 flex-shrink-0 mt-0.5" />
                 <span className="text-slate-400">
-                  123 Music Street, Lagos, Nigeria
+                  32, Road 8 Greenland Estate, Olokonla Bus Stop, Eti-Osa, Lekki, Lagos
                 </span>
               </li>
             </ul>

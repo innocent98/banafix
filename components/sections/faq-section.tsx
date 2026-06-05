@@ -6,24 +6,34 @@ import { ChevronDown } from "lucide-react"
 
 const faqs = [
   {
-    question: "Do I need to own an instrument?",
+    question: "Who can enroll?",
     answer:
-      "No, all instruments and equipment are provided during on-campus sessions. For home training, we can arrange instrument rental if needed.",
+      "Interested candidates: children, teenagers, and adults. Beginners are absolutely welcome.",
   },
   {
-    question: "What styles of music do you teach?",
+    question: "Do I need prior experience?",
     answer:
-      "We teach various styles including classical, jazz, pop, rock, and traditional African music. Our curriculum is flexible to match your interests.",
+      "No. We specialize in discovering and developing raw musical potential.",
   },
   {
-    question: "How do online lessons work?",
+    question: "What learning options do you offer?",
     answer:
-      "Online lessons are conducted via video call with real-time feedback. You'll receive digital materials and recorded sessions for practice.",
+      "We offer flexible options: in-center classes, home lessons, and online sessions.",
   },
   {
-    question: "Do you teach students with no prior experience?",
+    question: "Are online classes effective?",
     answer:
-      "Absolutely! We welcome complete beginners and have specialized programs designed for those just starting their musical journey.",
+      "Yes, our online classes are interactive, personalized, and results-driven.",
+  },
+  {
+    question: "How are classes scheduled?",
+    answer:
+      "Schedules are flexible and arranged to fit your availability.",
+  },
+  {
+    question: "How do I enroll or get pricing?",
+    answer:
+      "Simply contact us via phone, WhatsApp, or the website to get started.",
   },
 ]
 

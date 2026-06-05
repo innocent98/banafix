@@ -59,7 +59,7 @@ export function ContactHero() {
                 variant="outline"
                 className="w-full bg-white/20 border-white/30 text-white hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-xl backdrop-blur-sm"
               >
-                +234 801 234 5678
+                0903 856 3822
               </Button>
             </CardContent>
           </Card>
@@ -91,7 +91,7 @@ export function ContactHero() {
                 variant="outline"
                 className="w-full bg-purple-500/20 border-purple-400/30 text-white hover:bg-purple-500 hover:text-white transition-all duration-300 rounded-xl backdrop-blur-sm"
               >
-                hello@banafix.com
+                info@banafix.com
               </Button>
             </CardContent>
           </Card>
