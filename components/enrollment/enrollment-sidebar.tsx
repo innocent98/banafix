@@ -12,13 +12,18 @@ interface EnrollmentSidebarProps {
 }
 
 export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }: EnrollmentSidebarProps) {
-  const hasDiscount = formData.couponCode
-  
-  // Calculate application fee based on course location
+  // Registration (application) fee based on course location — this is the only
+  // amount collected at enrollment.
   const applicationFee = selectedCourseData ? calculateApplicationFee(selectedCourseData.location).amount : 2000
-  
-  const totalPrice = selectedCourseData ?
-    (selectedCourseData.price + applicationFee + Math.round(selectedCourseData.price * 0.075) - (hasDiscount ? 5000 : 0)) : 0
+
+  // Course cost is informational: shown so the student knows the full tuition,
+  // but it's billed separately before classes begin. VAT applies to the course fee only.
+  const courseFee = selectedCourseData?.price || 0
+  const vat = Math.round(courseFee * 0.075)
+  const courseTotal = courseFee + vat
+
+  // Only the registration fee is due now.
+  const dueNow = applicationFee
 
   return (
     <div className="sticky top-6 space-y-6">
@@ -86,28 +91,30 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Course Fee:</span>
-                    <span className="font-semibold text-slate-900">₦{selectedCourseData.price.toLocaleString()}</span>
+                    <span className="font-semibold text-slate-900">₦{courseFee.toLocaleString()}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">VAT (7.5%):</span>
+                    <span className="font-semibold text-slate-900">₦{vat.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500 pb-3 border-b border-slate-200">
+                    <span>Course total (billed before classes begin)</span>
+                    <span className="font-medium">₦{courseTotal.toLocaleString()}</span>
+                  </div>
+
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Registration Fee:</span>
                     <span className="font-semibold text-slate-900">₦{applicationFee.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">VAT (7.5%):</span>
-                    <span className="font-semibold text-slate-900">₦{Math.round(selectedCourseData.price * 0.075).toLocaleString()}</span>
-                  </div>
-
-                  {hasDiscount && (
-                    <div className="flex justify-between items-center text-green-600">
-                      <span>Discount ({formData.couponCode}):</span>
-                      <span className="font-semibold">-₦5,000</span>
-                    </div>
-                  )}
 
                   <div className="flex justify-between items-center font-bold text-lg border-t border-slate-200 pt-3">
-                    <span className="text-slate-900">Total:</span>
-                    <span className="text-amber-600">₦{totalPrice.toLocaleString()}</span>
+                    <span className="text-slate-900">Due at Enrollment:</span>
+                    <span className="text-amber-600">₦{dueNow.toLocaleString()}</span>
                   </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Only the registration fee is required now to secure your spot. The course fee is billed
+                    separately before classes begin.
+                  </p>
                 </div>
               </div>
             </>

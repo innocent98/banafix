@@ -21,8 +21,15 @@ export function ReviewSection({
 }: ReviewSectionProps) {
   const isTimerCritical = seatHoldTimer < 120
   
-  // Calculate application fee based on course location
+  // Registration (application) fee — the only amount collected at enrollment.
   const applicationFee = selectedCourseData ? calculateApplicationFee(selectedCourseData.location).amount : 2000
+
+  // Course cost is informational (billed separately before classes begin).
+  // VAT applies to the course fee only.
+  const courseFee = selectedCourseData?.price || 0
+  const vat = Math.round(courseFee * 0.075)
+  const courseTotal = courseFee + vat
+  const dueNow = applicationFee
 
   return (
     <div className="space-y-8">
@@ -203,39 +210,35 @@ export function ReviewSection({
               <div className="flex justify-between items-center py-3 border-b border-slate-100">
                 <span className="text-slate-600 font-medium">Course Fee:</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  ₦{selectedCourseData?.price.toLocaleString()}
+                  ₦{courseFee.toLocaleString()}
                 </span>
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                <span className="text-slate-600 font-medium">Registration Fee:</span>
-                <span className="text-lg font-semibold text-slate-900">₦{applicationFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-slate-100">
                 <span className="text-slate-600 font-medium">VAT (7.5%):</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  ₦{Math.round((selectedCourseData?.price || 0) * 0.075).toLocaleString()}
+                  ₦{vat.toLocaleString()}
                 </span>
               </div>
+              <div className="flex justify-between items-center py-3 border-b border-slate-100 text-slate-500">
+                <span className="font-medium">Course total (billed before classes begin)</span>
+                <span className="text-base font-medium">₦{courseTotal.toLocaleString()}</span>
+              </div>
 
-              {/* Discount if coupon applied */}
-              {formData.couponCode && (
-                <div className="flex justify-between items-center py-3 border-b border-slate-100">
-                  <span className="text-green-600 font-medium">Discount Applied ({formData.couponCode}):</span>
-                  <span className="text-lg font-semibold text-green-600">-₦5,000</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                <span className="text-slate-600 font-medium">Registration Fee:</span>
+                <span className="text-lg font-semibold text-slate-900">₦{applicationFee.toLocaleString()}</span>
+              </div>
 
               <div className="flex justify-between items-center py-4 border-t-2 border-slate-900">
-                <span className="text-xl font-heading font-bold text-slate-900">Total Amount:</span>
+                <span className="text-xl font-heading font-bold text-slate-900">Due at Enrollment:</span>
                 <span className="text-2xl font-bold text-amber-600">
-                  ₦{(
-                    (selectedCourseData?.price || 0) +
-                    applicationFee +
-                    Math.round((selectedCourseData?.price || 0) * 0.075) -
-                    (formData.couponCode ? 5000 : 0)
-                  ).toLocaleString()}
+                  ₦{dueNow.toLocaleString()}
                 </span>
               </div>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Only the registration fee is required now to secure your spot. The course fee is billed
+                separately before classes begin.
+              </p>
             </div>
           </div>
 

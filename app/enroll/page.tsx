@@ -102,8 +102,8 @@ export default function EnrollmentPage() {
     couponCode: "",
     consentToEmails: false,
 
-    // Payment & Billing
-    paymentMethod: "",
+    // Payment & Billing — card entry is handled entirely on Paystack's checkout
+    paymentMethod: "paystack",
     installmentPlan: false,
     billingAddress: "",
     billingCity: "",
@@ -408,7 +408,7 @@ export default function EnrollmentPage() {
                       !formData.priorLevel ||
                       !formData.schedulePreference)) ||
                   (currentStep === 2 && (!formData.agreeToTerms || !formData.agreeToRefundPolicy)) ||
-                  (currentStep === 4 && (!formData.paymentMethod || isProcessingPayment))
+                  (currentStep === 4 && isProcessingPayment)
                 }
                 className="flex items-center"
               >
