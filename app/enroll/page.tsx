@@ -211,7 +211,7 @@ export default function EnrollmentPage() {
         // Redirect to Paystack payment page
         window.location.href = result.payment.authorization_url
       } else {
-        setPaymentError(result.message || "Failed to process enrollment")
+        setPaymentError(result.error || result.message || "Failed to process enrollment")
       }
     } catch (err) {
       setPaymentError("Network error. Please try again.")

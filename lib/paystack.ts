@@ -260,12 +260,17 @@ export function createApplicationFeePayment(enrollmentData: {
   courseId: string
   applicationFee: number // Amount in Naira
 }): PaystackTransaction {
+  // Prefer an explicit public base URL, fall back to the auth URL. If neither is
+  // set, omit callback_url entirely so we never build "undefined/enroll/success"
+  // (Paystack then uses the callback configured in its dashboard).
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL
+
   return {
     email: enrollmentData.email,
     amount: enrollmentData.applicationFee, // Location-based application fee
     currency: 'NGN',
     reference: generatePaymentReference('app_fee'),
-    callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/enroll/success`,
+    ...(baseUrl ? { callback_url: `${baseUrl}/enroll/success` } : {}),
     metadata: {
       enrollment_id: enrollmentData.enrollmentId,
       course_id: enrollmentData.courseId,

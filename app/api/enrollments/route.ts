@@ -104,20 +104,28 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Selected delivery mode is not available for this course', 400)
     }
 
-    // Check if student is already enrolled in this course
-    const existingEnrollment = await prisma.enrollment.findFirst({
+    // Block only if the student has already paid or is enrolled. A leftover
+    // `pending` enrollment (e.g. an abandoned payment where the student closed the
+    // Paystack tab, so no webhook fired) must NOT block a retry.
+    const paidEnrollment = await prisma.enrollment.findFirst({
       where: {
         email,
         courseId,
         status: {
-          in: ['pending', 'application_paid', 'enrolled'],
+          in: ['application_paid', 'enrolled'],
         },
       },
     })
 
-    if (existingEnrollment) {
+    if (paidEnrollment) {
       return createErrorResponse('You are already enrolled in this course', 400)
     }
+
+    // Clear any stale, unpaid pending enrollment for this student+course so the
+    // retry starts clean. onDelete: Cascade removes the associated payment rows.
+    await prisma.enrollment.deleteMany({
+      where: { email, courseId, status: 'pending' },
+    })
 
     // Create enrollment record
     const enrollment = await prisma.enrollment.create({
