@@ -14,7 +14,7 @@ interface EnrollmentCardProps {
   courseDetails: {
     id: string
     modes: string[]
-    prices: { [key: string]: number }
+    pricing: { [key: string]: number }
     totalSeats: number
     seatsLeft: number
     unlimitedSeats?: boolean
@@ -53,7 +53,7 @@ export function EnrollmentCard({ courseDetails }: EnrollmentCardProps) {
     })
 
   const seatProgress = ((courseDetails.totalSeats - courseDetails.seatsLeft) / courseDetails.totalSeats) * 100
-  const currentPrice = courseDetails.prices[selectedMode]
+  const currentPrice = courseDetails.pricing[selectedMode]
 
   return (
     <Card className="sticky top-6 border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
@@ -103,7 +103,7 @@ export function EnrollmentCard({ courseDetails }: EnrollmentCardProps) {
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-slate-900">{mode}</span>
                       <span className="text-lg font-bold text-amber-600">
-                        ₦{courseDetails.prices[mode]?.toLocaleString()}
+                        ₦{courseDetails.pricing[mode]?.toLocaleString()}
                       </span>
                     </div>
                   </Label>

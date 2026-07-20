@@ -43,7 +43,8 @@ interface Course {
   session: string
   sessionStartDate: string
   modes: string[]
-  prices: Record<string, number>
+  pricing: Record<string, number>
+  price: number
   totalSeats: number
   seatsLeft: number
   unlimitedSeats: boolean
@@ -221,11 +222,11 @@ export default function EnrollmentPage() {
   }
 
   // Resolve the price for the mode the user picked (falling back to the first
-  // available mode). The detail API returns a per-mode `prices` map, not a flat price.
+  // available mode). The API returns a per-mode `pricing` map plus a representative
+  // `price`; we prefer the selected mode's price so the total reacts to mode changes.
   const activeMode = course ? (formData.selectedMode || course.modes[0]) : ""
   const coursePrice = course
-    ? course.prices?.[activeMode] ??
-      (course.prices ? Math.min(...Object.values(course.prices)) : 0)
+    ? course.pricing?.[activeMode] ?? course.price ?? 0
     : 0
 
   // Transform course data to match expected format for existing components
@@ -242,7 +243,7 @@ export default function EnrollmentPage() {
     totalSeats: course.totalSeats,
     unlimitedSeats: course.unlimitedSeats,
     location: course.location,
-    pricing: course.prices,
+    pricing: course.pricing,
     modes: course.modes,
     outcomes: course.outcomes,
     equipment: course.equipment,

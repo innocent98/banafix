@@ -48,7 +48,7 @@ interface CourseDetails {
   session: string
   sessionStartDate: string
   modes: string[]
-  prices: Record<string, number>
+  pricing: Record<string, number>
   totalSeats: number
   seatsLeft: number
   unlimitedSeats: boolean
@@ -367,7 +367,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             <EnrollmentCard courseDetails={{
               id: courseDetails.id,
               modes: courseDetails.modes,
-              prices: courseDetails.prices,
+              pricing: courseDetails.pricing,
               totalSeats: courseDetails.totalSeats,
               seatsLeft: courseDetails.seatsLeft,
               unlimitedSeats: courseDetails.unlimitedSeats,
