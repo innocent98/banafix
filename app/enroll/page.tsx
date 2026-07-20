@@ -11,7 +11,6 @@ import { ProgressIndicator } from "@/components/enrollment/progress-indicator"
 import { StudentDetailsForm } from "@/components/enrollment/student-details-form"
 import { PoliciesForm } from "@/components/enrollment/policies-form"
 import { ReviewSection } from "@/components/enrollment/review-section"
-import { PaymentForm } from "@/components/enrollment/payment-form"
 import { SuccessScreen } from "@/components/enrollment/success-screen"
 import { EnrollmentSidebar } from "@/components/enrollment/enrollment-sidebar"
 import { WaitlistModal } from "@/components/enrollment/waitlist-modal"
@@ -23,6 +22,7 @@ import {
   Eye,
   CreditCard,
   CheckCircle,
+  AlertCircle,
 } from "lucide-react"
 
 const steps = [
@@ -315,74 +315,91 @@ export default function EnrollmentPage() {
         <ProgressIndicator currentStep={currentStep} />
 
         <div className="max-w-4xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Form */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    {React.createElement(steps[currentStep - 1].icon, { className: "h-5 w-5 mr-2 text-primary" })}
-                    {steps[currentStep - 1].title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Step 1: Details */}
-                  {currentStep === 1 && (
-                    <StudentDetailsForm
-                      formData={formData}
-                      onInputChange={handleInputChange}
-                      onPreferredDaysChange={handlePreferredDaysChange}
-                      selectedCourseData={selectedCourseData}
-                    />
-                  )}
-
-                  {/* Step 2: Policies */}
-                  {currentStep === 2 && (
-                    <PoliciesForm
-                      formData={formData}
-                      onInputChange={handleInputChange}
-                    />
-                  )}
-
-                  {/* Step 3: Review */}
-                  {currentStep === 3 && (
-                    <ReviewSection
-                      formData={formData}
-                      selectedCourseData={selectedCourseData}
-                      seatHoldTimer={seatHoldTimer}
-                      formatTimer={formatTimer}
-                    />
-                  )}
-
-                  {/* Step 4: Payment */}
-                  {currentStep === 4 && (
-                    <PaymentForm
-                      formData={formData}
-                      onInputChange={handleInputChange}
-                      paymentError={paymentError}
-                    />
-                  )}
-
-                  {/* Step 5: Done */}
-                  {currentStep === 5 && (
-                    <SuccessScreen
-                      formData={formData}
-                      selectedCourseData={selectedCourseData}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
+          {currentStep === 4 ? (
+            /* Payment step: no form panel — Paystack's hosted checkout handles
+               card entry. Just show the summary + any error; the "Complete Payment"
+               button below starts the redirect. */
+            <div className="max-w-xl mx-auto">
               <EnrollmentSidebar
                 selectedCourseData={selectedCourseData}
                 formData={formData}
                 currentStep={currentStep}
               />
+              <p className="text-center text-sm text-slate-500 mt-6">
+                Click <strong>Complete Payment</strong> to continue to Paystack's secure checkout. We never see
+                or store your card details.
+              </p>
+              {paymentError && (
+                <div className="mt-4 p-5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-red-900">Payment could not start</p>
+                    <p className="text-sm text-red-700">{paymentError}</p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Main Form */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      {React.createElement(steps[currentStep - 1].icon, { className: "h-5 w-5 mr-2 text-primary" })}
+                      {steps[currentStep - 1].title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Step 1: Details */}
+                    {currentStep === 1 && (
+                      <StudentDetailsForm
+                        formData={formData}
+                        onInputChange={handleInputChange}
+                        onPreferredDaysChange={handlePreferredDaysChange}
+                        selectedCourseData={selectedCourseData}
+                      />
+                    )}
+
+                    {/* Step 2: Policies */}
+                    {currentStep === 2 && (
+                      <PoliciesForm
+                        formData={formData}
+                        onInputChange={handleInputChange}
+                      />
+                    )}
+
+                    {/* Step 3: Review */}
+                    {currentStep === 3 && (
+                      <ReviewSection
+                        formData={formData}
+                        selectedCourseData={selectedCourseData}
+                        seatHoldTimer={seatHoldTimer}
+                        formatTimer={formatTimer}
+                      />
+                    )}
+
+                    {/* Step 5: Done */}
+                    {currentStep === 5 && (
+                      <SuccessScreen
+                        formData={formData}
+                        selectedCourseData={selectedCourseData}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Sidebar */}
+              <div className="lg:col-span-1">
+                <EnrollmentSidebar
+                  selectedCourseData={selectedCourseData}
+                  formData={formData}
+                  currentStep={currentStep}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8">
