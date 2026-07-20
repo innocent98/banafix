@@ -112,7 +112,7 @@ export function CourseCurriculum({ curriculum }: CourseCurriculumProps) {
       <div className="p-6 lg:p-8 bg-gradient-to-br from-amber-50 to-amber-100 rounded-3xl border border-amber-200">
         <h4 className="font-heading font-bold text-xl text-slate-900 mb-4">Upon Course Completion</h4>
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="flex items-start gap-3">
+          {/* <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
               <CheckCircle className="h-5 w-5 text-white" />
             </div>
@@ -120,7 +120,7 @@ export function CourseCurriculum({ curriculum }: CourseCurriculumProps) {
               <h5 className="font-semibold text-slate-900 mb-1">Certificate of Completion</h5>
               <p className="text-sm text-slate-600">Official recognition of your achievement</p>
             </div>
-          </div>
+          </div> */}
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
               <CheckCircle className="h-5 w-5 text-white" />

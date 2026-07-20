@@ -27,11 +27,11 @@ export function Navigation() {
   return (
     <>
       {/* Announcement Bar */}
-      <div className="bg-amber-500 text-white text-center py-2.5 px-2 text-xs sm:text-sm font-medium">
+      {/* <div className="bg-amber-500 text-white text-center py-2.5 px-2 text-xs sm:text-sm font-medium">
         <span className="inline-block">Fall Session – 5 seats left in Piano Beginner</span>
         <span className="hidden sm:inline"> • </span>
         <span className="inline-block">Early Bird Discount Ends Soon!</span>
-      </div>
+      </div> */}
 
       {/* Main Navigation */}
       <nav className="border-b border-slate-200 sticky top-0 z-50 backdrop-blur-lg bg-white/95">
@@ -96,13 +96,13 @@ export function Navigation() {
                 )}
               </div>
 
-              <Link 
+              {/* <Link 
                 href="/instructors" 
                 className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors relative group"
               >
                 Instructors
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-500 transition-all duration-300 group-hover:w-full"></span>
-              </Link>
+              </Link> */}
               
               {/* <Link 
                 href="/admissions" 
@@ -180,13 +180,13 @@ export function Navigation() {
                   Courses
                 </Link>
                 
-                <Link 
+                {/* <Link 
                   href="/instructors" 
                   className="text-base font-medium text-slate-700 hover:text-slate-900 transition-colors px-2 py-2 hover:bg-slate-50 rounded-lg"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Instructors
-                </Link>
+                </Link> */}
                 
                 {/* <Link 
                   href="/admissions" 

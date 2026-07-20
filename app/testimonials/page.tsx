@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Star, Play, Filter, Send } from "lucide-react"
+import { Navigation } from "@/components/navigation"
+import { Footer } from "@/components/footer"
 
 export default function TestimonialsPage() {
   const [selectedInstrument, setSelectedInstrument] = useState("all")
@@ -98,6 +100,7 @@ export default function TestimonialsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4 text-center">
@@ -252,6 +255,7 @@ export default function TestimonialsPage() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

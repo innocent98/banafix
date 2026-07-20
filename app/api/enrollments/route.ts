@@ -94,8 +94,8 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Course enrollment has expired', 400)
     }
 
-    // Check if course has available seats
-    if (course.seatsLeft <= 0) {
+    // Check if course has available seats (skipped for unlimited-capacity courses)
+    if (!course.unlimitedSeats && course.seatsLeft <= 0) {
       return createErrorResponse('Course is fully booked', 400)
     }
 

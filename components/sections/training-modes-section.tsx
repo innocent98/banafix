@@ -39,7 +39,7 @@ export function TrainingModesSection() {
             Learn From Anywhere
           </h2>
           <p className="text-slate-600 text-lg lg:text-xl max-w-3xl mx-auto leading-relaxed">
-            Choose the learning format that works best for you - whether online, in-person, or at home
+            Choose the learning format that works best for you whether online, in-person, or at home
           </p>
         </div>
 
@@ -75,12 +75,12 @@ export function TrainingModesSection() {
                     </li>
                   ))}
                 </ul>
-                <Button
+                {/* <Button
                   variant="outline"
                   className="w-full border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-semibold rounded-full transition-all duration-300"
                 >
                   Learn More
-                </Button>
+                </Button> */}
               </CardContent>
             </Card>
           ))}

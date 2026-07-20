@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Phone, Mail, MessageCircle, Sparkles, HeadphonesIcon } from "lucide-react"
 
@@ -55,12 +55,12 @@ export function ContactHero() {
               </div>
               <h3 className="font-heading font-bold text-xl text-white mb-3">Call Us Now</h3>
               <p className="text-blue-100 mb-6 text-sm">Speak directly with our admissions team</p>
-              <Button
-                variant="outline"
-                className="w-full bg-white/20 border-white/30 text-white hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-xl backdrop-blur-sm"
+              <a
+                href="tel:+2349038563822"
+                className={`${buttonVariants({ variant: "outline" })} w-full bg-white/20 border-white/30 text-white hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-xl backdrop-blur-sm`}
               >
                 0903 856 3822
-              </Button>
+              </a>
             </CardContent>
           </Card>
 
@@ -71,12 +71,14 @@ export function ContactHero() {
               </div>
               <h3 className="font-heading font-bold text-xl text-white mb-3">WhatsApp Chat</h3>
               <p className="text-blue-100 mb-6 text-sm">Get instant support via WhatsApp</p>
-              <Button
-                variant="outline"
-                className="w-full bg-green-500/20 border-green-400/30 text-white hover:bg-green-500 hover:text-white transition-all duration-300 rounded-xl backdrop-blur-sm"
+              <a
+                href="https://wa.me/2349038563822"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${buttonVariants({ variant: "outline" })} w-full bg-green-500/20 border-green-400/30 text-white hover:bg-green-500 hover:text-white transition-all duration-300 rounded-xl backdrop-blur-sm`}
               >
                 Chat Now
-              </Button>
+              </a>
             </CardContent>
           </Card>
 
@@ -87,12 +89,12 @@ export function ContactHero() {
               </div>
               <h3 className="font-heading font-bold text-xl text-white mb-3">Email Support</h3>
               <p className="text-blue-100 mb-6 text-sm">Send us your detailed inquiries</p>
-              <Button
-                variant="outline"
-                className="w-full bg-purple-500/20 border-purple-400/30 text-white hover:bg-purple-500 hover:text-white transition-all duration-300 rounded-xl backdrop-blur-sm"
+              <a
+                href="mailto:info@banafix.com"
+                className={`${buttonVariants({ variant: "outline" })} w-full bg-purple-500/20 border-purple-400/30 text-white hover:bg-purple-500 hover:text-white transition-all duration-300 rounded-xl backdrop-blur-sm`}
               >
                 info@banafix.com
-              </Button>
+              </a>
             </CardContent>
           </Card>
         </div>

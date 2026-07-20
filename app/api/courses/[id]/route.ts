@@ -48,6 +48,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       prices: course.pricing,
       totalSeats: course.totalSeats,
       seatsLeft: course.seatsLeft,
+      unlimitedSeats: course.unlimitedSeats,
       outcomes: course.outcomes,
       equipment: course.equipment,
       image: course.image,

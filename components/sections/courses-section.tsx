@@ -61,7 +61,7 @@ export function CoursesSection() {
         </div>
 
         {/* Course Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-16">
           {instruments.map((instrument, index) => (
             <Card
               key={instrument.name}
@@ -69,7 +69,7 @@ export function CoursesSection() {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Image Section */}
-              <div className="relative h-56 lg:h-64 overflow-hidden">
+              <div className="relative h-44 lg:h-48 overflow-hidden">
                 <Image
                   src={instrument.image}
                   alt={`${instrument.name} classes`}
@@ -93,24 +93,20 @@ export function CoursesSection() {
               </div>
 
               {/* Content Section */}
-              <CardContent className="p-6">
-                <div className="mb-4">
-                  <h3 className="font-heading font-bold text-xl lg:text-2xl text-slate-900 mb-2">
+              <CardContent className="p-5">
+                <div className="mb-3">
+                  <h3 className="font-heading font-bold text-lg lg:text-xl text-slate-900 mb-1">
                     {instrument.name}
                   </h3>
-                  <p className="text-slate-500 font-medium">Multiple skill levels</p>
+                  <p className="text-sm text-slate-500 font-medium">Multiple skill levels</p>
                 </div>
 
-                {/* Price and Enroll */}
-                <div className="flex items-center justify-between py-4 border-t border-slate-100">
-                  <div>
-                    <div className="text-sm text-slate-500 mb-1 font-medium">Starting from</div>
-                    <div className="font-bold text-xl text-slate-900">{instrument.price}</div>
-                  </div>
-                  <Link href={`/courses/${instrument.name.toLowerCase()}`} className="cursor-pointer">
+                {/* Enroll */}
+                <div className="py-3 border-t border-slate-100">
+                  <Link href={`/courses/${instrument.name.toLowerCase()}`} className="block cursor-pointer">
                     <Button
                       size="sm"
-                      className="bg-slate-900 hover:bg-amber-500 text-white transition-all duration-300 cursor-pointer rounded-full px-6 py-2.5 font-semibold transform hover:scale-105 shadow-lg"
+                      className="w-full bg-slate-900 hover:bg-amber-500 text-white transition-all duration-300 cursor-pointer rounded-full px-4 font-semibold shadow-lg"
                       >
                       Enroll
                     </Button>

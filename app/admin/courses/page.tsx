@@ -30,6 +30,7 @@ interface Course {
   duration: string
   totalSeats: number
   seatsLeft: number
+  unlimitedSeats: boolean
   isPublished: boolean
   isActive: boolean
   sessionStartDate?: string | null
@@ -451,12 +452,20 @@ export default function CoursesPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="text-sm font-medium">
-                              {course._count.enrollments}/{course.totalSeats}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {Math.round((course._count.enrollments / course.totalSeats) * 100)}% filled
-                            </p>
+                            {course.unlimitedSeats ? (
+                              <p className="text-sm font-medium text-green-600">
+                                {course._count.enrollments} / Unlimited
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium">
+                                  {course._count.enrollments}/{course.totalSeats}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {Math.round((course._count.enrollments / course.totalSeats) * 100)}% filled
+                                </p>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

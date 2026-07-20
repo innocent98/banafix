@@ -99,6 +99,7 @@ export function InstructorFilters({
                     <SelectItem value="Lagos">🏙️ Lagos</SelectItem>
                     <SelectItem value="Abuja">🏛️ Abuja</SelectItem>
                     <SelectItem value="Port Harcourt">🏘️ Port Harcourt</SelectItem>
+                    <SelectItem value="Ondo">🏞️ Ondo</SelectItem>
                     <SelectItem value="Enugu">🌆 Enugu</SelectItem>
                   </SelectContent>
                 </Select>

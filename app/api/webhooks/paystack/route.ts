@@ -105,9 +105,14 @@ async function handleChargeSuccess(data: any) {
         },
       })
 
-      // Reduce course seats
-      await tx.course.update({
-        where: { id: applicationPayment.enrollment.courseId },
+      // Reduce course seats — only for limited-capacity courses with seats remaining.
+      // updateMany lets us filter on non-unique fields and avoids negative seat counts.
+      await tx.course.updateMany({
+        where: {
+          id: applicationPayment.enrollment.courseId,
+          unlimitedSeats: false,
+          seatsLeft: { gt: 0 },
+        },
         data: {
           seatsLeft: {
             decrement: 1,

@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
       price: course.pricing ? Math.min(...Object.values(course.pricing as Record<string, number>)) : 0,
       totalSeats: course.totalSeats,
       seatsLeft: course.seatsLeft,
+      unlimitedSeats: course.unlimitedSeats,
       outcomes: course.outcomes,
       equipment: course.equipment,
       image: course.image,

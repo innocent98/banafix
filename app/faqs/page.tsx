@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone } from "lucide-react"
@@ -72,70 +72,70 @@ export default function FAQsPage() {
         "Simply contact us via phone, WhatsApp, or the website to get started.",
       tags: ["enroll", "pricing", "contact"],
     },
-    {
-      id: 7,
-      category: "payments",
-      question: "What payment methods do you accept?",
-      answer:
-        "We accept all major credit/debit cards, bank transfers, USSD payments, and PayPal. Payment plans are available for courses longer than 3 months.",
-      tags: ["payment", "methods", "plans"],
-    },
-    {
-      id: 8,
-      category: "payments",
-      question: "Can I get a refund if I'm not satisfied?",
-      answer:
-        "Yes! We offer a 14-day money-back guarantee for all courses. If you're not completely satisfied within the first two weeks, we'll provide a full refund.",
-      tags: ["refund", "guarantee", "satisfaction"],
-    },
-    {
-      id: 9,
-      category: "sessions",
-      question: "How long are the training sessions?",
-      answer:
-        "Session duration varies by course type: One-on-One sessions are 60 minutes, Group sessions are 90 minutes, and Online sessions are 45 minutes. Home training sessions are typically 75 minutes.",
-      tags: ["duration", "session", "timing"],
-    },
-    {
-      id: 10,
-      category: "sessions",
-      question: "Can I reschedule my sessions?",
-      answer:
-        "Yes, you can reschedule sessions up to 24 hours in advance through your student dashboard or by contacting your instructor directly. Emergency rescheduling may be accommodated on a case-by-case basis.",
-      tags: ["reschedule", "flexibility", "dashboard"],
-    },
-    {
-      id: 11,
-      category: "online-vs-home",
-      question: "What's the difference between Online and Home training?",
-      answer:
-        "Online training is conducted via video call with digital resources, perfect for theory and technique. Home training brings an instructor to your location with physical instruments, ideal for hands-on learning.",
-      tags: ["online", "home", "difference"],
-    },
-    {
-      id: 12,
-      category: "online-vs-home",
-      question: "Do I need my own instrument for online sessions?",
-      answer:
-        "For most instruments, yes. However, we provide digital alternatives for piano (virtual keyboard) and offer instrument rental programs. Vocal training requires no additional equipment.",
-      tags: ["instrument", "equipment", "rental"],
-    },
-    {
-      id: 13,
-      category: "policies",
-      question: "What is your attendance policy?",
-      answer:
-        "We require at least 80% attendance for course completion certification. Missed sessions can be made up within the course duration, subject to instructor availability.",
-      tags: ["attendance", "policy", "certification"],
-    },
-    {
-      id: 14,
-      category: "policies",
-      question: "Can I switch instructors during my course?",
-      answer:
-        "Yes, if you're not comfortable with your assigned instructor, we can arrange a switch within 48 hours. We want to ensure the best learning experience for every student.",
-      tags: ["instructor", "switch", "comfort"],
-    },
+    // {
+    //   id: 7,
+    //   category: "payments",
+    //   question: "What payment methods do you accept?",
+    //   answer:
+    //     "We accept all major credit/debit cards, bank transfers, USSD payments, and PayPal. Payment plans are available for courses longer than 3 months.",
+    //   tags: ["payment", "methods", "plans"],
+    // },
+    // {
+    //   id: 8,
+    //   category: "payments",
+    //   question: "Can I get a refund if I'm not satisfied?",
+    //   answer:
+    //     "Yes! We offer a 14-day money-back guarantee for all courses. If you're not completely satisfied within the first two weeks, we'll provide a full refund.",
+    //   tags: ["refund", "guarantee", "satisfaction"],
+    // },
+    // {
+    //   id: 9,
+    //   category: "sessions",
+    //   question: "How long are the training sessions?",
+    //   answer:
+    //     "Session duration varies by course type: One-on-One sessions are 60 minutes, Group sessions are 90 minutes, and Online sessions are 45 minutes. Home training sessions are typically 75 minutes.",
+    //   tags: ["duration", "session", "timing"],
+    // },
+    // {
+    //   id: 10,
+    //   category: "sessions",
+    //   question: "Can I reschedule my sessions?",
+    //   answer:
+    //     "Yes, you can reschedule sessions up to 24 hours in advance through your student dashboard or by contacting your instructor directly. Emergency rescheduling may be accommodated on a case-by-case basis.",
+    //   tags: ["reschedule", "flexibility", "dashboard"],
+    // },
+    // {
+    //   id: 11,
+    //   category: "online-vs-home",
+    //   question: "What's the difference between Online and Home training?",
+    //   answer:
+    //     "Online training is conducted via video call with digital resources, perfect for theory and technique. Home training brings an instructor to your location with physical instruments, ideal for hands-on learning.",
+    //   tags: ["online", "home", "difference"],
+    // },
+    // {
+    //   id: 12,
+    //   category: "online-vs-home",
+    //   question: "Do I need my own instrument for online sessions?",
+    //   answer:
+    //     "For most instruments, yes. However, we provide digital alternatives for piano (virtual keyboard) and offer instrument rental programs. Vocal training requires no additional equipment.",
+    //   tags: ["instrument", "equipment", "rental"],
+    // },
+    // {
+    //   id: 13,
+    //   category: "policies",
+    //   question: "What is your attendance policy?",
+    //   answer:
+    //     "We require at least 80% attendance for course completion certification. Missed sessions can be made up within the course duration, subject to instructor availability.",
+    //   tags: ["attendance", "policy", "certification"],
+    // },
+    // {
+    //   id: 14,
+    //   category: "policies",
+    //   question: "Can I switch instructors during my course?",
+    //   answer:
+    //     "Yes, if you're not comfortable with your assigned instructor, we can arrange a switch within 48 hours. We want to ensure the best learning experience for every student.",
+    //   tags: ["instructor", "switch", "comfort"],
+    // },
   ]
 
   const filteredFAQs = faqs.filter((faq) => {
@@ -180,7 +180,7 @@ export default function FAQsPage() {
         </div>
 
         {/* Category Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8 justify-center">
+        {/* <div className="flex flex-wrap gap-2 mb-8 justify-center">
           {categories.map((category) => (
             <Button
               key={category.id}
@@ -194,7 +194,7 @@ export default function FAQsPage() {
               </Badge>
             </Button>
           ))}
-        </div>
+        </div> */}
 
         {/* FAQ Items */}
         <div className="max-w-4xl mx-auto space-y-4">
@@ -241,16 +241,26 @@ export default function FAQsPage() {
                 Can't find what you're looking for? Our support team is here to help!
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="flex items-center gap-2">
+                <a
+                  href="https://wa.me/2349038563822"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${buttonVariants({ size: "lg" })} flex items-center gap-2`}
+                >
                   <MessageCircle className="h-5 w-5" />
                   Chat with Us
-                </Button>
-                <Button size="lg" variant="outline" className="flex items-center gap-2 bg-transparent">
+                </a>
+                <a
+                  href="https://wa.me/2349038563822"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${buttonVariants({ size: "lg", variant: "outline" })} flex items-center gap-2 bg-transparent`}
+                >
                   <Phone className="h-5 w-5" />
                   WhatsApp Support
-                </Button>
+                </a>
               </div>
-              <p className="text-sm text-muted-foreground mt-4">Average response time: Under 2 hours</p>
+              {/* <p className="text-sm text-muted-foreground mt-4">Average response time: Under 2 hours</p> */}
             </CardContent>
           </Card>
         </div>

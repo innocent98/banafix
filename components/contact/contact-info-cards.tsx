@@ -89,7 +89,10 @@ export function ContactInfoCards() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer">
+          <a
+            href="tel:+2349038563822"
+            className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer"
+          >
             <div className="p-2 bg-blue-100 rounded-xl">
               <Phone className="w-5 h-5 text-blue-600" />
             </div>
@@ -97,9 +100,12 @@ export function ContactInfoCards() {
               <h4 className="font-semibold text-slate-900">Admissions Office</h4>
               <p className="text-sm text-slate-700">0903 856 3822</p>
             </div>
-          </div>
+          </a>
 
-          <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer">
+          <a
+            href="mailto:info@banafix.com"
+            className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer"
+          >
             <div className="p-2 bg-purple-100 rounded-xl">
               <Mail className="w-5 h-5 text-purple-600" />
             </div>
@@ -107,9 +113,14 @@ export function ContactInfoCards() {
               <h4 className="font-semibold text-slate-900">General Inquiries</h4>
               <p className="text-sm text-slate-700">info@banafix.com</p>
             </div>
-          </div>
+          </a>
 
-          <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer">
+          <a
+            href="https://wa.me/2349038563822"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-4 bg-white/60 rounded-xl border border-white/80 hover:bg-white/80 transition-colors cursor-pointer"
+          >
             <div className="p-2 bg-green-100 rounded-xl">
               <MessageCircle className="w-5 h-5 text-green-600" />
             </div>
@@ -117,7 +128,7 @@ export function ContactInfoCards() {
               <h4 className="font-semibold text-slate-900">WhatsApp Support</h4>
               <p className="text-sm text-slate-700">0903 856 3822</p>
             </div>
-          </div>
+          </a>
         </CardContent>
       </Card>
     </div>

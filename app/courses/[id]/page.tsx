@@ -51,6 +51,7 @@ interface CourseDetails {
   prices: Record<string, number>
   totalSeats: number
   seatsLeft: number
+  unlimitedSeats: boolean
   outcomes: string[]
   equipment: string[]
   image: string | null
@@ -336,7 +337,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                       </div>
 
                       {/* Additional Policies */}
-                      <div className="grid md:grid-cols-2 gap-6">
+                      {/* <div className="grid md:grid-cols-2 gap-6">
                         <div className="p-6 bg-white border-2 border-slate-100 rounded-3xl">
                           <h5 className="font-semibold text-slate-900 mb-4">Attendance Requirements</h5>
                           <ul className="text-sm text-slate-600 space-y-2">
@@ -353,7 +354,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                             <li>• Students provide own instruments</li>
                           </ul>
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </TabsContent>
@@ -364,10 +365,12 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
           {/* Enrollment Sidebar */}
           <div className="lg:col-span-1">
             <EnrollmentCard courseDetails={{
+              id: courseDetails.id,
               modes: courseDetails.modes,
               prices: courseDetails.prices,
               totalSeats: courseDetails.totalSeats,
               seatsLeft: courseDetails.seatsLeft,
+              unlimitedSeats: courseDetails.unlimitedSeats,
               sessionStartDate: courseDetails.sessionStartDate,
               sessions,
             }} />

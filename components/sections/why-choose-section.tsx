@@ -7,7 +7,7 @@ const features = [
     title: "Legacy",
     icon: Landmark,
     description:
-      "We are committed to raising a generation that will pass on values, skill, and impact — creating a lasting influence through music.",
+      "We are committed to raising a generation that will pass on values, skill, and impact, creating a lasting influence through music.",
   },
   {
     title: "Excellence",

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Shield, Clock, MapPin, User, Award, CheckCircle } from "lucide-react"
+import { Shield, Clock, MapPin, User, Users, Award, CheckCircle } from "lucide-react"
 import { calculateApplicationFee } from "@/lib/application-fee"
 
 interface EnrollmentSidebarProps {
@@ -56,19 +56,28 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
 
               {/* Availability */}
               <div className="p-4 bg-slate-50 rounded-2xl">
-                <div className="flex items-center justify-between text-sm mb-3">
-                  <span className="text-slate-600 font-medium">Seats Available:</span>
-                  <span className="font-bold text-amber-600">
-                    {selectedCourseData.seatsLeft}/{selectedCourseData.totalSeats}
-                  </span>
-                </div>
-                <Progress
-                  value={((selectedCourseData.totalSeats - selectedCourseData.seatsLeft) / selectedCourseData.totalSeats) * 100}
-                  className="h-2 bg-slate-200"
-                />
-                <p className="text-xs text-slate-500 mt-2 text-center">
-                  {Math.round(((selectedCourseData.totalSeats - selectedCourseData.seatsLeft) / selectedCourseData.totalSeats) * 100)}% enrolled
-                </p>
+                {selectedCourseData.unlimitedSeats ? (
+                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-green-600">
+                    <Users className="h-4 w-4" />
+                    Unlimited seats available
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between text-sm mb-3">
+                      <span className="text-slate-600 font-medium">Seats Available:</span>
+                      <span className="font-bold text-amber-600">
+                        {selectedCourseData.seatsLeft}/{selectedCourseData.totalSeats}
+                      </span>
+                    </div>
+                    <Progress
+                      value={((selectedCourseData.totalSeats - selectedCourseData.seatsLeft) / selectedCourseData.totalSeats) * 100}
+                      className="h-2 bg-slate-200"
+                    />
+                    <p className="text-xs text-slate-500 mt-2 text-center">
+                      {Math.round(((selectedCourseData.totalSeats - selectedCourseData.seatsLeft) / selectedCourseData.totalSeats) * 100)}% enrolled
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Price Breakdown */}
@@ -174,8 +183,8 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
           <div className="space-y-3">
             {[
               "Flexible scheduling & makeup sessions",
-              "Certificate of completion",
-              "6 months material access",
+              // "Certificate of completion",
+              // "6 months material access",
               "Performance opportunities",
               "Alumni network access",
               "24/7 student support",
@@ -192,7 +201,7 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
       </Card>
 
       {/* Money Back Guarantee */}
-      <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      {/* <Card className="border-0 shadow-lg rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
         <CardContent className="p-6 text-center">
           <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Award className="h-6 w-6 text-white" />
@@ -202,7 +211,7 @@ export function EnrollmentSidebar({ selectedCourseData, formData, currentStep }:
             Not satisfied with your first month? Get a full refund, no questions asked.
           </p>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

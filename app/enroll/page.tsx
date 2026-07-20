@@ -43,10 +43,10 @@ interface Course {
   session: string
   sessionStartDate: string
   modes: string[]
-  pricing: Record<string, number>
-  price: number
+  prices: Record<string, number>
   totalSeats: number
   seatsLeft: number
+  unlimitedSeats: boolean
   outcomes: string[]
   equipment: string[]
   image: string | null
@@ -220,6 +220,14 @@ export default function EnrollmentPage() {
     }
   }
 
+  // Resolve the price for the mode the user picked (falling back to the first
+  // available mode). The detail API returns a per-mode `prices` map, not a flat price.
+  const activeMode = course ? (formData.selectedMode || course.modes[0]) : ""
+  const coursePrice = course
+    ? course.prices?.[activeMode] ??
+      (course.prices ? Math.min(...Object.values(course.prices)) : 0)
+    : 0
+
   // Transform course data to match expected format for existing components
   const selectedCourseData = course ? {
     id: course.id,
@@ -227,13 +235,14 @@ export default function EnrollmentPage() {
     instructor: course.instructor?.name || "TBA",
     level: course.level,
     duration: course.duration,
-    price: course.price,
-    type: course.modes[0] || "Online", // Use first available mode
+    price: coursePrice,
+    type: activeMode || "Online",
     schedule: course.session || "Flexible",
     seatsLeft: course.seatsLeft,
     totalSeats: course.totalSeats,
+    unlimitedSeats: course.unlimitedSeats,
     location: course.location,
-    pricing: course.pricing,
+    pricing: course.prices,
     modes: course.modes,
     outcomes: course.outcomes,
     equipment: course.equipment,
@@ -245,7 +254,7 @@ export default function EnrollmentPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const isCourseFullSimulation = selectedCourseData?.seatsLeft === 0
+  const isCourseFullSimulation = !selectedCourseData?.unlimitedSeats && selectedCourseData?.seatsLeft === 0
 
   // Show loading state
   if (loading) {

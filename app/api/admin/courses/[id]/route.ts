@@ -56,6 +56,7 @@ export const PUT = withAuth(async (req: NextRequest, admin, { params }: { params
       pricing,
       totalSeats,
       seatsLeft,
+      unlimitedSeats,
       outcomes,
       equipment,
       image,
@@ -82,6 +83,7 @@ export const PUT = withAuth(async (req: NextRequest, admin, { params }: { params
     if (pricing !== undefined) updateData.pricing = pricing
     if (totalSeats !== undefined) updateData.totalSeats = totalSeats
     if (seatsLeft !== undefined) updateData.seatsLeft = seatsLeft
+    if (unlimitedSeats !== undefined) updateData.unlimitedSeats = unlimitedSeats
     if (outcomes !== undefined) updateData.outcomes = outcomes
     if (equipment !== undefined) updateData.equipment = equipment
     if (image !== undefined) updateData.image = image

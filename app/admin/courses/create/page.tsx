@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { ImageUpload } from "@/components/admin/image-upload"
+import { LOCATIONS } from "@/lib/locations"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -60,6 +63,7 @@ interface CourseFormData {
   availableModes: string[]
   pricing: Record<string, number>
   totalSeats: number
+  unlimitedSeats: boolean
   outcomes: string[]
   equipment: string[]
   image: string
@@ -90,7 +94,6 @@ interface CourseFormData {
 
 const INSTRUMENTS = ['Guitar', 'Piano', 'Drums', 'Vocals', 'Violin', 'Production']
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'All Levels']
-const LOCATIONS = ['Lagos', 'Abuja', 'Akure', 'Ondo', 'Port Harcourt', 'Ibadan', 'Online', 'Diaspora']
 
 export default function CreateCoursePage() {
   const router = useRouter()
@@ -112,6 +115,7 @@ export default function CreateCoursePage() {
     availableModes: [],
     pricing: {},
     totalSeats: 20,
+    unlimitedSeats: false,
     outcomes: [""],
     equipment: [""],
     image: "",
@@ -612,16 +616,30 @@ export default function CreateCoursePage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="totalSeats" className="text-sm font-semibold">
-                      Total Seats
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="totalSeats" className="text-sm font-semibold">
+                        Total Seats
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="unlimitedSeats"
+                          checked={formData.unlimitedSeats}
+                          onCheckedChange={(checked) => handleInputChange("unlimitedSeats", checked)}
+                        />
+                        <Label htmlFor="unlimitedSeats" className="text-sm font-medium cursor-pointer">
+                          Unlimited
+                        </Label>
+                      </div>
+                    </div>
                     <Input
                       id="totalSeats"
                       type="number"
-                      value={formData.totalSeats}
+                      value={formData.unlimitedSeats ? "" : formData.totalSeats}
                       onChange={(e) => handleInputChange("totalSeats", parseInt(e.target.value) || 20)}
                       min="1"
                       max="100"
+                      disabled={formData.unlimitedSeats}
+                      placeholder={formData.unlimitedSeats ? "Unlimited seats" : undefined}
                       className="mt-2"
                     />
                   </div>
@@ -642,34 +660,13 @@ export default function CreateCoursePage() {
                 </div>
 
                   <div>
-                    <Label htmlFor="image" className="text-sm font-semibold">
-                      Course Image URL
+                    <Label className="text-sm font-semibold">
+                      Course Image
                     </Label>
-                    <div className="flex gap-4 items-start mt-2">
-                      <div className="flex-1">
-                        <Input
-                          id="image"
-                          value={formData.image}
-                          onChange={(e) => handleInputChange("image", e.target.value)}
-                          placeholder="https://example.com/course-image.jpg"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Provide a direct URL to an image (JPG, PNG, WebP)
-                        </p>
-                      </div>
-                      {formData.image && (
-                        <div className="w-24 h-24 rounded-lg border overflow-hidden bg-muted flex-shrink-0 relative">
-                          <img 
-                            src={formData.image} 
-                            alt="Preview" 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://placehold.co/400x400?text=Invalid+Image"
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <ImageUpload
+                      value={formData.image}
+                      onChange={(url) => handleInputChange("image", url)}
+                    />
                   </div>
               </CardContent>
             </Card>

@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Download, FileText, Shield, CreditCard, Users, Gavel } from "lucide-react"
+import { Navigation } from "@/components/navigation"
+import { Footer } from "@/components/footer"
 
 export default function PoliciesPage() {
   const [activeSection, setActiveSection] = useState("privacy")
@@ -131,6 +133,7 @@ export default function PoliciesPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4 text-center">
@@ -216,6 +219,7 @@ export default function PoliciesPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

@@ -103,7 +103,7 @@ export function PoliciesForm({ formData, onInputChange }: PoliciesFormProps) {
               </div>
 
               {/* Section 3: Attendance Policy */}
-              <div id="section-3" className="border-t border-slate-100 pt-8">
+              {/* <div id="section-3" className="border-t border-slate-100 pt-8">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center">
                     <span className="text-white font-bold">3</span>
@@ -123,7 +123,7 @@ export function PoliciesForm({ formData, onInputChange }: PoliciesFormProps) {
                     may be considered absent.
                   </p>
                 </div>
-              </div>
+              </div> */}
 
               {/* Section 4: Refund Policy */}
               <div id="section-4" className="border-t border-slate-100 pt-8">

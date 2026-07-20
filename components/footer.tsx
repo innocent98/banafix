@@ -5,9 +5,9 @@ import { Facebook, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from "luci
 
 export function Footer() {
   const quickLinks = [
-    { label: "About Us", href: "/about" },
+    // { label: "About Us", href: "/about" },
     { label: "Our Tutors", href: "/tutors" },
-    { label: "Testimonials", href: "/testimonials" },
+    // { label: "Testimonials", href: "/testimonials" },
     { label: "FAQs", href: "/faqs" },
   ]
 
@@ -36,7 +36,7 @@ export function Footer() {
               <span className="font-heading text-2xl font-bold">Banafix</span>
             </Link>
             <p className="text-slate-400 mb-6 leading-relaxed">
-              Empowering musicians through quality education and personalized instruction since 2015.
+              Empowering musicians through quality education and personalized instruction since 2016.
             </p>
             <div className="flex space-x-4">
               {socialLinks.map((social) => (

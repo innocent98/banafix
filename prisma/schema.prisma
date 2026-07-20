@@ -54,8 +54,9 @@ model Course {
   pricing          Json      // {"On-site": 25000, "One-on-One": 30000, "Online": 20000, "Home Training": 35000}
 
   // Capacity management
-  totalSeats  Int      @default(20)
-  seatsLeft   Int      @default(20)
+  totalSeats     Int     @default(20)
+  seatsLeft      Int     @default(20)
+  unlimitedSeats Boolean @default(false) // When true, capacity checks are bypassed
 
   // Course content
   outcomes    String[] // Learning outcomes

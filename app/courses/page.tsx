@@ -40,6 +40,7 @@ interface Course {
   price: number
   totalSeats: number
   seatsLeft: number
+  unlimitedSeats: boolean
   outcomes: string[]
   equipment: string[]
   image: string | null
@@ -103,8 +104,7 @@ export default function CoursesPage() {
               })]
             : ['TBA'],
           icon: instrumentIcons[course.instrument as keyof typeof instrumentIcons] || Music,
-          totalSeats: 20, // Default seat capacity
-          seatsLeft: Math.floor(Math.random() * 15) + 5, // Random seats left between 5-19
+          // Use the real capacity fields from the API (course is spread above)
         }))
 
         setCourses(transformedCourses)
