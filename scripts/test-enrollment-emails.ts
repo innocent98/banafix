@@ -20,8 +20,10 @@
  *   npm run test:emails -- you@example.com
  *   npx tsx scripts/test-enrollment-emails.ts you@example.com
  */
-import { config } from 'dotenv'
-config() // load .env
+// Load .env FIRST via a side-effect import: ES imports are hoisted and evaluated
+// in order, and `lib/email` builds its Resend client at module-load time — so env
+// must be populated before that import is evaluated.
+import 'dotenv/config'
 
 import {
   sendEnrollmentConfirmation,
