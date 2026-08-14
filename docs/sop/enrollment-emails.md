@@ -50,7 +50,18 @@ No DB schema or migration changes (reused existing `receiptGenerated`/`receiptSe
 
 ## Verification
 - `npx tsc --noEmit` → exit 0 (includes Resend `replyTo` type check).
-- Not yet exercised against a live Paystack `charge.success` event — see follow-ups.
+- **`npm run test:webhook`** (`scripts/test-webhook.mjs`) — posts a signed
+  `charge.success` to a running dev server (200 accepted) and a forged one (400
+  rejected). Verified passing; server log confirms the event routes then stops
+  before the email step because the fabricated reference fails Paystack verify
+  (the guard working as designed — no email sent).
+- **`npm run test:emails -- you@example.com`** (`scripts/test-enrollment-emails.ts`)
+  — sends all three real emails via Resend using the app's send functions. SENDS
+  REAL EMAIL; run manually with a recipient you control. Surfaces an unverified
+  `FROM_EMAIL` domain as a Resend error. Not yet run (needs a verified domain or
+  `FROM_EMAIL=onboarding@resend.dev` + your Resend account email).
+- Full webhook→email path (live Paystack verify) still requires a real test-mode
+  transaction — see follow-ups.
 
 ## Operate / roll back
 - Roll back by reverting the two files; no data migration to undo.
