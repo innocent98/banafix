@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "test:webhook": "node scripts/test-webhook.mjs",
+    "test:emails": "tsx scripts/test-enrollment-emails.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
