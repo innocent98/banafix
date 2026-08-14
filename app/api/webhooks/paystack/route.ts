@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
+import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
+import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -66,7 +68,11 @@ async function handleChargeSuccess(data: any) {
       include: {
         enrollment: {
           include: {
-            course: true,
+            course: {
+              include: {
+                instructor: { select: { name: true } },
+              },
+            },
           },
         },
       },
@@ -123,11 +129,95 @@ async function handleChargeSuccess(data: any) {
 
     console.log('Payment processed successfully for enrollment:', applicationPayment.enrollmentId)
 
-    // TODO: Generate and send receipt email
-    // This will be implemented in the next phase
+    // Send the student receipt and notify admin. Email failures must NOT bubble
+    // up: a thrown error here would make the webhook return 500 and Paystack
+    // would retry the whole (already-processed) event. So each send is guarded
+    // and logged, never rethrown.
+    await sendEnrollmentEmails(applicationPayment, verificationResult.data)
 
   } catch (error) {
     console.error('Error handling charge success:', error)
+  }
+}
+
+/**
+ * Send the post-payment emails: a paid-receipt (with PDF) to the student and a
+ * new-enrollment notification to the admin/support inbox. Best-effort — any
+ * failure is logged and swallowed so it never breaks webhook processing.
+ */
+async function sendEnrollmentEmails(applicationPayment: any, paystackData: any) {
+  const { enrollment } = applicationPayment
+  const { course } = enrollment
+
+  const paidAt = paystackData.paid_at ? new Date(paystackData.paid_at) : new Date()
+  const paymentMethod = paystackData.channel || 'card'
+
+  // --- Student: paid application-fee receipt with PDF attachment ---
+  try {
+    const receiptData: ApplicationFeeReceiptData = {
+      receiptNumber: applicationPayment.receiptNumber,
+      enrollment: {
+        id: enrollment.id,
+        firstName: enrollment.firstName,
+        lastName: enrollment.lastName,
+        email: enrollment.email,
+        phone: enrollment.phone || undefined,
+        createdAt: enrollment.createdAt.toISOString(),
+      },
+      course: {
+        title: course.title,
+        instrument: course.instrument,
+        level: course.level,
+        duration: course.duration,
+        instructor: course.instructor?.name,
+        sessionStartDate: course.sessionStartDate?.toISOString(),
+      },
+      payment: {
+        amount: applicationPayment.amount,
+        paidAt: paidAt.toISOString(),
+        reference: applicationPayment.paystackReference,
+        paymentMethod,
+      },
+    }
+
+    const pdfBuffer = generateApplicationFeeReceiptPDF(receiptData)
+    const emailSent = await sendApplicationFeeReceipt(receiptData, pdfBuffer)
+
+    if (emailSent) {
+      await prisma.applicationPayment.update({
+        where: { id: applicationPayment.id },
+        data: { receiptGenerated: true, receiptSent: true },
+      })
+    }
+  } catch (error) {
+    console.error('Failed to send student receipt email for enrollment:', enrollment.id, error)
+  }
+
+  // --- Admin: new paid enrollment notification ---
+  try {
+    await sendAdminEnrollmentNotification({
+      enrollment: {
+        id: enrollment.id,
+        firstName: enrollment.firstName,
+        lastName: enrollment.lastName,
+        email: enrollment.email,
+        phone: enrollment.phone || undefined,
+        selectedMode: enrollment.selectedMode || undefined,
+      },
+      course: {
+        title: course.title,
+        instrument: course.instrument,
+        level: course.level,
+      },
+      payment: {
+        amount: applicationPayment.amount,
+        reference: applicationPayment.paystackReference,
+        paidAt: paidAt.toISOString(),
+        paymentMethod,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to send admin notification for enrollment:', enrollment.id, error)
   }
 }
 

@@ -11,6 +11,9 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 // Email configuration
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@banafix.com'
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@banafix.com'
+// Internal inbox for admin enrollment notifications. Falls back to the support
+// address so notifications still land even if ADMIN_EMAIL is not set.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || SUPPORT_EMAIL
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
 /**
@@ -362,6 +365,98 @@ export async function sendEnrollmentConfirmation(
 
   } catch (error) {
     console.error('Error sending enrollment confirmation email:', error)
+    return false
+  }
+}
+
+/**
+ * Notify the admin/support inbox that a student has paid the registration fee
+ * and enrolled. Sent from the Paystack webhook alongside the student receipt.
+ */
+export async function sendAdminEnrollmentNotification(
+  data: {
+    enrollment: {
+      id: string
+      firstName: string
+      lastName: string
+      email: string
+      phone?: string
+      selectedMode?: string
+    }
+    course: {
+      title: string
+      instrument?: string
+      level?: string
+    }
+    payment: {
+      amount: number
+      reference: string
+      paidAt: string
+      paymentMethod: string
+    }
+  }
+): Promise<boolean> {
+  try {
+    const { enrollment, course, payment } = data
+
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      replyTo: enrollment.email,
+      subject: `New paid enrollment — ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>New Paid Enrollment</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #1e293b; color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
+                .info-row { display: flex; justify-content: space-between; margin: 6px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
+                .info-label { font-weight: bold; color: #64748b; }
+                .amount { color: #10b981; font-weight: bold; }
+                .btn { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0 0; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>BANAFIX</h1>
+                    <p>New Paid Enrollment</p>
+                </div>
+                <div class="content">
+                    <p>A student has completed their registration payment and is now enrolled.</p>
+                    <div class="info-row"><span class="info-label">Student:</span><span>${enrollment.firstName} ${enrollment.lastName}</span></div>
+                    <div class="info-row"><span class="info-label">Email:</span><span>${enrollment.email}</span></div>
+                    ${enrollment.phone ? `<div class="info-row"><span class="info-label">Phone:</span><span>${enrollment.phone}</span></div>` : ''}
+                    <div class="info-row"><span class="info-label">Course:</span><span>${course.title}</span></div>
+                    ${course.instrument ? `<div class="info-row"><span class="info-label">Instrument:</span><span>${course.instrument}</span></div>` : ''}
+                    ${course.level ? `<div class="info-row"><span class="info-label">Level:</span><span>${course.level}</span></div>` : ''}
+                    ${enrollment.selectedMode ? `<div class="info-row"><span class="info-label">Delivery Mode:</span><span>${enrollment.selectedMode}</span></div>` : ''}
+                    <div class="info-row"><span class="info-label">Amount Paid:</span><span class="amount">₦${payment.amount.toLocaleString()}</span></div>
+                    <div class="info-row"><span class="info-label">Payment Method:</span><span>${payment.paymentMethod.toUpperCase()}</span></div>
+                    <div class="info-row"><span class="info-label">Reference:</span><span>${payment.reference}</span></div>
+                    <div class="info-row"><span class="info-label">Paid At:</span><span>${new Date(payment.paidAt).toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+                    <a href="${BASE_URL}/admin/enrollments" class="btn">View in Admin Dashboard</a>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+    })
+
+    if (emailResult.error) {
+      console.error('Failed to send admin enrollment notification:', emailResult.error)
+      return false
+    }
+
+    return true
+
+  } catch (error) {
+    console.error('Error sending admin enrollment notification:', error)
     return false
   }
 }
