@@ -56,9 +56,26 @@ No DB schema or migration changes (reused existing `receiptGenerated`/`receiptSe
 - Roll back by reverting the two files; no data migration to undo.
 - To route admin mail elsewhere, set `ADMIN_EMAIL` in `.env` and redeploy.
 
+## Update — pre-payment acknowledgement wired in
+`sendEnrollmentConfirmation()` is now sent from `POST /api/enrollments`, immediately
+after Paystack payment initialization succeeds (so it only goes to applicants with a
+real, resumable payment). It is guarded by try/catch and best-effort — a mail failure
+never fails the enrollment or delays the redirect to Paystack.
+
+Before wiring, the function was corrected: it previously hardcoded a `₦2,000` fee and
+linked a **"Complete Payment" button to `/enroll/payment/[id]`, a route that does not
+exist** (404). The button was removed and the fee is now passed in dynamically via a new
+`applicationFee` param (`calculateApplicationFee(course.location).amount`), matching the
+webhook receipt amount.
+
+Net email flow per enrollment:
+1. **On form submit** (`POST /api/enrollments`) → student gets "application received" ack.
+2. **On payment success** (Paystack webhook) → student gets paid receipt + PDF; admin gets notification.
+
+Touched: `app/api/enrollments/route.ts` (import + guarded send), `lib/email.ts`
+(`sendEnrollmentConfirmation` signature + body fix).
+
 ## Follow-ups
-- End-to-end test a real sandbox payment and confirm both emails arrive.
+- End-to-end test a real sandbox payment and confirm all three emails arrive.
 - Confirm the `FROM_EMAIL` domain is verified in Resend for production.
-- `sendEnrollmentConfirmation()` in `lib/email.ts` is now unused (a pre-payment
-  "application received" ack) — either wire it into `POST /api/enrollments` or remove it.
 - Consider the same auto-send wiring for tuition payments (currently admin-manual only).

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
 import { calculateApplicationFee } from '@/lib/application-fee'
+import { sendEnrollmentConfirmation } from '@/lib/email'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
 export async function POST(req: NextRequest) {
@@ -219,6 +220,23 @@ export async function POST(req: NextRequest) {
         paystackStatus: 'pending',
       },
     })
+
+    // Best-effort "application received" acknowledgement to the student. Sent only
+    // after payment has been successfully initialized, so it references a real,
+    // resumable application. Transactional and guarded — a mail failure must not
+    // fail the enrollment or delay the redirect to Paystack.
+    try {
+      await sendEnrollmentConfirmation({
+        firstName,
+        lastName,
+        email,
+        courseName: course.title,
+        enrollmentId: enrollment.id,
+        applicationFee: applicationFeeData.amount,
+      })
+    } catch (emailError) {
+      console.error('Failed to send enrollment acknowledgement email:', emailError)
+    }
 
     // Return enrollment details with payment URL
     return createResponse({

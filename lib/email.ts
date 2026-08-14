@@ -319,6 +319,7 @@ export async function sendEnrollmentConfirmation(
     email: string
     courseName: string
     enrollmentId: string
+    applicationFee?: number
   }
 ): Promise<boolean> {
   try {
@@ -350,10 +351,12 @@ export async function sendEnrollmentConfirmation(
                     <h2>Enrollment Application Received</h2>
                     <p>Dear ${enrollmentData.firstName} ${enrollmentData.lastName},</p>
                     <p>Thank you for applying to <strong>${enrollmentData.courseName}</strong>!</p>
-                    <p>Your application has been received and is being processed. To complete your enrollment, please proceed with the application fee payment of <strong>₦2,000</strong>.</p>
+                    <p>Your application has been received. ${enrollmentData.applicationFee
+                        ? `To secure your place, please complete the registration fee payment of <strong>₦${enrollmentData.applicationFee.toLocaleString()}</strong> on the secure payment page that opened when you submitted your application.`
+                        : 'To secure your place, please complete the registration fee payment on the secure payment page that opened when you submitted your application.'}</p>
+                    <p>Once your payment is confirmed we'll email you a receipt and our admissions team will follow up with your schedule details.</p>
                     <p>Enrollment ID: <strong>${enrollmentData.enrollmentId}</strong></p>
-                    <a href="${BASE_URL}/enroll/payment/${enrollmentData.enrollmentId}" class="btn">Complete Payment</a>
-                    <p>If you have any questions, please contact us at ${SUPPORT_EMAIL}</p>
+                    <p>If you didn't finish the payment or have any questions, just reply to this email or contact us at ${SUPPORT_EMAIL}.</p>
                 </div>
             </div>
         </body>
