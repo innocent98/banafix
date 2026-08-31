@@ -34,10 +34,14 @@ import { TuitionPaymentModal } from "@/components/admin/tuition-payment-modal"
 
 interface Enrollment {
   id: string
-  firstName: string
-  lastName: string
-  email: string
-  phone?: string
+  student: {
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    dateOfBirth?: string
+    address?: string
+  }
   selectedMode: string
   status: string
   applicationPaid: boolean
@@ -158,9 +162,9 @@ export default function EnrollmentsPage() {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(enrollment =>
-        enrollment.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enrollment.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enrollment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enrollment.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enrollment.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enrollment.student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         enrollment.course.title.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
@@ -207,18 +211,11 @@ export default function EnrollmentsPage() {
   }
 
   const getStatusBadge = (enrollment: Enrollment) => {
-    if (enrollment.status === 'pending' && !enrollment.applicationPaid) {
-      return <Badge variant="destructive">Payment Pending</Badge>
-    }
-    if (enrollment.status === 'application_paid' || enrollment.applicationPaid) {
-      const hasTuitionPayment = enrollment.tuitionPayments.some(p => p.status === 'completed')
-      if (hasTuitionPayment) {
-        return <Badge variant="default">Tuition Paid</Badge>
-      }
-      return <Badge variant="secondary">Application Paid</Badge>
-    }
-    if (enrollment.status === 'enrolled') {
+    if (enrollment.status === 'enrolled' || enrollment.applicationPaid) {
       return <Badge variant="default">Enrolled</Badge>
+    }
+    if (enrollment.status === 'pending') {
+      return <Badge variant="destructive">Payment Pending</Badge>
     }
     return <Badge variant="outline">{enrollment.status}</Badge>
   }
@@ -377,7 +374,6 @@ export default function EnrollmentsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="application_paid">Application Paid</SelectItem>
                   <SelectItem value="enrolled">Enrolled</SelectItem>
                 </SelectContent>
               </Select>
@@ -441,10 +437,10 @@ export default function EnrollmentsPage() {
                       <TableRow key={enrollment.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{enrollment.firstName} {enrollment.lastName}</p>
-                            <p className="text-sm text-muted-foreground">{enrollment.email}</p>
-                            {enrollment.phone && (
-                              <p className="text-xs text-muted-foreground">{enrollment.phone}</p>
+                            <p className="font-medium">{enrollment.student.firstName} {enrollment.student.lastName}</p>
+                            <p className="text-sm text-muted-foreground">{enrollment.student.email}</p>
+                            {enrollment.student.phone && (
+                              <p className="text-xs text-muted-foreground">{enrollment.student.phone}</p>
                             )}
                           </div>
                         </TableCell>
@@ -542,7 +538,7 @@ export default function EnrollmentsPage() {
             <DialogHeader>
               <DialogTitle>Enrollment Details</DialogTitle>
               <DialogDescription>
-                {selectedEnrollment.firstName} {selectedEnrollment.lastName} - {selectedEnrollment.course.title}
+                {selectedEnrollment.student.firstName} {selectedEnrollment.student.lastName} - {selectedEnrollment.course.title}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6">
@@ -552,16 +548,16 @@ export default function EnrollmentsPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Name:</span>
-                    <p>{selectedEnrollment.firstName} {selectedEnrollment.lastName}</p>
+                    <p>{selectedEnrollment.student.firstName} {selectedEnrollment.student.lastName}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Email:</span>
-                    <p>{selectedEnrollment.email}</p>
+                    <p>{selectedEnrollment.student.email}</p>
                   </div>
-                  {selectedEnrollment.phone && (
+                  {selectedEnrollment.student.phone && (
                     <div>
                       <span className="text-muted-foreground">Phone:</span>
-                      <p>{selectedEnrollment.phone}</p>
+                      <p>{selectedEnrollment.student.phone}</p>
                     </div>
                   )}
                   <div>

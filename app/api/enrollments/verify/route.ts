@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
       include: {
         enrollment: {
           include: {
+            student: {
+              select: { firstName: true, email: true },
+            },
             course: {
               select: {
                 title: true,
@@ -52,8 +55,8 @@ export async function GET(req: NextRequest) {
       amount: applicationPayment.amount,
       receiptNumber: applicationPayment.receiptNumber,
       enrollment: {
-        firstName: applicationPayment.enrollment.firstName,
-        email: applicationPayment.enrollment.email,
+        firstName: applicationPayment.enrollment.student.firstName,
+        email: applicationPayment.enrollment.student.email,
         course: {
           title: applicationPayment.enrollment.course.title,
           instructor: applicationPayment.enrollment.course.instructor?.name || null,

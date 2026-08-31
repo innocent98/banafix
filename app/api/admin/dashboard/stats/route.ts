@@ -53,12 +53,15 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
+          student: {
+            select: { firstName: true, lastName: true }
+          },
           course: {
             select: { title: true }
           }
         }
       }),
-      
+
       // Recent activity - payments
       prisma.applicationPayment.findMany({
         take: 5,
@@ -67,8 +70,9 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         include: {
           enrollment: {
             select: {
-              firstName: true,
-              lastName: true,
+              student: {
+                select: { firstName: true, lastName: true }
+              },
               course: {
                 select: { title: true }
               }
@@ -128,7 +132,7 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         id: enrollment.id,
         type: 'enrollment' as const,
         title: `New enrollment in ${enrollment.course.title}`,
-        description: `${enrollment.firstName} ${enrollment.lastName} enrolled`,
+        description: `${enrollment.student.firstName} ${enrollment.student.lastName} enrolled`,
         timestamp: enrollment.createdAt.toISOString(),
       })),
 
@@ -137,7 +141,7 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         id: payment.id,
         type: 'payment' as const,
         title: 'Payment received',
-        description: `${payment.enrollment.course.title} - ${payment.enrollment.firstName} ${payment.enrollment.lastName}`,
+        description: `${payment.enrollment.course.title} - ${payment.enrollment.student.firstName} ${payment.enrollment.student.lastName}`,
         timestamp: payment.paidAt?.toISOString() || payment.createdAt.toISOString(),
         amount: payment.amount
       })),

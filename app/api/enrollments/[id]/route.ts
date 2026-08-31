@@ -15,6 +15,9 @@ export async function GET(
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+        },
         course: {
           select: {
             title: true,
