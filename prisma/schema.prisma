@@ -132,15 +132,52 @@ model CourseFAQ {
   @@map("course_faqs")
 }
 
+// Canonical person entity for enrolled students
+model Student {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  firstName     String
+  lastName      String
+  phone         String?
+  dateOfBirth   DateTime?
+  address       String?
+  landmark      String?
+  guardianName  String?
+  guardianPhone String?
+  guardianEmail String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  enrollments   Enrollment[]
+
+  @@map("students")
+}
+
+// Audit trail for admin actions
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([adminId])
+  @@map("audit_logs")
+}
+
 // Enhanced enrollment tracking with comprehensive student information
 model Enrollment {
   id           String   @id @default(cuid())
   courseId     String
+  studentId    String
 
-  // Student Information
-  email        String
-  firstName    String
-  lastName     String
+  // Student Information (dormant — kept for staged migration, cutover in later tasks)
+  email        String?
+  firstName    String?
+  lastName     String?
   phone        String?
   dateOfBirth  DateTime?
 
@@ -184,6 +221,7 @@ model Enrollment {
 
   // Relations
   course              Course              @relation(fields: [courseId], references: [id])
+  student             Student             @relation(fields: [studentId], references: [id])
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
 
