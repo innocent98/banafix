@@ -21,9 +21,11 @@ import { CreditCard, Receipt, Mail, Download } from "lucide-react"
 
 interface Enrollment {
   id: string
-  firstName: string
-  lastName: string
-  email: string
+  student: {
+    firstName: string
+    lastName: string
+    email: string
+  }
   course: {
     title: string
     instrument: string
@@ -213,7 +215,7 @@ export function TuitionPaymentModal({
             Tuition Payment Management
           </DialogTitle>
           <DialogDescription>
-            Manage tuition payments for {enrollment.firstName} {enrollment.lastName} - {enrollment.course.title}
+            Manage tuition payments for {enrollment.student.firstName} {enrollment.student.lastName} - {enrollment.course.title}
           </DialogDescription>
         </DialogHeader>
 

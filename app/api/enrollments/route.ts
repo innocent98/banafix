@@ -284,12 +284,15 @@ export async function GET(req: NextRequest) {
 
     if (status) where.status = status
     if (courseId) where.courseId = courseId
-    if (email) where.email = { contains: email, mode: 'insensitive' }
+    if (email) where.student = { email: { contains: email, mode: 'insensitive' } }
 
     const [enrollments, total] = await Promise.all([
       prisma.enrollment.findMany({
         where,
         include: {
+          student: {
+            select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+          },
           course: {
             select: {
               title: true,

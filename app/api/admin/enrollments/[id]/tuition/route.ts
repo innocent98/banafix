@@ -4,6 +4,7 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { generateTuitionReceiptPDF, generateReceiptNumber, TuitionReceiptData } from '@/lib/receipt'
 import { sendTuitionReceipt } from '@/lib/email'
+import { logAdminAction } from '@/lib/audit'
 
 // POST /api/admin/enrollments/[id]/tuition - Record tuition payment
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
@@ -32,6 +33,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+        },
         course: {
           include: {
             instructor: {
@@ -76,6 +80,14 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       },
     })
 
+    await logAdminAction({
+      adminId: admin.id,
+      action: 'tuition.record',
+      entityType: 'tuition_payment',
+      entityId: tuitionPayment.id,
+      metadata: { enrollmentId, amount },
+    })
+
     // Calculate total paid so far
     const totalPaid = enrollment.tuitionPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) + amount
 
@@ -87,10 +99,10 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
           receiptNumber,
           enrollment: {
             id: enrollment.id,
-            firstName: enrollment.firstName,
-            lastName: enrollment.lastName,
-            email: enrollment.email,
-            phone: enrollment.phone || undefined,
+            firstName: enrollment.student.firstName,
+            lastName: enrollment.student.lastName,
+            email: enrollment.student.email,
+            phone: enrollment.student.phone || undefined,
           },
           course: {
             title: enrollment.course.title,
@@ -133,9 +145,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       include: {
         enrollment: {
           select: {
-            firstName: true,
-            lastName: true,
-            email: true,
+            student: {
+              select: { firstName: true, lastName: true, email: true },
+            },
           },
         },
       },

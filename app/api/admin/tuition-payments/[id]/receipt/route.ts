@@ -19,6 +19,9 @@ export const GET = withAuth(async (req: NextRequest, admin, context: { params: P
       include: {
         enrollment: {
           include: {
+            student: {
+              select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+            },
             course: {
               include: {
                 instructor: {
@@ -62,10 +65,10 @@ export const GET = withAuth(async (req: NextRequest, admin, context: { params: P
       receiptNumber: payment.receiptNumber,
       enrollment: {
         id: payment.enrollment.id,
-        firstName: payment.enrollment.firstName,
-        lastName: payment.enrollment.lastName,
-        email: payment.enrollment.email,
-        phone: payment.enrollment.phone || undefined,
+        firstName: payment.enrollment.student.firstName,
+        lastName: payment.enrollment.student.lastName,
+        email: payment.enrollment.student.email,
+        phone: payment.enrollment.student.phone || undefined,
       },
       course: {
         title: payment.enrollment.course.title,
@@ -129,6 +132,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       include: {
         enrollment: {
           include: {
+            student: {
+              select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+            },
             course: {
               include: {
                 instructor: {
@@ -172,10 +178,10 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       receiptNumber: payment.receiptNumber,
       enrollment: {
         id: payment.enrollment.id,
-        firstName: payment.enrollment.firstName,
-        lastName: payment.enrollment.lastName,
-        email: payment.enrollment.email,
-        phone: payment.enrollment.phone || undefined,
+        firstName: payment.enrollment.student.firstName,
+        lastName: payment.enrollment.student.lastName,
+        email: payment.enrollment.student.email,
+        phone: payment.enrollment.student.phone || undefined,
       },
       course: {
         title: payment.enrollment.course.title,

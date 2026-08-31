@@ -24,6 +24,9 @@ export async function GET(
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+        },
         course: {
           include: {
             instructor: {
@@ -59,10 +62,10 @@ export async function GET(
       receiptNumber: completedPayment.receiptNumber,
       enrollment: {
         id: enrollment.id,
-        firstName: enrollment.firstName,
-        lastName: enrollment.lastName,
-        email: enrollment.email,
-        phone: enrollment.phone || undefined,
+        firstName: enrollment.student.firstName,
+        lastName: enrollment.student.lastName,
+        email: enrollment.student.email,
+        phone: enrollment.student.phone || undefined,
         createdAt: enrollment.createdAt.toISOString(),
       },
       course: {
@@ -143,6 +146,9 @@ export async function POST(
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
+        },
         course: {
           include: {
             instructor: {
@@ -178,10 +184,10 @@ export async function POST(
       receiptNumber: completedPayment.receiptNumber,
       enrollment: {
         id: enrollment.id,
-        firstName: enrollment.firstName,
-        lastName: enrollment.lastName,
-        email: enrollment.email,
-        phone: enrollment.phone || undefined,
+        firstName: enrollment.student.firstName,
+        lastName: enrollment.student.lastName,
+        email: enrollment.student.email,
+        phone: enrollment.student.phone || undefined,
         createdAt: enrollment.createdAt.toISOString(),
       },
       course: {
