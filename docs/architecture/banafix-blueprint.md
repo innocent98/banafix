@@ -22,7 +22,7 @@
 | Course browsing + enrollment form | 🟢 Live | `/enroll`, course APIs |
 | Application-fee payment (Paystack) | 🟡 Code | init → redirect → webhook verify; webhook signature path proven 🟢 |
 | Enrollment status → `application_paid` | 🟡 Code | set by webhook on verified `charge.success` |
-| Enrollment status → `enrolled` | ❌ **Not built** | **no code path writes it** — see Drift §9 |
+| Enrollment status → `enrolled` | 🔵 **Decided (D1)** | today no code writes it; fix = webhook sets `enrolled` on paid — see §4, Drift §9 |
 | Student "application received" ack email | 🟡 Code | `POST /api/enrollments` |
 | Student paid-receipt + PDF (application fee) | 🟡 Code | webhook |
 | Admin "new paid enrollment" notice | 🟡 Code | webhook → `ADMIN_EMAIL`/`SUPPORT_EMAIL` |
@@ -119,17 +119,24 @@ sequenceDiagram
 
 ## 4. Enrollment status state machine
 
+**Current (🟡) — with the D1 fix marked 🔵:**
+
 ```mermaid
 stateDiagram-v2
     [*] --> pending: form submitted (🟡)
-    pending --> application_paid: webhook verifies charge.success (🟡)
+    pending --> application_paid: webhook (current, 🟡)
     pending --> pending: retry clears stale pending (🟡)
-    application_paid --> enrolled: ⚠️ NO CODE WRITES THIS
-    pending --> cancelled: (manual, no writer found)
-    application_paid --> [*]
+    application_paid --> enrolled: ⚠️ no code writes this today
+    note right of application_paid
+      D1 DECIDED (🔵): webhook will set
+      status='enrolled' directly on paid.
+      applicationPaid boolean already records
+      the payment fact. 'application_paid' as a
+      status value is retired + backfilled.
+    end note
 ```
 
-> ⚠️ **`enrolled` and `cancelled` are declared in the schema but never assigned by any code.** The admin UI's status dropdown is a **filter**, not a setter. Decision needed (§8, D1).
+> **Decision D1 (resolved):** paying the registration fee **is** enrollment — no approval gate. The webhook will set `status = 'enrolled'` (and `applicationPaid = true`); the redundant `application_paid` status value is retired and existing rows backfilled to `enrolled`. `cancelled` remains available but is out of scope until a cancel action exists. The registration fee is **non-refundable** (some students may never start) — tracked as a note, not a status; tracking "actually started lessons" is a possible future flag, not part of this.
 
 ---
 
@@ -270,13 +277,13 @@ erDiagram
 
 ## 8. Open questions / decisions needed
 
-| # | Decision | Options | Recommendation |
+| # | Decision | Status | Resolution |
 | --- | --- | --- | --- |
-| **D1** | What should `enrolled` mean, given nothing sets it today? | **A.** Auto-set `enrolled` when application fee is paid (merge with `application_paid`). **B.** Keep `application_paid` as the effective "enrolled" state and drop/hide `enrolled`. **C.** Add a manual "Mark enrolled" admin action. | **A or B** — the current dead status is confusing. Likely **B** (you said "once application fee is paid, we record them as enrolled") → treat `application_paid` as enrolled in the UI wording. |
-| **D2** | What is a "student" for parent-mapping + birthdays? | **A.** Introduce a `Student` (person) entity keyed by unique email; `Enrollment` references it. **B.** Keep enrollment-as-student; map parents to `Enrollment` rows and dedupe birthdays by email. | **A** — normalizes the person, prevents duplicate birthday emails, and makes parent↔child clean. Bigger migration, but correct. |
-| **D3** | Source of "expected total tuition" for the balance? | **A.** `course.pricing[selectedMode]`. **B.** Admin enters the total per enrollment. **C.** No fixed total — admin just types the remaining balance. | **A** if course pricing is the true tuition; else **B**. |
-| **D4** | Birthday scheduler mechanism? | **A.** Vercel Cron. **B.** External cron hitting the endpoint. **C.** GitHub Actions schedule. | **A** — native to the Vercel deploy. |
-| **D5** | Public enrollment read endpoints are unauthenticated. | Harden `GET /api/enrollments[ /[id]]` behind admin auth? | Yes — flag for a follow-up pass. |
+| **D1** | What should `enrolled` mean, given nothing sets it today? | ✅ **DECIDED** | Paying **is** enrollment (no gate). Webhook sets `status='enrolled'`; retire `application_paid` status value + backfill. Fee non-refundable. |
+| **D2** | What is a "student" for parent-mapping + birthdays? | ✅ **DECIDED** | Introduce a `Student` (person) entity keyed by unique immutable email; `Enrollment` references it. |
+| **D3** | Source of "expected total tuition" for the balance? | ⏳ **OPEN** | **A.** `course.pricing[selectedMode]` · **B.** admin enters total per enrollment · **C.** admin types remaining balance. Rec: **A** if course pricing is the true tuition, else **B**. |
+| **D4** | Birthday scheduler mechanism? | ✅ **DECIDED** | Vercel Cron (`vercel.json` + guarded `/api/cron/birthdays`). |
+| **D5** | Public enrollment read endpoints are unauthenticated. | ⏳ **OPEN** | Harden `GET /api/enrollments[ /[id]]` behind admin auth — follow-up pass. |
 
 ---
 

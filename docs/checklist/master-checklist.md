@@ -66,10 +66,25 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 
 ---
 
-## Backlog / upcoming
-- [ ] **D1** — define `enrolled` behaviour (dead status today; see blueprint §8)
+## 🔵 Foundation — Student entity + enrolled status  *(D1 + D2, build first)*
+Everything below (parents, birthdays, edit) leans on this, so it lands first.
+- [ ] `Student` model (unique immutable email) + migration; `Enrollment` → `Student` FK
+- [ ] Backfill: dedupe existing enrollments into `Student` rows by email
+- [ ] Webhook sets `status='enrolled'` on paid; retire `application_paid` value + backfill rows
+- [ ] Update badges/filters/duplicate-guard to the `enrolled` vocabulary
+- [ ] `AuditLog` model + `logAdminAction()` scaffold (used by later modules)
+- [ ] Verify: new enrollment → `enrolled`; existing rows migrated; one `Student` per email
+
+## Decisions log
+- [x] **D1** — paying = enrollment (no gate); webhook sets `enrolled`; fee non-refundable
+- [x] **D2** — introduce `Student` person entity (unique email)
+- [x] **D4** — Vercel Cron for birthdays
+- [ ] **D3** — expected-total-tuition source (A: `course.pricing[mode]` / B: admin enters)
 - [ ] **D5** — harden public enrollment read endpoints behind admin auth
+
+## Backlog / upcoming
 - [ ] Student dashboard + online tuition payment — *explicitly out of scope for now*
+- [ ] Track "actually started lessons" — possible future flag (not a status)
 
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types
