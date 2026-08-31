@@ -105,43 +105,45 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Selected delivery mode is not available for this course', 400)
     }
 
-    // Block only if the student has already paid or is enrolled. A leftover
-    // `pending` enrollment (e.g. an abandoned payment where the student closed the
-    // Paystack tab, so no webhook fired) must NOT block a retry.
-    const paidEnrollment = await prisma.enrollment.findFirst({
-      where: {
-        email,
-        courseId,
-        status: {
-          in: ['application_paid', 'enrolled'],
-        },
+    const normalizedEmail = String(email).trim().toLowerCase()
+
+    // Find-or-create the person; refresh mutable fields on re-enroll (O4). Email immutable.
+    const student = await prisma.student.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        firstName, lastName,
+        phone: phone ?? undefined,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+        address: address ?? undefined,
+        landmark: landmark ?? undefined,
+        guardianName: guardianName ?? undefined,
+        guardianPhone: guardianPhone ?? undefined,
+        guardianEmail: guardianEmail ?? undefined,
+      },
+      create: {
+        email: normalizedEmail,
+        firstName, lastName,
+        phone, dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        address, landmark, guardianName, guardianPhone, guardianEmail,
       },
     })
 
+    // Block only if this student already paid/enrolled for THIS course. A stale
+    // `pending` must not block a retry.
+    const paidEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId: student.id, courseId, status: 'enrolled' },
+    })
     if (paidEnrollment) {
       return createErrorResponse('You are already enrolled in this course', 400)
     }
-
-    // Clear any stale, unpaid pending enrollment for this student+course so the
-    // retry starts clean. onDelete: Cascade removes the associated payment rows.
     await prisma.enrollment.deleteMany({
-      where: { email, courseId, status: 'pending' },
+      where: { studentId: student.id, courseId, status: 'pending' },
     })
 
-    // Create enrollment record
     const enrollment = await prisma.enrollment.create({
       data: {
+        studentId: student.id,
         courseId,
-        email,
-        firstName,
-        lastName,
-        phone,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        guardianName,
-        guardianPhone,
-        guardianEmail,
-        address,
-        landmark,
         selectedMode,
         priorLevel,
         schedulePreference,
