@@ -267,7 +267,7 @@ erDiagram
 - **To add:**
   - **Admin copy** of every tuition receipt (to `ADMIN_EMAIL`/`SUPPORT_EMAIL`).
   - **Full vs partial** marker per payment: admin picks `full` or `partial`; store on `TuitionPayment.status` (`completed` vs `partial`).
-  - **Balance remaining:** `expectedTotal − Σ(completed+partial payments)`. Show on the receipt and admin table. **Source of `expectedTotal` is a decision (D3).**
+  - **Balance remaining:** `expectedTotal − Σ(completed+partial payments)`. Show on the receipt and admin table. **`expectedTotal` source is decided (D3): `course.pricing[selectedMode]`** — not yet built.
 
 ### Req #2 — Edit student record (admin)
 - New `PATCH /api/admin/enrollments/[id]` (JWT), operating on the now-real `Student` entity. Editable: names, phone, DOB, address, guardian info, preferences, notes.
@@ -299,7 +299,7 @@ erDiagram
 | --- | --- | --- | --- |
 | **D1** | What should `enrolled` mean, given nothing sets it today? | ✅ **DECIDED + BUILT** | Paying **is** enrollment (no gate). Webhook sets `status='enrolled'`; `application_paid` status value retired + all existing rows backfilled. Fee non-refundable. |
 | **D2** | What is a "student" for parent-mapping + birthdays? | ✅ **DECIDED + BUILT** | `Student` (person) entity keyed by unique immutable lowercased email; `Enrollment.studentId` FK references it; migration backfilled one `Student` per `lower(email)` (most-recent-enrollment-wins). Migration 2 (dropping the now-dormant `Enrollment` identity columns) is deferred to a follow-up PR. |
-| **D3** | Source of "expected total tuition" for the balance? | ⏳ **OPEN** | **A.** `course.pricing[selectedMode]` · **B.** admin enters total per enrollment · **C.** admin types remaining balance. Rec: **A** if course pricing is the true tuition, else **B**. |
+| **D3** | Source of "expected total tuition" for the balance? | ✅ **Decided (build pending)** | `expectedTotal = course.pricing[selectedMode]`. Not yet built — consumed by the future tuition-balance module (req #1, §7). |
 | **D4** | Birthday scheduler mechanism? | ✅ **DECIDED** | Vercel Cron (`vercel.json` + guarded `/api/cron/birthdays`). |
 | **D5** | Public enrollment read endpoints are unauthenticated. | ⏳ **OPEN** | Harden `GET /api/enrollments[ /[id]]` behind admin auth — follow-up pass. |
 
