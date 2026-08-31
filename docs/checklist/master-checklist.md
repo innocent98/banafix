@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-08-31):** Modules — ✅ 4 done · 🟡 1 partial · 🔵 4 planned
+**Snapshot (2026-08-31):** Modules — ✅ 5 done · 🟡 1 partial · 🔵 3 planned
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
@@ -14,7 +14,7 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [x] Location-based application fee (`lib/application-fee.ts`)
 - [x] Paystack init → redirect → `/enroll/success` verify
 - [x] Duplicate-enrollment guard + stale-pending cleanup
-- [x] Webhook `charge.success` → `application_paid` + seat decrement (signature path 🟢 verified)
+- [x] Webhook `charge.success` → `status='enrolled'` + seat decrement (signature path 🟢 verified)
 
 ## ✅ Enrollment emails
 - [x] "Application received" ack on submit
@@ -34,7 +34,7 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [x] Student receipt on record (already shipped)
 - [ ] Admin copy of every tuition receipt → `ADMIN_EMAIL`/`SUPPORT_EMAIL`
 - [ ] Full vs partial marker per payment (`completed` | `partial`)
-- [ ] Balance-remaining calc + display on receipt & admin table — **needs D3** (expected-total source)
+- [ ] Balance-remaining calc + display on receipt & admin table — **D3 decided** (`course.pricing[mode]`), not yet built
 - [ ] Verify: record partial → correct balance → both emails arrive
 
 ## 🔵 Edit student record  *(req #2)*
@@ -85,7 +85,7 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [x] **D1** — paying = enrollment (no gate); webhook sets `enrolled`; fee non-refundable
 - [x] **D2** — introduce `Student` person entity (unique email)
 - [x] **D4** — Vercel Cron for birthdays
-- [ ] **D3** — expected-total-tuition source (A: `course.pricing[mode]` / B: admin enters)
+- [x] **D3** — expected-total-tuition = `course.pricing[mode]` (decided; consumed by the future tuition module)
 - [ ] **D5** — harden public enrollment read endpoints behind admin auth
 
 ## Backlog / upcoming
