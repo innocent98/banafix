@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
 import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
+import { logAdminAction } from '@/lib/audit'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -73,6 +74,7 @@ async function handleChargeSuccess(data: any) {
                 instructor: { select: { name: true } },
               },
             },
+            student: true,
           },
         },
       },
@@ -106,7 +108,7 @@ async function handleChargeSuccess(data: any) {
       await tx.enrollment.update({
         where: { id: applicationPayment.enrollmentId },
         data: {
-          status: 'application_paid',
+          status: 'enrolled',
           applicationPaid: true,
         },
       })
@@ -128,6 +130,14 @@ async function handleChargeSuccess(data: any) {
     })
 
     console.log('Payment processed successfully for enrollment:', applicationPayment.enrollmentId)
+
+    await logAdminAction({
+      adminId: null,
+      action: 'enrollment.enrolled',
+      entityType: 'enrollment',
+      entityId: applicationPayment.enrollmentId,
+      metadata: { reference, amount: applicationPayment.amount },
+    })
 
     // Send the student receipt and notify admin. Email failures must NOT bubble
     // up: a thrown error here would make the webhook return 500 and Paystack
@@ -158,10 +168,10 @@ async function sendEnrollmentEmails(applicationPayment: any, paystackData: any) 
       receiptNumber: applicationPayment.receiptNumber,
       enrollment: {
         id: enrollment.id,
-        firstName: enrollment.firstName,
-        lastName: enrollment.lastName,
-        email: enrollment.email,
-        phone: enrollment.phone || undefined,
+        firstName: enrollment.student.firstName,
+        lastName: enrollment.student.lastName,
+        email: enrollment.student.email,
+        phone: enrollment.student.phone || undefined,
         createdAt: enrollment.createdAt.toISOString(),
       },
       course: {
@@ -198,10 +208,10 @@ async function sendEnrollmentEmails(applicationPayment: any, paystackData: any) 
     await sendAdminEnrollmentNotification({
       enrollment: {
         id: enrollment.id,
-        firstName: enrollment.firstName,
-        lastName: enrollment.lastName,
-        email: enrollment.email,
-        phone: enrollment.phone || undefined,
+        firstName: enrollment.student.firstName,
+        lastName: enrollment.student.lastName,
+        email: enrollment.student.email,
+        phone: enrollment.student.phone || undefined,
         selectedMode: enrollment.selectedMode || undefined,
       },
       course: {
