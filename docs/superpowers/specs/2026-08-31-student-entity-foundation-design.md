@@ -175,23 +175,18 @@ callers that build those objects change.
 - `cancelled` → remains available; no writer yet (unchanged).
 - `application_paid` → **retired** as a written value; backfilled to `enrolled`; removed from UI vocabulary.
 
-## 8. Open items to resolve during planning
+## 8. Resolved decisions (confirmed)
 
-- **O1 — API response shape:** nest `student` under enrollment (cleaner, but the admin page and
-  any other consumer must read `enrollment.student.*`) vs. flatten `student.*` back to top-level
-  in the response (smaller frontend churn, hides normalization). **Lean: nest**, update the admin
-  page. Confirm no other consumer depends on the flat shape.
-- **O2 — `gen_random_uuid()` availability** on the target Postgres (needs `pgcrypto` or PG13+).
-  Verify against the deploy DB; fall back to app-side id generation in a backfill script if absent.
-- **O3 — email casing:** dedup on `lower(email)`. Store the email as-entered from the most-recent
-  row, or normalize to lowercase on `Student`? **Lean: store lowercase** for a stable unique key.
-- **O4 — re-enrollment with an existing email:** when find-or-create matches an existing `Student`
-  (a person enrolling in a second course), do we refresh their mutable fields (name, phone, DOB,
-  address, guardian) from the new submission, or leave the stored record untouched? **Lean:
-  refresh mutable fields** (most-recent-wins, consistent with the backfill rule); `email` stays
-  immutable. Note this competes with the edit-student module (req #2) as a writer — the edit UI is
-  the deliberate source of truth, so a later auto-refresh from a form could clobber a manual edit.
-  Revisit when req #2 lands; for Foundation, refresh-on-enroll is acceptable.
+- **O1 — API response shape:** ✅ **Nest** `student` under enrollment; the admin page and other
+  consumers read `enrollment.student.*`. Audit consumers during cutover; none may depend on the
+  flat shape.
+- **O2 — `gen_random_uuid()` availability:** ✅ Verify against the deploy Postgres during planning;
+  if absent (needs `pgcrypto`/PG13+), fall back to app-side id generation in a backfill script.
+- **O3 — email casing:** ✅ Store `Student.email` **lowercased**; dedup on `lower(email)`.
+- **O4 — re-enrollment with an existing email:** ✅ **Refresh mutable fields** (name, phone, DOB,
+  address, guardian) from the new submission (most-recent-wins); `email` immutable. Flagged: once
+  the edit-student module (req #2) lands, the edit UI becomes the source of truth and this
+  auto-refresh must be reconciled so it can't clobber a manual edit. Acceptable for Foundation.
 
 ## 9. Testing strategy
 
