@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-08-31):** Modules — ✅ 3 done · 🟡 1 partial · 🔵 5 planned
+**Snapshot (2026-08-31):** Modules — ✅ 4 done · 🟡 1 partial · 🔵 4 planned
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
@@ -58,22 +58,28 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [ ] Dedup so nobody gets two emails
 - [ ] Verify: seeded birthday → exactly one email per person on the day
 
-## 🔵 Admin audit log  *(NB)*
-- [ ] `AuditLog` model + migration
-- [ ] `logAdminAction()` helper wired into admin mutations
-- [ ] Recorded (not exposed in UI yet)
-- [ ] Verify: tuition record / student edit / parent CRUD each leave a log row
+## ✅ Admin audit log  *(NB)*
+- [x] `AuditLog` model + migration (`cc2e733`)
+- [x] `logAdminAction()` helper (`lib/audit.ts`) — best-effort, never throws (`af81007`)
+- [x] Wired into admin mutations that exist today: webhook enrollment-paid (`action: 'enrollment.enrolled'`, `8357dff`) and tuition recording (`action: 'tuition.record'`, `3dd52b4`)
+- [x] Recorded (not exposed in UI yet)
+- [x] Verify: helper round-trip (write + read back) passed against scratch DB (`af81007`)
+- [~] Verify: tuition-record audit row confirmed via `tsc`/build + review, not a live run; webhook's `enrollment.enrolled` audit row not exercised by a live Paystack charge (see Foundation module below) — student-edit / parent-CRUD log rows not yet applicable, those modules aren't built
 
 ---
 
-## 🔵 Foundation — Student entity + enrolled status  *(D1 + D2, build first)*
-Everything below (parents, birthdays, edit) leans on this, so it lands first.
-- [ ] `Student` model (unique immutable email) + migration; `Enrollment` → `Student` FK
-- [ ] Backfill: dedupe existing enrollments into `Student` rows by email
-- [ ] Webhook sets `status='enrolled'` on paid; retire `application_paid` value + backfill rows
-- [ ] Update badges/filters/duplicate-guard to the `enrolled` vocabulary
-- [ ] `AuditLog` model + `logAdminAction()` scaffold (used by later modules)
-- [ ] Verify: new enrollment → `enrolled`; existing rows migrated; one `Student` per email
+## ✅ Foundation — Student entity + enrolled status  *(D1 + D2)*
+Everything below (parents, birthdays, edit) leans on this — built and verified first, as planned.
+- [x] `Student` model (unique immutable lowercased email) + staged migration; `Enrollment.studentId` FK (`cc2e733`)
+- [x] Backfill: dedupe existing enrollments into `Student` rows by `lower(email)`, most-recent-enrollment-wins (`cc2e733`)
+- [x] Webhook sets `status='enrolled'` on paid; retire `application_paid` value + backfill existing rows (`cc2e733` migration + `8357dff` webhook)
+- [x] Update badges/filters/duplicate-guard to the `enrolled` vocabulary (`3dd52b4`)
+- [x] `AuditLog` model + `logAdminAction()` helper, wired into webhook + tuition recording (`cc2e733`, `af81007`, `8357dff`, `3dd52b4`)
+- [x] Verify: new enrollment → one `Student` per lowercased email, mutable fields refresh on re-enroll (O4) (`9651c34`, scratch-DB verified)
+- [x] Verify: existing rows migrated correctly — scratch-DB assertions (dedupe count, no orphaned enrollments, `application_paid` fully retired, zero row loss) all 6 passed (`cc2e733`, see `task-1-report.md`)
+- [x] Verify: whole-repo `tsc --noEmit` (0 errors) and `npm run build` succeed after full read-site cutover (`3dd52b4`)
+- [ ] **Migration 2 — drop the now-dormant `Enrollment` identity columns** (`email`, `firstName`, `lastName`, `phone`, `dateOfBirth`, `address`, `landmark`, `guardianName`, `guardianPhone`, `guardianEmail`) and remove them from `schema.prisma` — **deliberately deferred** to a separate follow-up PR, after this migration is verified in production
+- [~] **Live-webhook verification** — the `status='enrolled'` write, `AuditLog` row, and student-sourced receipt fields are verified via scratch-DB assertions + `tsc`/build + code review only. **Not exercised against a real Paystack test-mode charge** (the local harness's fabricated reference fails Paystack's own verify step before this code path runs). Run one real test-mode charge before production use to close this gap.
 
 ## Decisions log
 - [x] **D1** — paying = enrollment (no gate); webhook sets `enrolled`; fee non-refundable
@@ -89,3 +95,8 @@ Everything below (parents, birthdays, edit) leans on this, so it lands first.
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types
 - [ ] Confirm `FROM_EMAIL` domain verified in Resend before production
+- [ ] Add an index on `enrollments.studentId` (mirrors the existing `courseId` convention; minor, deferred at Task 1 review)
+- [ ] `lib/audit.ts` — simplify the no-op `metadata` ternary to `entry.metadata as any` (cosmetic, deferred at Task 2 review)
+- [ ] `app/api/enrollments/route.ts` — the paid-guard comment still says "paid/enrolled" but the code only checks `status: 'enrolled'`; fix the wording to match (deferred at Task 3 review)
+- [ ] Reconcile **O4 refresh-on-reenroll** (student mutable fields overwrite silently on every re-enrollment) against the future **edit-student module (req #2)** — decide whether an admin edit should survive a later re-enrollment overwrite
+- [ ] Run one real Paystack test-mode charge end-to-end to close the live-verification gap on the `enrolled`/audit/receipt webhook path (see Foundation module above)
