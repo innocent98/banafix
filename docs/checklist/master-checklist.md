@@ -78,6 +78,7 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [x] Verify: new enrollment → one `Student` per lowercased email, mutable fields refresh on re-enroll (O4) (`9651c34`, scratch-DB verified)
 - [x] Verify: existing rows migrated correctly — scratch-DB assertions (dedupe count, no orphaned enrollments, `application_paid` fully retired, zero row loss) all 6 passed (`cc2e733`, see `task-1-report.md`)
 - [x] Verify: whole-repo `tsc --noEmit` (0 errors) and `npm run build` succeed after full read-site cutover (`3dd52b4`)
+- [x] Final-fix-wave (2026-08-31): migration backfill/link normalization changed to `btrim(lower())` to match the app's `.trim().toLowerCase()` — closes a padded-email dedup gap; `@@index([studentId])` added to schema + migration; "Tuition Paid" admin badge restored (distinct from "Enrolled") without reintroducing `application_paid`; re-verified on a fresh scratch DB including a padded/mixed-case-email dedup case — see `docs/sop/student-entity-foundation.md`
 - [ ] **Migration 2 — drop the now-dormant `Enrollment` identity columns** (`email`, `firstName`, `lastName`, `phone`, `dateOfBirth`, `address`, `landmark`, `guardianName`, `guardianPhone`, `guardianEmail`) and remove them from `schema.prisma` — **deliberately deferred** to a separate follow-up PR, after this migration is verified in production
 - [~] **Live-webhook verification** — the `status='enrolled'` write, `AuditLog` row, and student-sourced receipt fields are verified via scratch-DB assertions + `tsc`/build + code review only. **Not exercised against a real Paystack test-mode charge** (the local harness's fabricated reference fails Paystack's own verify step before this code path runs). Run one real test-mode charge before production use to close this gap.
 
@@ -95,8 +96,8 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types
 - [ ] Confirm `FROM_EMAIL` domain verified in Resend before production
-- [ ] Add an index on `enrollments.studentId` (mirrors the existing `courseId` convention; minor, deferred at Task 1 review)
-- [ ] `lib/audit.ts` — simplify the no-op `metadata` ternary to `entry.metadata as any` (cosmetic, deferred at Task 2 review)
-- [ ] `app/api/enrollments/route.ts` — the paid-guard comment still says "paid/enrolled" but the code only checks `status: 'enrolled'`; fix the wording to match (deferred at Task 3 review)
+- [x] Add an index on `enrollments.studentId` (mirrors the existing `courseId` convention; minor, deferred at Task 1 review) — **done in final-fix-wave, 2026-08-31**
+- [x] `lib/audit.ts` — simplify the no-op `metadata` ternary to `entry.metadata as any` (cosmetic, deferred at Task 2 review) — **done in final-fix-wave, 2026-08-31**
+- [x] `app/api/enrollments/route.ts` — the paid-guard comment still says "paid/enrolled" but the code only checks `status: 'enrolled'`; fix the wording to match (deferred at Task 3 review) — **done in final-fix-wave, 2026-08-31**
 - [ ] Reconcile **O4 refresh-on-reenroll** (student mutable fields overwrite silently on every re-enrollment) against the future **edit-student module (req #2)** — decide whether an admin edit should survive a later re-enrollment overwrite
 - [ ] Run one real Paystack test-mode charge end-to-end to close the live-verification gap on the `enrolled`/audit/receipt webhook path (see Foundation module above)

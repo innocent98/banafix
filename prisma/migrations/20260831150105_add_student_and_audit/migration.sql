@@ -50,17 +50,17 @@ SELECT gen_random_uuid()::text, s."email", s."firstName", s."lastName", s."phone
        s."address", s."landmark", s."guardianName", s."guardianPhone", s."guardianEmail",
        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM (
-  SELECT DISTINCT ON (lower("email"))
-         lower("email") AS "email", "firstName", "lastName", "phone", "dateOfBirth",
+  SELECT DISTINCT ON (btrim(lower("email")))
+         btrim(lower("email")) AS "email", "firstName", "lastName", "phone", "dateOfBirth",
          "address", "landmark", "guardianName", "guardianPhone", "guardianEmail"
   FROM "enrollments"
-  ORDER BY lower("email"), "createdAt" DESC
+  ORDER BY btrim(lower("email")), "createdAt" DESC
 ) s;
 
 UPDATE "enrollments" e
 SET "studentId" = st."id"
 FROM "students" st
-WHERE lower(e."email") = st."email";
+WHERE btrim(lower(e."email")) = st."email";
 
 -- 4. Enforce FK + NOT NULL
 ALTER TABLE "enrollments" ALTER COLUMN "studentId" SET NOT NULL;
@@ -77,3 +77,6 @@ ALTER TABLE "enrollments" ALTER COLUMN "lastName" DROP NOT NULL;
 UPDATE "enrollments"
 SET "status" = 'enrolled'
 WHERE "status" = 'application_paid' OR "applicationPaid" = true;
+
+-- 7. Index for dedup lookups (findFirst/deleteMany by studentId+courseId)
+CREATE INDEX "enrollments_studentId_idx" ON "enrollments"("studentId");

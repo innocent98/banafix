@@ -225,6 +225,7 @@ model Enrollment {
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
 
+  @@index([studentId])
   @@map("enrollments")
 }
 
