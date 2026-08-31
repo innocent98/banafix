@@ -212,6 +212,9 @@ export default function EnrollmentsPage() {
 
   const getStatusBadge = (enrollment: Enrollment) => {
     if (enrollment.status === 'enrolled' || enrollment.applicationPaid) {
+      if (enrollment.tuitionPayments?.some(p => p.status === 'completed')) {
+        return <Badge variant="default">Tuition Paid</Badge>
+      }
       return <Badge variant="default">Enrolled</Badge>
     }
     if (enrollment.status === 'pending') {

@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Block only if this student already paid/enrolled for THIS course. A stale
+    // Block only if this student is already enrolled in THIS course. A stale
     // `pending` must not block a retry.
     const paidEnrollment = await prisma.enrollment.findFirst({
       where: { studentId: student.id, courseId, status: 'enrolled' },

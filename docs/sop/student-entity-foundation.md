@@ -9,6 +9,11 @@ duplicating name/email/phone/etc. on every enrollment row. The webhook now write
 admin/system mutation that changed as part of this (webhook payment, tuition recording) now
 writes an `AuditLog` row via a new best-effort `logAdminAction()` helper.
 
+A final-review fix wave (below, "final-fix-wave" section) then closed out every item the task
+reviews had deferred: migration email-normalization parity with the app (`btrim(lower())`),
+an index on `enrollments.studentId`, the dropped "Tuition Paid" admin badge, plus two
+cosmetic cleanups.
+
 Commits (branch `foundation-student-entity`, off `banafix` @ `9db7731`):
 | Commit | What |
 | --- | --- |
@@ -17,6 +22,7 @@ Commits (branch `foundation-student-entity`, off `banafix` @ `9db7731`):
 | `9651c34` | `POST /api/enrollments` — find-or-create `Student`, link, dedup guard, refresh-on-reenroll |
 | `8357dff` | Webhook — write `status='enrolled'`, read `student.*`, write `AuditLog` |
 | `3dd52b4` | Cut every remaining read-site (admin API/UI, receipts, dashboard) over to `student.*`; admin status vocabulary to `pending`/`enrolled` |
+| *(final-fix-wave, see below)* | Migration email-normalization parity, `studentId` index, "Tuition Paid" badge restore, 2 cosmetic cleanups |
 
 ## Why
 Two open questions blocked three planned modules (tuition-balance editing, parent↔child
@@ -107,13 +113,47 @@ payment modal) were found by a `grep` sweep, not named in the original task brie
 `any`-typed callbacks or a structurally-separate local interface, so `tsc` would not have
 caught them; left unfixed they would have silently rendered blank/undefined names.
 
+### Final-review fix wave
+Applied 2026-08-31, before the migration had run against prod, so the staged migration file
+was edited in place rather than superseded by a second migration:
+
+1. **Migration email-normalization parity (the must-fix).** The backfill/link logic used
+   `lower("email")`; the app's create path (`app/api/enrollments/route.ts`) normalizes with
+   `String(email).trim().toLowerCase()`. A whitespace-padded pre-existing email would have
+   backfilled a padded `students.email`, and a later trimmed re-enrollment would then fail to
+   match it on `upsert({ where: { email } })` — silently creating a second `Student` for the
+   same person instead of erroring. Changed every normalization site in the migration
+   (`DISTINCT ON`, the projected `email`, `ORDER BY`, and the link `UPDATE ... WHERE`) from
+   `lower("email")` to `btrim(lower("email"))`, so `students.email` now matches the JS
+   `.trim().toLowerCase()` exactly.
+2. **`enrollments.studentId` index.** The dedup path (`findFirst`/`deleteMany` on
+   `studentId + courseId` in `POST /api/enrollments`) had no supporting index. Added
+   `@@index([studentId])` to `model Enrollment` in `prisma/schema.prisma`, and
+   `CREATE INDEX "enrollments_studentId_idx" ON "enrollments"("studentId");` at the end of the
+   same staged migration (appended, not inserted mid-file, so the backfill ordering above is
+   untouched).
+3. **Restored the "Tuition Paid" admin badge.** The `3dd52b4` cutover had collapsed every
+   paid/enrolled row to a single "Enrolled" badge, losing the earlier distinction between
+   "paid the application fee" and "also has a completed tuition payment." Restored it without
+   reintroducing the retired `application_paid` status: inside the existing
+   `status === 'enrolled' || applicationPaid` branch of `getStatusBadge`, an enrollment with
+   `tuitionPayments?.some(p => p.status === 'completed')` now renders "Tuition Paid" instead of
+   "Enrolled". The `pending`/"Payment Pending" branch and the status-filter dropdown (no
+   `application_paid` option) are unchanged.
+4. **Cosmetic — `lib/audit.ts`.** `metadata: entry.metadata === undefined ? undefined : (entry.metadata as any)`
+   simplified to `metadata: entry.metadata as any` — Prisma already omits an `undefined` field
+   from the write, so the ternary was a no-op. Behavior unchanged.
+5. **Cosmetic — stale comment.** `app/api/enrollments/route.ts`'s paid-guard comment said
+   "already paid/enrolled" when the code only checks `status: 'enrolled'`; reworded to "already
+   enrolled in THIS course" to match.
+
 ## What's involved
 | File | Change |
 | --- | --- |
-| `prisma/schema.prisma` | `model Student`, `model AuditLog`; `Enrollment.studentId` FK; `email`/`firstName`/`lastName` on `Enrollment` relaxed to nullable |
-| `prisma/migrations/20260831150105_add_student_and_audit/migration.sql` | New staged migration (create tables, nullable FK, backfill, NOT NULL + FK, status flip) |
-| `lib/audit.ts` | New — `logAdminAction()` |
-| `app/api/enrollments/route.ts` | `POST`: student upsert + link + dedup guard rewrite; `GET` list: `student` include + email filter re-keyed to `student.email` |
+| `prisma/schema.prisma` | `model Student`, `model AuditLog`; `Enrollment.studentId` FK; `email`/`firstName`/`lastName` on `Enrollment` relaxed to nullable; `@@index([studentId])` (final-fix-wave) |
+| `prisma/migrations/20260831150105_add_student_and_audit/migration.sql` | New staged migration (create tables, nullable FK, backfill, NOT NULL + FK, status flip); backfill/link normalization changed to `btrim(lower())` and `enrollments_studentId_idx` added (final-fix-wave) |
+| `lib/audit.ts` | New — `logAdminAction()`; no-op `metadata` ternary simplified (final-fix-wave) |
+| `app/api/enrollments/route.ts` | `POST`: student upsert + link + dedup guard rewrite; `GET` list: `student` include + email filter re-keyed to `student.email`; paid-guard comment reworded (final-fix-wave) |
 | `app/api/webhooks/paystack/route.ts` | `handleChargeSuccess`: `student` include, `status='enrolled'` write, `logAdminAction` call; `sendEnrollmentEmails`: reads `enrollment.student.*` |
 | `app/api/admin/enrollments/[id]/tuition/route.ts` | `student` include, receipt data from `student.*`, `logAdminAction` call |
 | `app/api/admin/tuition-payments/[id]/receipt/route.ts` | `student` include, receipt data from `student.*` (GET + POST) |
@@ -121,7 +161,7 @@ caught them; left unfixed they would have silently rendered blank/undefined name
 | `app/api/enrollments/[id]/route.ts` | `student` include on `GET` |
 | `app/api/enrollments/verify/route.ts` | `student` include (`firstName`, `email`) |
 | `app/api/admin/dashboard/stats/route.ts` | "Recent activity" feed reads `student.firstName/lastName` (found via grep, not in original scope) |
-| `app/admin/enrollments/page.tsx` | `student` in `Enrollment` interface; search/table/detail-modal reads; `getStatusBadge` simplified to `pending`/`enrolled`; status filter dropdown drops `application_paid` |
+| `app/admin/enrollments/page.tsx` | `student` in `Enrollment` interface; search/table/detail-modal reads; `getStatusBadge` simplified to `pending`/`enrolled`; status filter dropdown drops `application_paid`; `getStatusBadge` now distinguishes "Tuition Paid" from "Enrolled" (final-fix-wave) |
 | `components/admin/tuition-payment-modal.tsx` | Local `Enrollment` interface nests `student` (found via grep — required for `tsc` to pass once the page's interface changed) |
 
 No changes to `lib/receipt.ts` or `lib/email.ts` — both take locally-defined DTO parameter
@@ -149,6 +189,22 @@ shapes populated by their callers, not raw Prisma `Enrollment` reads.
   routes built.
 - **Webhook signature harness** — `npm run test:webhook` (real dev server): valid signature
   → 200 accepted; forged signature → 400 rejected.
+- **Final-fix-wave re-verification (2026-08-31, scratch DB reset from scratch)** — schema
+  dropped/recreated, the 3 pre-Foundation migrations reapplied via `psql -f`, then seeded with
+  a padded/mixed-case-email row (`'  Ada@Example.com '`, older) and a clean-email row
+  (`'ada@example.com'`, newer) for the same person, plus a distinct third person, before
+  applying the edited migration:
+  - Exactly 1 `Student` row for the padded+clean person (dedup survives the whitespace/case
+    difference) — confirmed via `count(*) WHERE email = 'ada@example.com'` = 1.
+  - `SELECT * FROM students WHERE email <> btrim(email)` → 0 rows (no padded emails persisted).
+  - All 3 enrollments linked (`count(*) = count("studentId")` = 3/3), including the padded-email
+    row resolving to the same `studentId` as the clean-email row.
+  - `SELECT indexname FROM pg_indexes WHERE tablename='enrollments'` includes
+    `enrollments_studentId_idx`.
+  - `npx prisma generate && npx tsc --noEmit` → 0 errors.
+  - `npm run build` → succeeded (same 35 static pages / dynamic routes as before).
+  Full command transcript and assertion output: see the session report referenced in
+  `.superpowers/sdd/2026-08-31-student-entity-foundation/final-fix-report.md`.
 
 ### Known limitation — stated plainly
 The `enrolled` status write, the `AuditLog` row, and the student-sourced receipt/admin-notice
@@ -205,10 +261,9 @@ actually sends yet.
 - **Run one real Paystack test-mode charge** to close the live-verification gap described
   above — confirm the `student` relation resolves correctly at runtime and the receipt PDF
   renders the right name/email/phone from a real webhook event, not just types + review.
-- **Minor, deferred at task review (non-blocking):**
-  - No index on `enrollments.studentId` (mirrors the existing `courseId` convention).
-  - `lib/audit.ts` — a no-op ternary on `metadata` could simplify to `entry.metadata as any`.
-  - `app/api/enrollments/route.ts` — the paid-guard comment still says "paid/enrolled" but the
-    code checks only `status: 'enrolled'`; wording doesn't match behavior.
+- ~~Minor, deferred at task review (non-blocking): no `enrollments.studentId` index; no-op
+  `metadata` ternary in `lib/audit.ts`; stale paid-guard comment wording.~~ **Resolved in the
+  final-fix-wave** (2026-08-31) — see the "Final-review fix wave" subsection under How, and the
+  corresponding Verification entry above.
 - **Unrelated, pre-existing, not fixed by this shipment:** real email delivery is still
   blocked on a placeholder `RESEND_API_KEY` (see `docs/sop/enrollment-emails.md`).

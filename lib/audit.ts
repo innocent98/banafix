@@ -17,7 +17,7 @@ export async function logAdminAction(entry: AuditEntry): Promise<void> {
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
-        metadata: entry.metadata === undefined ? undefined : (entry.metadata as any),
+        metadata: entry.metadata as any,
       },
     })
   } catch (error) {
