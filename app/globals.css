@@ -183,3 +183,165 @@
     opacity: 0;
   }
 }
+
+/* ==========================================================================
+   Banafix Redesign — brand token layer (2026-09-01)
+   Ported verbatim from the "Banafix Redesign.dc.html" UI handoff.
+   Scoped as `bfx-*` so the shadcn tokens above (and therefore /admin) are
+   untouched. Public pages consume these; admin keeps the legacy blue/gold.
+   ========================================================================== */
+:root {
+  /* Grounds */
+  --bfx-cream: #faf6f0;        /* page background */
+  --bfx-cream-2: #f2ece3;      /* soft band (trusted-by) */
+  --bfx-cream-3: #f1eae0;      /* pill badge fill */
+  --bfx-tint: #f4eee4;         /* meta chip fill */
+  --bfx-surface: #ffffff;      /* cards */
+  --bfx-field: #fcfaf7;        /* input fill */
+  --bfx-hover-nav: #f0e9de;    /* nav item hover */
+
+  /* Ink (dark sections) */
+  --bfx-ink: #101a28;
+  --bfx-ink-2: #152337;        /* card on ink */
+  --bfx-ink-3: #1c2c42;        /* media well on ink */
+  --bfx-line-dark: #26364c;
+
+  /* Accents */
+  --bfx-amber: #f5a524;
+  --bfx-bronze: #b0730c;       /* eyebrows, links */
+
+  /* Text on light */
+  --bfx-body: #4e5c71;
+  --bfx-body-2: #5b6a7e;
+  --bfx-strong: #26333f;
+  --bfx-label: #3d4b60;
+  --bfx-muted: #7a8798;
+  --bfx-muted-2: #8b96a6;
+  --bfx-phone: #62718a;
+
+  /* Text on ink */
+  --bfx-on-dark: #d5dee9;
+  --bfx-on-dark-2: #b9c5d4;
+  --bfx-on-dark-3: #93a3b6;
+  --bfx-on-dark-4: #9caabc;
+  --bfx-on-dark-5: #8797ab;
+  --bfx-on-dark-6: #7e8da1;
+
+  /* Rules — the handoff uses a graded family, not one border colour */
+  --bfx-border: #eae1d3;       /* card */
+  --bfx-border-2: #e4dacb;     /* input */
+  --bfx-border-3: #ebe3d7;     /* header */
+  --bfx-border-4: #e7decf;     /* grouped list */
+  --bfx-border-5: #ede5d8;     /* inner card */
+  --bfx-border-6: #e9e0d2;     /* raised aside */
+  --bfx-border-7: #e6ddce;     /* dashed divider */
+  --bfx-hair: #f2ebdf;         /* hairline */
+  --bfx-hair-2: #f0e8db;
+
+  /* Notes */
+  --bfx-note-bg: #fbf5ea;
+  --bfx-note-border: #f0e2c9;
+  --bfx-note-text: #6b5327;
+  --bfx-ok-bg: #f1f8f2;
+  --bfx-ok-border: #d6e8d9;
+  --bfx-ok-text: #2f5b39;
+
+  /* Media placeholder gradients (the <image-slot> empty state) */
+  --bfx-media-a: #f4ede1;
+  --bfx-media-b: #e8dcc8;
+  --bfx-media-dark-a: #1b2b41;
+  --bfx-media-dark-b: #132032;
+}
+
+@theme inline {
+  --font-display: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --color-bfx-cream: var(--bfx-cream);
+  --color-bfx-cream-2: var(--bfx-cream-2);
+  --color-bfx-cream-3: var(--bfx-cream-3);
+  --color-bfx-tint: var(--bfx-tint);
+  --color-bfx-surface: var(--bfx-surface);
+  --color-bfx-field: var(--bfx-field);
+  --color-bfx-hover-nav: var(--bfx-hover-nav);
+
+  --color-bfx-ink: var(--bfx-ink);
+  --color-bfx-ink-2: var(--bfx-ink-2);
+  --color-bfx-ink-3: var(--bfx-ink-3);
+  --color-bfx-line-dark: var(--bfx-line-dark);
+
+  --color-bfx-amber: var(--bfx-amber);
+  --color-bfx-bronze: var(--bfx-bronze);
+
+  --color-bfx-body: var(--bfx-body);
+  --color-bfx-body-2: var(--bfx-body-2);
+  --color-bfx-strong: var(--bfx-strong);
+  --color-bfx-label: var(--bfx-label);
+  --color-bfx-muted: var(--bfx-muted);
+  --color-bfx-muted-2: var(--bfx-muted-2);
+  --color-bfx-phone: var(--bfx-phone);
+
+  --color-bfx-on-dark: var(--bfx-on-dark);
+  --color-bfx-on-dark-2: var(--bfx-on-dark-2);
+  --color-bfx-on-dark-3: var(--bfx-on-dark-3);
+  --color-bfx-on-dark-4: var(--bfx-on-dark-4);
+  --color-bfx-on-dark-5: var(--bfx-on-dark-5);
+  --color-bfx-on-dark-6: var(--bfx-on-dark-6);
+
+  --color-bfx-border: var(--bfx-border);
+  --color-bfx-border-2: var(--bfx-border-2);
+  --color-bfx-border-3: var(--bfx-border-3);
+  --color-bfx-border-4: var(--bfx-border-4);
+  --color-bfx-border-5: var(--bfx-border-5);
+  --color-bfx-border-6: var(--bfx-border-6);
+  --color-bfx-border-7: var(--bfx-border-7);
+  --color-bfx-hair: var(--bfx-hair);
+  --color-bfx-hair-2: var(--bfx-hair-2);
+
+  --color-bfx-note-bg: var(--bfx-note-bg);
+  --color-bfx-note-border: var(--bfx-note-border);
+  --color-bfx-note-text: var(--bfx-note-text);
+  --color-bfx-ok-bg: var(--bfx-ok-bg);
+  --color-bfx-ok-border: var(--bfx-ok-border);
+  --color-bfx-ok-text: var(--bfx-ok-text);
+}
+
+@layer base {
+  /* The handoff's entrance animation. */
+  @keyframes bfx-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
+@layer utilities {
+  .bfx-rise   { animation: bfx-rise 0.5s ease both; }
+  .bfx-rise-2 { animation: bfx-rise 0.7s ease both; }
+
+  /* The handoff has no reduced-motion story; entrance animation is decorative,
+     so it is dropped entirely rather than shortened. */
+  @media (prefers-reduced-motion: reduce) {
+    .bfx-rise,
+    .bfx-rise-2 { animation: none; }
+  }
+
+  /* Handoff: max-width:1240px; padding:0 clamp(20px,4vw,40px) */
+  .bfx-shell {
+    max-width: 1240px;
+    margin-inline: auto;
+    padding-inline: clamp(20px, 4vw, 40px);
+  }
+
+  /* `text-wrap: pretty` on body copy, as the handoff sets globally. */
+  .bfx-pretty { text-wrap: pretty; }
+}
+
+/* The site shell owns the cream ground and the body face, so /admin keeps the
+   legacy Inter/Sora + white treatment untouched. */
+.bfx-site {
+  background: var(--bfx-cream);
+  color: var(--bfx-ink);
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  text-wrap: pretty;
+}
+.bfx-site ::selection { background: var(--bfx-amber); color: var(--bfx-ink); }

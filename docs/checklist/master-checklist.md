@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-01):** Modules — ✅ 9 done · all four requested modules + foundation shipped (email delivery pending a real `RESEND_API_KEY`)
+**Snapshot (2026-09-01):** Modules — ✅ 10 done · all four requested modules + foundation + the public UI redesign shipped (email delivery pending a real `RESEND_API_KEY`)
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
@@ -74,6 +74,59 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 
 ---
 
+## ✅ Public UI redesign — `Banafix Redesign.dc.html` handoff  *(branch `ui-redesign`)*
+Full-parity rebuild of the public site against the Claude Design handoff. See
+[`docs/sop/ui-redesign.md`](../sop/ui-redesign.md) and the implementation contract in
+[`docs/superpowers/specs/2026-09-01-ui-redesign-contract.md`](../superpowers/specs/2026-09-01-ui-redesign-contract.md).
+
+### Foundation
+- [x] `bfx-*` design-token layer appended to `app/globals.css` — additive, so shadcn tokens and `/admin` are untouched
+- [x] Instrument Serif + Plus Jakarta Sans added; Inter/Sora retained for `/admin`
+- [x] Route group `app/(site)/` — 11 public routes moved via `git mv`, one layout owns cream ground + sticky 76px header + ink footer
+- [x] Shared primitives (`PillLink`/`PillButton`/`PillAnchor`, `Eyebrow`, `Display`, `MetaChip`, `LevelBadge`, `CheckPip`), `MediaSlot`, `Wordmark`, `lib/site.ts`
+- [x] `app/(site)/error.tsx` — a DB blip now says so instead of rendering "no courses" as fact
+- [x] `prefers-reduced-motion` guard on the entrance animation
+
+### Screens (full parity)
+- [x] Home — hero, trusted-by, featured courses (**real data**), why-Banafix, how-you-learn (**real per-mode prices**), testimonials, CTA band
+- [x] Courses list — sticky level chips at `top-[76px]`, `?instrument=` deep link, two designed empty states
+- [x] Course detail — ink hero, tabs, sticky aside at `top-[104px]` with a working format picker
+- [x] Tutors — renamed from `/instructors`, permanent redirects in `next.config.ts`
+- [x] Enrol — 3-step wizard, **both** consent checkboxes preserved, summary aside
+- [x] Enrol success — all five states kept, restyled
+- [x] Contact — channels, working form, FAQ accordion, `?subject=trial` preselect
+
+### Secondary pages restyled
+- [x] `/faqs` (category counts now derived, filtering restored), `/testimonials`, `/policies` (real `#privacy` / `#terms` anchors), `/admissions`, `/events`, `/dashboard`, `/not-found`
+
+### Correctness fixed along the way
+- [x] **Selected delivery mode is no longer discarded** — the course page emits `?mode=`, the wizard validates and submits it. Previously always fell back to `modes[0]`, so the stored mode and billed tuition could be wrong
+- [x] **10-course cap removed** — `/courses` called an API defaulting to `limit=10` with no params
+- [x] Deleted `app/instructors/[id]` — a hardcoded mock that ignored its route param
+- [x] `/faqs` hardcoded category counts (14/3/2…) vs 6 real FAQs
+- [x] `/policies#privacy` and `#terms` were dead footer links
+- [x] `MediaSlot` image now unmounts on error so the designed empty state shows through
+
+### New endpoint
+- [x] `POST /api/contact` — honeypot + per-IP throttle + subject allow-list; returns 502 rather than a fake success
+- [~] **Live delivery unproven** — same pre-existing placeholder `RESEND_API_KEY` blocker as every other send path
+
+### Verified
+- [x] `npx tsc --noEmit` clean · `npx next build` passes (36/36 pages)
+- [x] All 11 public routes 200, `/nope` 404, `/instructors` 308 → `/tutors`
+- [x] Enrol POST contract re-proven field-by-field **by execution** against `app/api/enrollments/route.ts`
+- [x] `POST /api/contact` exercised live across 7 cases
+- [ ] **Visual QA in a browser at 375px / 1280px — not done, the one real gap**
+
+### Needs a product decision (fabricated content removed, not restyled)
+- [ ] **`/dashboard`** — was 100% fabricated with zero auth and publicly reachable: a named student + email, invented course progress, and **a payment history showing ₦25,000 and ₦18,000 as paid**. Removed; the route now states there is no student login. Everything removed is listed in the file header. → build a real student session, or drop the route
+- [ ] **`/events`** — six hardcoded events, all with dates already passed, invented seat counts, non-functional Register button. `EVENTS` is now an empty array with the removed entries in a comment; the designed grid renders the moment it is non-empty → supply real events, or drop the route
+- [ ] **`/admissions` tuition tiers** (₦25,000 / ₦15,000 / ₦12,000 per month) contradict real `course.pricing`. Reframed as indicative with a pointer to `/courses` → probably delete them
+- [ ] **`/testimonials` entries 2 and 4** read as video captions ("Watch my journey") with no video → rewrite or supply video
+- [ ] Policy pages still stamped "Last updated: December 15, 2024"
+
+---
+
 ## ✅ Foundation — Student entity + enrolled status  *(D1 + D2)*
 Everything below (parents, birthdays, edit) leans on this — built and verified first, as planned.
 - [x] `Student` model (unique immutable lowercased email) + staged migration; `Enrollment.studentId` FK (`cc2e733`)
@@ -107,3 +160,9 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [x] `app/api/enrollments/route.ts` — the paid-guard comment still says "paid/enrolled" but the code only checks `status: 'enrolled'`; fix the wording to match (deferred at Task 3 review) — **done in final-fix-wave, 2026-08-31**
 - [ ] Reconcile **O4 refresh-on-reenroll** (student mutable fields overwrite silently on every re-enrollment) against the future **edit-student module (req #2)** — decide whether an admin edit should survive a later re-enrollment overwrite
 - [ ] Run one real Paystack test-mode charge end-to-end to close the live-verification gap on the `enrolled`/audit/receipt webhook path (see Foundation module above)
+
+## Deferred follow-ups — UI redesign
+- [ ] Dead-code sweep: `components/enrollment/*`, `components/sections/*`, `components/instructors/{instructor-card,instructor-filters}.tsx` are all unreferenced since the redesign. Left in place so the redesign diff stays a redesign
+- [ ] Move `sendContactEnquiry()` into `lib/email.ts`; note the contact route HTML-escapes interpolated fields and `lib/email.ts` does not — a trap for the next public-input template
+- [ ] Repair ESLint: `Could not find plugin "@typescript-eslint"` repo-wide. The packages **are** installed; it is an eslint 9 vs legacy `.eslintrc.json` resolution failure. No lint gate exists today
+- [ ] `app/(site)/enroll/loading.tsx` still returns `null` (low impact — the page carries its own Suspense fallback)

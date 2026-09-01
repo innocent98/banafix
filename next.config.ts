@@ -28,8 +28,18 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
-  }
-  /* config options here */
+  },
+  async redirects() {
+    return [
+      // The handoff renames "Instructors" to "Tutors". Permanent so existing
+      // links and any indexed URLs follow.
+      { source: "/instructors", destination: "/tutors", permanent: true },
+      // There is no tutor detail screen in the handoff, and the old
+      // /instructors/[id] page was a hardcoded mock that ignored its param.
+      { source: "/instructors/:id", destination: "/tutors", permanent: true },
+      { source: "/tutors/:id", destination: "/tutors", permanent: true },
+    ]
+  },
 };
 
 export default nextConfig;
