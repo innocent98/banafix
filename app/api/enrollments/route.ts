@@ -107,19 +107,15 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = String(email).trim().toLowerCase()
 
-    // Find-or-create the person; refresh mutable fields on re-enroll (O4). Email immutable.
+    // Find-or-create the person. Email is immutable and identifies the person.
+    // O4 (reconciled with the edit-student module): on RE-enrollment we do NOT
+    // overwrite an existing student's stored fields — the admin edit screen
+    // (PATCH /api/admin/students/[id]) is the source of truth, so a returning
+    // student's form can't silently clobber an admin correction. Only a brand-new
+    // student's fields are written (the `create` branch).
     const student = await prisma.student.upsert({
       where: { email: normalizedEmail },
-      update: {
-        firstName, lastName,
-        phone: phone ?? undefined,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-        address: address ?? undefined,
-        landmark: landmark ?? undefined,
-        guardianName: guardianName ?? undefined,
-        guardianPhone: guardianPhone ?? undefined,
-        guardianEmail: guardianEmail ?? undefined,
-      },
+      update: {},
       create: {
         email: normalizedEmail,
         firstName, lastName,

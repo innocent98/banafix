@@ -39,11 +39,13 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [x] Verify: balance arithmetic + edge cases (partial/full/overpay/missing-price) via logic harness; `tsc` 0 + build
 - [~] **Live email delivery** of student receipt + admin copy — blocked on placeholder `RESEND_API_KEY` (same pre-existing blocker)
 
-## 🔵 Edit student record  *(req #2)*
-- [ ] `PATCH /api/admin/enrollments/[id]` (JWT) — editable fields, **email immutable**
-- [ ] Admin edit UI (DOB, address, guardian, preferences)
-- [ ] Writes `AuditLog` on each edit
-- [ ] Verify: email cannot be changed; other fields persist
+## ✅ Edit student record  *(req #2, branch `student-edit`)*
+- [x] `PATCH /api/admin/students/[id]` (JWT) + `GET` to prefill — editable fields, **email immutable** (edit the person, not the enrollment)
+- [x] Admin edit UI (names, phone, DOB, address, landmark, guardian) — modal on the enrollments page
+- [x] Writes `AuditLog` (`student.update`, changedFields) on each edit
+- [x] O4 reconciled: enrollment-create no longer overwrites an existing student's fields on re-enroll (edit UI is source of truth)
+- [x] Verify: email-change rejected, blank-name rejected, DOB parsed, blank→null, change-tracking — logic harness; `tsc` 0 + build
+- [~] Full live DB-integration run not executed (types + build + harness cover it)
 
 ## 🔵 Parent records + child mapping  *(req #3)*
 - [ ] **D2 decided** (introduce `Student` entity vs enrollment-as-student)

@@ -29,12 +29,15 @@ import {
   CreditCard,
   Receipt,
   Mail,
+  Pencil,
 } from "lucide-react"
 import { TuitionPaymentModal } from "@/components/admin/tuition-payment-modal"
+import { StudentEditModal } from "@/components/admin/student-edit-modal"
 
 interface Enrollment {
   id: string
   student: {
+    id: string
     firstName: string
     lastName: string
     email: string
@@ -92,6 +95,8 @@ export default function EnrollmentsPage() {
   const [paymentFilter, setPaymentFilter] = useState("all")
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [editStudentId, setEditStudentId] = useState<string | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [stats, setStats] = useState<EnrollmentStats>({
     totalEnrollments: 0,
     applicationPaidEnrollments: 0,
@@ -524,6 +529,17 @@ export default function EnrollmentsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => {
+                                setEditStudentId(enrollment.student.id)
+                                setShowEditModal(true)
+                              }}
+                              title="Edit student"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleAddPayment(enrollment)}
                               title="Manage payments"
                               disabled={!enrollment.applicationPaid}
@@ -643,6 +659,19 @@ export default function EnrollmentsPage() {
         }}
         onPaymentAdded={() => {
           loadEnrollments() // Refresh data
+        }}
+      />
+
+      {/* Edit Student Modal */}
+      <StudentEditModal
+        studentId={editStudentId}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditStudentId(null)
+        }}
+        onSaved={() => {
+          loadEnrollments() // Refresh so edited names/details show
         }}
       />
     </AdminLayout>

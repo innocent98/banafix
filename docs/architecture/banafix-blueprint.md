@@ -32,7 +32,7 @@
 | Migration 2 — drop dormant `Enrollment` identity columns | ❌ **Deferred** | `email`/`firstName`/`lastName`/`phone`/`dateOfBirth`/`address`/`landmark`/`guardianName`/`guardianPhone`/`guardianEmail` on `Enrollment` are nullable and unread by app code, but still present in the DB and `schema.prisma` — dropping them is a separate follow-up PR, after prod verification of migration 1 |
 | Tuition: admin copy of receipt | 🟡 Code | **req #1 built** — separate best-effort send to `ADMIN_EMAIL` in `sendTuitionReceipt` |
 | Tuition: full/part marking + balance | 🟡 Code | **req #1 built** — Full/Part marker; balance = `course.pricing[mode] − totalPaid` on receipt/modal/table |
-| Edit student record (admin) | ❌ Not built | no `PATCH` endpoint exists — **Planned — req #2**; must reconcile with O4 (refresh-on-reenroll) once it lands |
+| Edit student record (admin) | 🟡 Code | **req #2 built** — `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled (re-enroll no longer overwrites edits) |
 | Parent records + parent↔child mapping | ❌ Not built | no `Parent` model — **Planned — req #3**, now unblocked by the `Student` entity |
 | Birthday automation (students + parents) | ❌ Not built | no scheduler/cron in repo — **Planned — req #4** |
 
