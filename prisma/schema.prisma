@@ -172,6 +172,20 @@ model Parent {
   @@map("parents")
 }
 
+// Idempotency log for birthday emails — one row per recipient per calendar year,
+// written only after a successful send so the daily cron never double-sends.
+model BirthdayEmailLog {
+  id            String   @id @default(cuid())
+  recipientType String   // 'student' | 'parent'
+  recipientId   String
+  year          Int
+  email         String
+  sentAt        DateTime @default(now())
+
+  @@unique([recipientType, recipientId, year])
+  @@map("birthday_email_logs")
+}
+
 // Audit trail for admin actions
 model AuditLog {
   id         String   @id @default(cuid())

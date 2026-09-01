@@ -492,3 +492,73 @@ export async function sendAdminEnrollmentNotification(
     return false
   }
 }
+
+/**
+ * Send a professional "happy birthday" email to a student or parent.
+ * Best-effort — returns whether the send succeeded so the caller can decide
+ * whether to record it (we only log successful sends, so failures retry).
+ */
+export async function sendBirthdayEmail(recipient: {
+  name: string
+  email: string
+  type: 'student' | 'parent'
+}): Promise<boolean> {
+  try {
+    const firstName = recipient.name.trim().split(/\s+/)[0] || recipient.name
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: recipient.email,
+      subject: `Happy Birthday, ${firstName}! 🎉`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Happy Birthday from Banafix</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f9fafb; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #f59e0b, #d98a1f); color: white; padding: 40px 30px; text-align: center; }
+                .header h1 { margin: 0; font-size: 30px; }
+                .content { padding: 30px; text-align: center; }
+                .content h2 { color: #1e293b; }
+                .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Happy Birthday, ${firstName}! 🎂</h1>
+                    <p>From all of us at Banafix Music Academy</p>
+                </div>
+                <div class="content">
+                    <h2>Wishing you a wonderful day</h2>
+                    <p>Dear ${recipient.name},</p>
+                    ${
+                      recipient.type === 'parent'
+                        ? `<p>Thank you for being part of the Banafix family. On your special day, we celebrate you and the support you give to your children's musical journey. May your year ahead be filled with joy, music, and beautiful moments.</p>`
+                        : `<p>Today we celebrate you! Keep making music and chasing your goals — we're so glad to have you learning with us. May your new year be full of growth, creativity, and happy melodies.</p>`
+                    }
+                    <p style="margin-top: 24px; font-weight: bold; color: #d98a1f;">Warmest wishes,<br/>The Banafix Team</p>
+                </div>
+                <div class="footer">
+                    <p>Banafix Music Academy — Building Musical Excellence</p>
+                    <p>Questions? Contact us at ${SUPPORT_EMAIL}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+    })
+
+    if (emailResult.error) {
+      console.error('Failed to send birthday email:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending birthday email:', error)
+    return false
+  }
+}

@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-01):** Modules — ✅ 8 done · 🔵 1 planned (req #4 birthdays)
+**Snapshot (2026-09-01):** Modules — ✅ 9 done · all four requested modules + foundation shipped (email delivery pending a real `RESEND_API_KEY`)
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
@@ -55,13 +55,14 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [x] Verify: one parent ↔ 2 children + reverse + unique-email + detach — round-trip on ephemeral Postgres; `tsc` 0 + build
 - [~] Live authed HTTP-route run not executed (types + build + relation scratch-test cover it)
 
-## 🔵 Birthday automation  *(req #4)*
-- [ ] **D4 decided** (Vercel Cron recommended)
-- [ ] `vercel.json` cron + `GET /api/cron/birthdays` guarded by `CRON_SECRET`
-- [ ] Birthday email templates (student + parent) in `lib/email.ts`
-- [ ] Today-in-Africa/Lagos match for students (full DOB) + parents (month+day)
-- [ ] Dedup so nobody gets two emails
-- [ ] Verify: seeded birthday → exactly one email per person on the day
+## ✅ Birthday automation  *(req #4, branch `birthday-automation`)*
+- [x] `vercel.json` cron (`0 5 * * *` = 06:00 Lagos) + `GET /api/cron/birthdays` guarded by `CRON_SECRET`
+- [x] Birthday email templates (student + parent variants) — `sendBirthdayEmail` in `lib/email.ts`
+- [x] Today-in-Africa/Lagos match for students (full DOB, UTC month/day) + parents (stored month+day) — `lib/birthdays.ts`
+- [x] Dedup via `BirthdayEmailLog` unique `(recipientType, recipientId, year)`, logged only after a successful send (failures retry); additive migration
+- [x] `birthday.run` audit per run
+- [x] Verify: recipient-match + dedup proven on ephemeral Postgres (2 candidates → 1 after a log row); `tsc` 0 + build
+- [~] **Email delivery not verified** — blocked on placeholder `RESEND_API_KEY` (send path built + logic-verified only). Set `CRON_SECRET` + real Resend key in Vercel to go live.
 
 ## ✅ Admin audit log  *(NB)*
 - [x] `AuditLog` model + migration (`cc2e733`)
