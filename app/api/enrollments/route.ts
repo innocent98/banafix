@@ -299,6 +299,7 @@ export async function GET(req: NextRequest) {
               instrument: true,
               level: true,
               sessionStartDate: true,
+              pricing: true,
               instructor: {
                 select: {
                   name: true,

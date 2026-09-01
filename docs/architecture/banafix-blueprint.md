@@ -30,8 +30,8 @@
 | **Email delivery (all of the above)** | ⚠️ **Blocked** | `RESEND_API_KEY` is a placeholder (401); `banafix.com` sender domain unverified — **unchanged by this shipment** |
 | Tuition payment (admin-recorded) + student receipt | 🟡 Code | `POST /api/admin/enrollments/[id]/tuition`; receipt now sourced from `enrollment.student.*`; each record writes an `AuditLog` row |
 | Migration 2 — drop dormant `Enrollment` identity columns | ❌ **Deferred** | `email`/`firstName`/`lastName`/`phone`/`dateOfBirth`/`address`/`landmark`/`guardianName`/`guardianPhone`/`guardianEmail` on `Enrollment` are nullable and unread by app code, but still present in the DB and `schema.prisma` — dropping them is a separate follow-up PR, after prod verification of migration 1 |
-| Tuition: admin copy of receipt | ❌ Not built | **Planned — req #1** |
-| Tuition: full/part marking + balance | ❌ Not built | status hardcoded `completed`; balance never computed — **Planned — req #1** |
+| Tuition: admin copy of receipt | 🟡 Code | **req #1 built** — separate best-effort send to `ADMIN_EMAIL` in `sendTuitionReceipt` |
+| Tuition: full/part marking + balance | 🟡 Code | **req #1 built** — Full/Part marker; balance = `course.pricing[mode] − totalPaid` on receipt/modal/table |
 | Edit student record (admin) | ❌ Not built | no `PATCH` endpoint exists — **Planned — req #2**; must reconcile with O4 (refresh-on-reenroll) once it lands |
 | Parent records + parent↔child mapping | ❌ Not built | no `Parent` model — **Planned — req #3**, now unblocked by the `Student` entity |
 | Birthday automation (students + parents) | ❌ Not built | no scheduler/cron in repo — **Planned — req #4** |

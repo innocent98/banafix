@@ -84,6 +84,31 @@ export async function sendTuitionReceipt(
     }
 
     console.log('Tuition receipt email sent successfully:', emailResult.data?.id)
+
+    // Best-effort admin copy of the same receipt (separate send, not a cc — the
+    // student never sees the admin address). A failure here must not affect the
+    // student send's success result.
+    try {
+      const adminCopy = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: ADMIN_EMAIL,
+        subject: `[Admin copy] Tuition Payment Receipt - ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
+        html: generateTuitionEmailHTML(data),
+        attachments: [
+          {
+            filename: `tuition-receipt-${data.receiptNumber}.pdf`,
+            content: receiptPDF,
+            contentType: 'application/pdf',
+          },
+        ],
+      })
+      if (adminCopy.error) {
+        console.error('Failed to send admin copy of tuition receipt:', adminCopy.error)
+      }
+    } catch (adminError) {
+      console.error('Error sending admin copy of tuition receipt:', adminError)
+    }
+
     return true
 
   } catch (error) {
@@ -282,6 +307,10 @@ function generateTuitionEmailHTML(data: TuitionReceiptData): string {
 
                 <div class="receipt-info">
                     <h3>Payment Summary</h3>
+                    <div class="info-row">
+                        <span class="info-label">Payment Type:</span>
+                        <span><strong>${data.paymentType === 'partial' ? 'Part payment' : 'Full payment'}</strong></span>
+                    </div>
                     <div class="info-row">
                         <span class="info-label">Total Paid to Date:</span>
                         <span><strong>₦${data.totalPaid.toLocaleString()}</strong></span>

@@ -30,12 +30,14 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 
 ---
 
-## 🟡 Tuition payments — receipt & balance  *(req #1)*
+## ✅ Tuition payments — receipt & balance  *(req #1, branch `tuition-receipts`)*
 - [x] Student receipt on record (already shipped)
-- [ ] Admin copy of every tuition receipt → `ADMIN_EMAIL`/`SUPPORT_EMAIL`
-- [ ] Full vs partial marker per payment (`completed` | `partial`)
-- [ ] Balance-remaining calc + display on receipt & admin table — **D3 decided** (`course.pricing[mode]`), not yet built
-- [ ] Verify: record partial → correct balance → both emails arrive
+- [x] Admin copy of every tuition receipt → `ADMIN_EMAIL`/`SUPPORT_EMAIL` (separate best-effort send)
+- [x] Full vs partial marker per payment (`completed` | `partial`) — admin selector
+- [x] Balance-remaining calc + display on receipt (PDF + email), admin modal preview, admin table — `course.pricing[mode]`
+- [x] Fix: resend/download route rejected non-`completed` payments (blocked partial receipts) — now allows partial
+- [x] Verify: balance arithmetic + edge cases (partial/full/overpay/missing-price) via logic harness; `tsc` 0 + build
+- [~] **Live email delivery** of student receipt + admin copy — blocked on placeholder `RESEND_API_KEY` (same pre-existing blocker)
 
 ## 🔵 Edit student record  *(req #2)*
 - [ ] `PATCH /api/admin/enrollments/[id]` (JWT) — editable fields, **email immutable**

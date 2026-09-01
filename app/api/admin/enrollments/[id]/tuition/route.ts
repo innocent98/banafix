@@ -18,6 +18,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       paymentMethod,
       description,
       sendReceipt = true,
+      paymentType = 'full', // 'full' | 'partial' — admin marker; balance is computed regardless
     } = data
 
     // Validation
@@ -46,8 +47,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
           },
         },
         tuitionPayments: {
+          // Count everything already paid toward tuition (full + partial) for the balance.
           where: {
-            status: 'completed',
+            status: { in: ['completed', 'partial'] },
           },
         },
       },
@@ -64,6 +66,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     // Generate unique receipt number
     const receiptNumber = generateReceiptNumber('TUI')
 
+    // Full payment settles the tuition (status 'completed'); partial leaves a balance.
+    const status = paymentType === 'partial' ? 'partial' : 'completed'
+
     // Create tuition payment record
     const tuitionPayment = await prisma.tuitionPayment.create({
       data: {
@@ -71,7 +76,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
         amount,
         paymentMethod,
         description,
-        status: 'completed',
+        status,
         paidAt: new Date(),
         receiptNumber,
         recordedBy: admin.id,
@@ -80,16 +85,24 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       },
     })
 
+    // Total paid to date = all prior tuition payments (full + partial) + this one.
+    const totalPaid = enrollment.tuitionPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) + amount
+
+    // Expected tuition = the course's price for the student's selected mode (D3).
+    // If the course has no price for that mode, we simply omit the balance (never block).
+    const pricing = (enrollment.course.pricing ?? null) as Record<string, number> | null
+    const expectedTotal =
+      pricing && enrollment.selectedMode ? pricing[enrollment.selectedMode] : undefined
+    const remainingBalance =
+      typeof expectedTotal === 'number' ? Math.max(0, expectedTotal - totalPaid) : undefined
+
     await logAdminAction({
       adminId: admin.id,
       action: 'tuition.record',
       entityType: 'tuition_payment',
       entityId: tuitionPayment.id,
-      metadata: { enrollmentId, amount },
+      metadata: { enrollmentId, amount, paymentType: status, totalPaid, remainingBalance },
     })
-
-    // Calculate total paid so far
-    const totalPaid = enrollment.tuitionPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) + amount
 
     // Generate and send receipt if requested
     if (sendReceipt) {
@@ -117,6 +130,8 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
             paymentMethod,
           },
           totalPaid,
+          remainingBalance,
+          paymentType: status,
         }
 
         // Generate PDF

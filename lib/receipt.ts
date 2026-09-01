@@ -55,6 +55,7 @@ export interface TuitionReceiptData {
   }
   totalPaid: number
   remainingBalance?: number
+  paymentType?: string // 'full' | 'partial' | 'completed' — shown as a label on the receipt
 }
 
 /**
@@ -258,7 +259,7 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
 
   // Payment Details
   doc.setFillColor(accentColor)
-  doc.rect(20, 190, 170, 40, 'F')
+  doc.rect(20, 190, 170, 54, 'F')
 
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
@@ -277,6 +278,18 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
   doc.text('Total Paid to Date:', 25, 224)
   doc.setFontSize(12)
   doc.text(`₦${data.totalPaid.toLocaleString()}`, 130, 224)
+
+  // Payment type (Full / Part) and remaining balance
+  doc.setFontSize(10)
+  const paymentTypeLabel = data.paymentType === 'partial' ? 'Part payment' : 'Full payment'
+  doc.text('Payment Type:', 25, 231)
+  doc.text(paymentTypeLabel, 130, 231)
+
+  if (data.remainingBalance !== undefined) {
+    doc.text('Balance Remaining:', 25, 238)
+    doc.setFontSize(12)
+    doc.text(`₦${data.remainingBalance.toLocaleString()}`, 130, 238)
+  }
 
   // Footer
   doc.setTextColor(primaryColor)

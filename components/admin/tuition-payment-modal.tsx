@@ -21,6 +21,7 @@ import { CreditCard, Receipt, Mail, Download } from "lucide-react"
 
 interface Enrollment {
   id: string
+  selectedMode?: string
   student: {
     firstName: string
     lastName: string
@@ -30,6 +31,7 @@ interface Enrollment {
     title: string
     instrument: string
     level: string
+    pricing?: Record<string, number> | null
   }
   tuitionPayments: Array<{
     id: string
@@ -62,6 +64,7 @@ export function TuitionPaymentModal({
     amount: "",
     paymentMethod: "",
     description: "",
+    paymentType: "full" as "full" | "partial",
     receiptEmail: true,
   })
 
@@ -97,6 +100,7 @@ export function TuitionPaymentModal({
           amount: amount,
           paymentMethod: paymentData.paymentMethod,
           description: paymentData.description,
+          paymentType: paymentData.paymentType,
           sendReceipt: paymentData.receiptEmail,
         }),
       })
@@ -109,6 +113,7 @@ export function TuitionPaymentModal({
           amount: "",
           paymentMethod: "",
           description: "",
+          paymentType: "full",
           receiptEmail: true,
         })
 
@@ -200,9 +205,21 @@ export function TuitionPaymentModal({
   const getTotalPaid = () => {
     if (!enrollment) return 0
     return enrollment.tuitionPayments
-      .filter(p => p.status === 'completed')
+      .filter(p => p.status === 'completed' || p.status === 'partial')
       .reduce((sum, p) => sum + p.amount, 0)
   }
+
+  // Expected tuition = course price for the student's selected mode (D3); undefined
+  // if the course has no price for that mode (then we simply don't show a balance).
+  const expectedTotal =
+    enrollment && enrollment.selectedMode
+      ? enrollment.course.pricing?.[enrollment.selectedMode]
+      : undefined
+  const enteredAmount = parseFloat(paymentData.amount)
+  const balanceAfter =
+    typeof expectedTotal === 'number'
+      ? Math.max(0, expectedTotal - (getTotalPaid() + (isNaN(enteredAmount) ? 0 : enteredAmount)))
+      : undefined
 
   if (!enrollment) return null
 
@@ -241,6 +258,44 @@ export function TuitionPaymentModal({
                       required
                     />
                   </div>
+
+                  <div>
+                    <Label htmlFor="paymentType">Payment Type *</Label>
+                    <Select
+                      value={paymentData.paymentType}
+                      onValueChange={(value) => setPaymentData(prev => ({ ...prev, paymentType: value as "full" | "partial" }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">Full payment (settles tuition)</SelectItem>
+                        <SelectItem value="partial">Part payment (balance remains)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Balance preview — only when the course has a price for this mode */}
+                  {typeof expectedTotal === 'number' ? (
+                    <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Expected tuition</span>
+                        <span className="font-medium">{formatCurrency(expectedTotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Paid so far</span>
+                        <span className="font-medium">{formatCurrency(getTotalPaid())}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Balance after this payment</span>
+                        <span className="font-semibold">{formatCurrency(balanceAfter ?? 0)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No course price set for this mode — balance won&apos;t be tracked on the receipt.
+                    </p>
+                  )}
 
                   <div>
                     <Label htmlFor="paymentMethod">Payment Method *</Label>

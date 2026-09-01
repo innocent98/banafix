@@ -51,6 +51,7 @@ interface Enrollment {
     instrument: string
     level: string
     sessionStartDate?: string
+    pricing?: Record<string, number> | null
     instructor?: {
       name: string
     }
@@ -143,7 +144,7 @@ export default function EnrollmentsPage() {
       sum + e.applicationPayments.filter(p => p.status === 'completed').reduce((pSum, p) => pSum + p.amount, 0), 0
     )
     const totalTuition = enrollmentsData.reduce((sum, e) =>
-      sum + e.tuitionPayments.filter(p => p.status === 'completed').reduce((pSum, p) => pSum + p.amount, 0), 0
+      sum + e.tuitionPayments.filter(p => p.status === 'completed' || p.status === 'partial').reduce((pSum, p) => pSum + p.amount, 0), 0
     )
 
     setStats({
@@ -225,8 +226,16 @@ export default function EnrollmentsPage() {
 
   const getTotalTuitionPaid = (enrollment: Enrollment) => {
     return enrollment.tuitionPayments
-      .filter(p => p.status === 'completed')
+      .filter(p => p.status === 'completed' || p.status === 'partial')
       .reduce((sum, p) => sum + p.amount, 0)
+  }
+
+  // Remaining tuition balance for an enrollment, if the course has a price for
+  // the student's selected mode; otherwise undefined (not tracked).
+  const getTuitionBalance = (enrollment: Enrollment): number | undefined => {
+    const expected = enrollment.course.pricing?.[enrollment.selectedMode]
+    if (typeof expected !== 'number') return undefined
+    return Math.max(0, expected - getTotalTuitionPaid(enrollment))
   }
 
   const handleViewEnrollment = (enrollment: Enrollment) => {
@@ -487,6 +496,14 @@ export default function EnrollmentsPage() {
                             <p className="text-xs text-muted-foreground">
                               {enrollment.tuitionPayments.length} payment(s)
                             </p>
+                            {(() => {
+                              const balance = getTuitionBalance(enrollment)
+                              return balance !== undefined && balance > 0 ? (
+                                <p className="text-xs text-orange-600">
+                                  {formatCurrency(balance)} balance
+                                </p>
+                              ) : null
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell>
