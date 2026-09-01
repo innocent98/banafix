@@ -33,7 +33,7 @@
 | Tuition: admin copy of receipt | ❌ Not built | **Planned — req #1** |
 | Tuition: full/part marking + balance | ❌ Not built | status hardcoded `completed`; balance never computed — **Planned — req #1** |
 | Edit student record (admin) | ❌ Not built | no `PATCH` endpoint exists — **Planned — req #2**; must reconcile with O4 (refresh-on-reenroll) once it lands |
-| Parent records + parent↔child mapping | ❌ Not built | no `Parent` model — **Planned — req #3**, now unblocked by the `Student` entity |
+| Parent records + parent↔child mapping | 🟡 Code | **req #3 built** — `Parent` model + m-n `_ParentChildren` to `Student`; `/admin/parents` CRUD + child picker; `parent.*` audit |
 | Birthday automation (students + parents) | ❌ Not built | no scheduler/cron in repo — **Planned — req #4** |
 
 ---

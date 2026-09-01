@@ -43,12 +43,13 @@ Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` no
 - [ ] Writes `AuditLog` on each edit
 - [ ] Verify: email cannot be changed; other fields persist
 
-## 🔵 Parent records + child mapping  *(req #3)*
-- [ ] **D2 decided** (introduce `Student` entity vs enrollment-as-student)
-- [ ] `Parent` model (name, email, phone, address, birthday month+day) + migration
-- [ ] Many-to-many parent ↔ children
-- [ ] Admin UI: create parent, attach one/more enrolled students
-- [ ] Verify: one parent ↔ multiple children maps and reads back
+## ✅ Parent records + child mapping  *(req #3, branch `parents-module`)*
+- [x] `Parent` model (name, email @unique, phone, address, birthday month+day) + additive migration (`_ParentChildren` join)
+- [x] Many-to-many parent ↔ children (Prisma implicit relation)
+- [x] Admin UI: `/admin/parents` list + create/edit/delete modal with enrolled-student child picker (`GET /api/admin/students?q=`) + nav link
+- [x] Routes: `GET/POST /api/admin/parents`, `GET/PATCH/DELETE /api/admin/parents/[id]`; audit `parent.create|update|delete`
+- [x] Verify: one parent ↔ 2 children + reverse + unique-email + detach — round-trip on ephemeral Postgres; `tsc` 0 + build
+- [~] Live authed HTTP-route run not executed (types + build + relation scratch-test cover it)
 
 ## 🔵 Birthday automation  *(req #4)*
 - [ ] **D4 decided** (Vercel Cron recommended)
