@@ -20,7 +20,8 @@ import {
   Search,
   Menu,
   X,
-  GraduationCap
+  GraduationCap,
+  Users
 } from "lucide-react"
 
 interface AdminLayoutProps {
@@ -61,6 +62,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: GraduationCap,
       href: "/admin/enrollments",
       description: "Student enrollments & payments"
+    },
+    {
+      id: "parents",
+      label: "Parents",
+      icon: Users,
+      href: "/admin/parents",
+      description: "Parent/guardian records"
     },
     // {
     //   id: "students",
