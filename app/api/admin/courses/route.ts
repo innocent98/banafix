@@ -120,6 +120,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       sampleVideoUrl,
       sampleVideoTitle,
       sampleVideoDuration,
+      // Instructor: assign an existing roster instructor by id, or create one inline.
+      instructorId,
+      instructor,
     } = data
 
     if (!title || !instrument || !level || !duration) {
@@ -149,13 +152,38 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         sampleVideoDuration,
         isActive: true,
         isPublished: false,
-      },
-      include: {
-        instructor: true,
+        // Assign an existing roster instructor directly if provided.
+        instructorId: typeof instructorId === 'string' && instructorId ? instructorId : undefined,
       },
     })
 
-    return createResponse({ course }, 201)
+    // No existing instructor chosen but inline instructor details were entered:
+    // create a roster instructor and assign it to this course.
+    if (!instructorId && instructor && instructor.name) {
+      const createdInstructor = await prisma.instructor.create({
+        data: {
+          name: instructor.name,
+          bio: instructor.bio ?? null,
+          avatar: instructor.avatar ?? null,
+          credentials: instructor.credentials || [],
+          rating: instructor.rating || 0,
+          experience: instructor.experience ?? null,
+          availability: instructor.availability ?? null,
+          verified: instructor.verified || false,
+        },
+      })
+      await prisma.course.update({
+        where: { id: course.id },
+        data: { instructorId: createdInstructor.id },
+      })
+    }
+
+    const fullCourse = await prisma.course.findUnique({
+      where: { id: course.id },
+      include: { instructor: true },
+    })
+
+    return createResponse({ course: fullCourse }, 201)
   } catch (error) {
     console.error('Create course error:', error)
     return createErrorResponse('Failed to create course', 500)

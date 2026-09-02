@@ -29,15 +29,15 @@ export interface HomeFormat {
 }
 
 /**
- * Stock photography, keyed by canonical mode name. Each file was downloaded
- * and looked at before being placed, and its alt text describes what is
- * actually in the frame rather than what we would like it to show.
+ * Stock photography, keyed by canonical `DeliveryMode.name`.
  *
- * `One-on-One` is deliberately absent. Nothing in the shipped photography
- * depicts it, and dropping a picture of a home piano lesson into the slot to
- * avoid an empty card would be a claim the photo does not support. It falls
- * through to MediaSlot's designed dark empty state, and so will any mode an
- * admin adds later.
+ * Every file here was downloaded and looked at before being placed, and each
+ * alt text describes what is actually in the frame rather than what we would
+ * like it to show. Photographers are named in comments for licence
+ * traceability.
+ *
+ * A mode with no entry falls through to MediaSlot's designed dark empty state,
+ * which is what happens to any mode an admin adds later.
  */
 const MODE_PHOTOS: Record<string, { src: string; alt: string }> = {
   "On-site": {
@@ -47,6 +47,12 @@ const MODE_PHOTOS: Record<string, { src: string; alt: string }> = {
   Online: {
     src: "https://images.unsplash.com/photo-1593697820940-43e77b53a1e1?auto=format&fit=crop&w=1400&q=70",
     alt: "A student playing a digital piano in headphones, with a laptop open beside the keys",
+  },
+  // Vitaly Gariev, Unsplash. A tutor guiding a student's fingers on the
+  // fretboard: an actual one-to-one lesson, which is what this mode is.
+  "One-on-One": {
+    src: "https://images.unsplash.com/photo-1758524944402-1903b38f848f?auto=format&fit=crop&w=1400&q=70",
+    alt: "A tutor guiding a student's hand on the fretboard of an acoustic guitar",
   },
   "Home Training": {
     src: "https://images.unsplash.com/photo-1540593463874-59835505e99d?auto=format&fit=crop&w=1400&q=70",

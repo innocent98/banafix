@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { InstructorFormModal } from "@/components/admin/instructor-form-modal"
+import { InstructorPicker, type RosterInstructor } from "@/components/admin/instructor-picker"
 import {
   ArrowLeft,
   Save,
@@ -80,6 +81,7 @@ interface CourseFormData {
     verified: boolean
     avatar?: string
   }
+  instructorId?: string
   curriculum: {
     title: string
     weeks: string
@@ -183,6 +185,25 @@ export default function CreateCoursePage() {
   // Instructor management functions
   const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false)
   const [editingInstructor, setEditingInstructor] = useState<any>(null)
+  const [isInstructorPickerOpen, setIsInstructorPickerOpen] = useState(false)
+
+  // Assign an existing roster instructor to this course.
+  const handleSelectExistingInstructor = (instructor: RosterInstructor) => {
+    setFormData(prev => ({
+      ...prev,
+      instructorId: instructor.id,
+      instructor: {
+        name: instructor.name,
+        bio: instructor.bio || "",
+        experience: instructor.experience || "",
+        credentials: instructor.credentials || [],
+        rating: instructor.rating || 0,
+        availability: instructor.availability || "",
+        verified: instructor.verified || false,
+        avatar: instructor.avatar || "",
+      },
+    }))
+  }
 
   const handleOpenInstructorModal = (instructor?: any) => {
     setEditingInstructor(instructor || null)

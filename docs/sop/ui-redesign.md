@@ -274,6 +274,21 @@ deleted afterwards: 2 students, 2 enrolments, 2 application payments, verified 0
 | "free trial" in live code | Zero. Three dead files still contain it, all with **0 importers** |
 | Dashes outside comments | Zero on the public site; 6 remain in admin UI, deliberately |
 
+## Round 2a — review fixes (2026-09-02)
+
+1. **Hero rating card was rendering behind the photo.** `MediaSlot` paints its `<img>` at
+   `z-[1]` so the photo sits above its own gradient placeholder; the floating "4.9 / 5" card was
+   an `absolute` sibling at auto/0, so only the sliver overhanging the arch was visible.
+   Card now carries `z-[2]`, matching `LevelBadge`, which had already anticipated this.
+   **Any future overlay on a `MediaSlot` needs `z-[2]` or higher.**
+2. **`One-on-One` had no photograph** in "How you learn". It was left blank rather than reusing
+   a picture that depicts a different mode. A verified free Unsplash photograph of a tutor
+   guiding a student's hand on a fretboard (Vitaly Gariev, `photo-1758524944402-1903b38f848f`)
+   now fills it. All four mode cards carry a photo; the empty-state fallback remains for any
+   mode an admin adds later.
+3. AI attribution trailers were stripped from the round-2 commit, per the project rule in
+   `CLAUDE.md`.
+
 ## Follow-ups from round 2
 
 1. **Home Training address is silently discarded for returning students.** In

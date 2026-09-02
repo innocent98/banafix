@@ -94,7 +94,14 @@ export function HomeHero() {
           clears the shell padding once the grid is two-column; below that it is
           pulled in to -12px so the page never scrolls sideways.
         */}
-        <div className="absolute bottom-[34px] -left-3 flex items-center gap-[13px] rounded-[18px] border border-[#EDE5D9] bg-white px-[19px] py-[15px] shadow-[0_16px_36px_-14px_rgba(16,26,40,0.25)] lg:-left-[28px]">
+        {/*
+          z-[2] is required, not cosmetic: MediaSlot paints its <img> at z-[1]
+          so the photo sits above its own gradient placeholder. Without a
+          higher z-index here the card is an auto/0 sibling and the hero photo
+          renders on top of it, leaving only the sliver that overhangs the
+          arch visible. LevelBadge carries z-[2] for the same reason.
+        */}
+        <div className="absolute bottom-[34px] -left-3 z-[2] flex items-center gap-[13px] rounded-[18px] border border-[#EDE5D9] bg-white px-[19px] py-[15px] shadow-[0_16px_36px_-14px_rgba(16,26,40,0.25)] lg:-left-[28px]">
           <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-bfx-ink text-[17px] text-bfx-amber" aria-hidden>
             ★
           </div>
