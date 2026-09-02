@@ -10,9 +10,13 @@
 /** The disabled first <option>, exactly as the handoff writes it. */
 export const CONTACT_SUBJECT_PLACEHOLDER = "What's this about?"
 
-/** The handoff's four real subject options, in its order. */
+/**
+ * The four real subject options, in the handoff's order. Banafix does not run
+ * free trial lessons, so the handoff's "Booking a free trial" option is
+ * replaced by the enquiry people actually send.
+ */
 export const CONTACT_SUBJECTS = [
-  "Booking a free trial",
+  "Enrolling in a course",
   "Course fees",
   "Home training",
   "Instrument rental",
@@ -21,12 +25,16 @@ export const CONTACT_SUBJECTS = [
 export type ContactSubject = (typeof CONTACT_SUBJECTS)[number]
 
 /**
- * `/contact?subject=…` shortcuts. `TRIAL_HREF` in `lib/site.ts` is
- * `/contact?subject=trial`, so the site-wide "Book a free trial" CTA lands
- * here with "Booking a free trial" already chosen.
+ * `/contact?subject=…` shortcuts, so a CTA elsewhere on the site can land on
+ * the form with the right subject already chosen. Both spellings of enrol are
+ * accepted, and `course` is kept as a plain-English synonym.
+ *
+ * Example: `/contact?subject=enrol` preselects "Enrolling in a course".
  */
 const SUBJECT_ALIASES: Record<string, ContactSubject> = {
-  trial: "Booking a free trial",
+  enrol: "Enrolling in a course",
+  enroll: "Enrolling in a course",
+  course: "Enrolling in a course",
   fees: "Course fees",
   home: "Home training",
   rental: "Instrument rental",

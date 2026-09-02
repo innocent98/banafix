@@ -20,8 +20,8 @@ import { Eyebrow } from "@/components/site/primitives"
  */
 const FAQS = [
   {
-    q: "Is the trial lesson really free?",
-    a: "Yes. Thirty minutes with a tutor on your chosen instrument, no card details required.",
+    q: "How do I enrol?",
+    a: "Pick your course on the courses page, choose the format that suits you, and complete the registration payment to hold your place. We confirm your tutor and your weekly slot by email.",
   },
   {
     q: "How young can students be?",

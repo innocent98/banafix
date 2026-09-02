@@ -20,10 +20,11 @@ import {
 } from "@/components/site/courses/course-panels"
 import { CourseTabs, type CourseTab } from "@/components/site/courses/course-tabs"
 import { EnrolAside } from "@/components/site/courses/enrol-aside"
-import { modeNote, parseWeeks, pricedModes, toPricing } from "@/components/site/courses/course-data"
+import { parseWeeks, pricedModes, toPricing } from "@/components/site/courses/course-data"
 import { MediaSlot } from "@/components/site/media-slot"
-import { Display } from "@/components/site/primitives"
+import { Display, PillLink } from "@/components/site/primitives"
 import { calculateApplicationFee } from "@/lib/application-fee"
+import { coursePhotoSrc } from "@/lib/course-photo"
 import { prisma } from "@/lib/prisma"
 
 async function getCourse(id: string) {
@@ -64,11 +65,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   if (!course) notFound()
 
   const pricing = toPricing(course.pricing)
-  const modes = pricedModes(course.availableModes, pricing).map(({ mode, price }) => ({
-    mode,
-    price,
-    note: modeNote(mode),
-  }))
+  // Name + price only. There is no per-mode description on `DeliveryMode` or
+  // `Course`, so a format row asserts nothing the backend cannot back.
+  const modes = pricedModes(course.availableModes, pricing)
 
   const tabs: CourseTab[] = []
 
@@ -152,7 +151,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
 
             <div className="bfx-rise-2 h-[280px] overflow-hidden rounded-[22px] bg-bfx-ink-3">
               <MediaSlot
-                src={course.image}
+                src={coursePhotoSrc(course)}
                 alt={`${course.title} lesson photo`}
                 glyph="notes"
                 glyphSize={96}
@@ -174,9 +173,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 Full course details are on the way
               </h2>
               <p className="bfx-pretty mx-auto mt-2 max-w-[420px] text-[15px] leading-relaxed text-bfx-body-2">
-                The outline for this course has not been published yet. Book a free trial and your
-                tutor will walk you through it.
+                The outline for this course has not been published yet. Ask us and we will send you
+                the modules, the equipment list and the tutor.
               </p>
+              <div className="mt-6 flex justify-center">
+                <PillLink href="/contact" variant="ink" size="md">
+                  Ask about this course
+                </PillLink>
+              </div>
             </div>
           )}
         </div>
@@ -187,6 +191,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           modes={modes}
           weeks={parseWeeks(course.duration)}
           applicationFee={calculateApplicationFee(course.location).amount}
+          seatsLeft={course.seatsLeft}
+          totalSeats={course.totalSeats}
+          unlimitedSeats={course.unlimitedSeats}
         />
       </section>
     </div>

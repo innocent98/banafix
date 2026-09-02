@@ -10,7 +10,7 @@
  */
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, PillLink } from "@/components/site/primitives"
-import { TRIAL_HREF } from "@/lib/site"
+import { ENROL_HREF, ENROL_LABEL } from "@/lib/site"
 
 /**
  * The handoff's hero photo (`bfx-hero` slot). images.unsplash.com is already
@@ -50,16 +50,18 @@ export function HomeHero() {
 
         <p className="mb-[34px] max-w-[470px] text-[18.5px] leading-[1.6] text-bfx-body">
           One-on-one tuition with performing musicians, in our Lekki studio, at your home, or
-          online. Start with a free 30-minute trial lesson.
+          online. Choose your instrument, choose how you want to be taught, and enrol for the
+          coming term.
         </p>
 
         <div className="mb-[46px] flex flex-wrap gap-3">
-          <PillLink href={TRIAL_HREF} variant="amber" size="lg">
-            Book a free trial →
+          <PillLink href={ENROL_HREF} variant="amber" size="lg">
+            {ENROL_LABEL} →
           </PillLink>
-          {/* Handoff pads this one to 26px, not the shared 28px. */}
-          <PillLink href="/courses" variant="outline" size="lg" className="px-[26px]">
-            Browse courses
+          {/* Handoff pads this one to 26px, not the shared 28px. The primary CTA
+              already goes to /courses, so the secondary is the other channel. */}
+          <PillLink href="/contact" variant="outline" size="lg" className="px-[26px]">
+            Talk to us first
           </PillLink>
         </div>
 

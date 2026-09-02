@@ -135,7 +135,7 @@ function enquiryText(input: ContactMessageInput): string {
     ``,
     `Name:    ${input.name}`,
     `Email:   ${input.email}`,
-    `Phone:   ${input.phone || '—'}`,
+    `Phone:   ${input.phone || 'not given'}`,
     `Subject: ${input.subject || 'Not specified'}`,
     ``,
     input.message,
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey || !apiKey.trim()) {
-    console.error('Contact form: RESEND_API_KEY is not set — cannot deliver enquiry')
+    console.error('Contact form: RESEND_API_KEY is not set, cannot deliver enquiry')
     return createErrorResponse(
       `Our message service is not available right now. Please email ${SITE_EMAIL} or WhatsApp ${SITE_PHONE_DISPLAY} and we will pick it up.`,
       503,
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
       from: FROM_EMAIL,
       to: TO_EMAIL,
       replyTo: input.email,
-      subject: `New website enquiry — ${input.subject || 'General'} (${input.name})`,
+      subject: `New website enquiry: ${input.subject || 'General'} (${input.name})`,
       html: enquiryHtml(input),
       text: enquiryText(input),
     })

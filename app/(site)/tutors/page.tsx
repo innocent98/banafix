@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Tutors | Banafix",
   description:
-    "The working musicians who teach at Banafix — their instruments, experience and what they specialise in.",
+    "The working musicians who teach at Banafix: their instruments, experience and what they specialise in.",
 }
 
 /**
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
  */
 async function fetchTutors(): Promise<Tutor[]> {
   const rows = await prisma.instructor.findMany({
-    where: { course: { isPublished: true, isActive: true } },
+    where: { courses: { some: { isPublished: true, isActive: true } } },
     select: {
       id: true,
       name: true,
@@ -55,8 +55,10 @@ async function fetchTutors(): Promise<Tutor[]> {
       experience: true,
       availability: true,
       verified: true,
-      course: {
+      courses: {
+        where: { isPublished: true, isActive: true },
         select: { id: true, title: true, instrument: true, level: true },
+        orderBy: { title: "asc" },
       },
     },
     orderBy: { name: "asc" },
@@ -64,9 +66,11 @@ async function fetchTutors(): Promise<Tutor[]> {
 
   return rows.map((row) => ({
     ...row,
-    // Same derivation as the API route: the course instrument is the tutor's
-    // specialty. There is no separate specialties column.
-    specialties: [row.course?.instrument].filter((v): v is string => Boolean(v)),
+    // Same derivation as the API route: a tutor's specialties are the distinct
+    // instruments of the courses they teach. There is no specialties column.
+    specialties: Array.from(
+      new Set(row.courses.map((c) => c.instrument).filter((v): v is string => Boolean(v))),
+    ),
   }))
 }
 
@@ -95,7 +99,7 @@ export default async function TutorsPage() {
             {count > 1
               ? `${count} working musicians. Every one of them auditioned, background-checked, and trained to teach beginners.`
               : count === 1
-                ? "One working musician \u2014 auditioned, background-checked, and trained to teach beginners."
+                ? "One working musician, auditioned, background-checked, and trained to teach beginners."
                 : "Every Banafix tutor is auditioned, background-checked, and trained to teach beginners."}
           </p>
         </div>

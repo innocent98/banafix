@@ -5,17 +5,25 @@
  * published Course rows the page reads in `app/(site)/page.tsx`. Nothing on
  * the card is invented — "Multiple skill levels" is the handoff's own fixed
  * sub-label, not a per-course value.
+ *
+ * The card photo goes through `coursePhotoSrc`, which prefers the admin's
+ * upload and falls back to a verified stock photograph of the course's
+ * instrument. Four of the five published courses have `image: null`, so
+ * without that fallback almost every card here renders the empty state.
  */
 import Link from "next/link"
 
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, Eyebrow, LevelBadge, PillLink } from "@/components/site/primitives"
+import { coursePhotoSrc } from "@/lib/course-photo"
 
 export interface FeaturedCourse {
   id: string
   title: string
   level: string
   image: string | null
+  /** Keys the instrument fallback photo in `lib/course-photo.ts`. */
+  instrument: string
 }
 
 export function FeaturedCourses({
@@ -53,7 +61,7 @@ export function FeaturedCourses({
                 className="block overflow-hidden rounded-[20px] border border-bfx-border bg-white text-bfx-ink transition-[transform,box-shadow] duration-200 hover:-translate-y-[5px] hover:text-bfx-ink hover:shadow-[0_22px_40px_-22px_rgba(16,26,40,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bfx-amber focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <div className="relative h-[184px] bg-[#EFE8DC]">
-                  <MediaSlot src={course.image} alt={course.title} glyph="note" glyphSize={62} />
+                  <MediaSlot src={coursePhotoSrc(course)} alt={course.title} glyph="note" glyphSize={62} />
                   <LevelBadge className="top-3 left-3">{course.level}</LevelBadge>
                 </div>
                 <div className="p-5">

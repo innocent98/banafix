@@ -21,7 +21,10 @@ export function StepProgress({ step, names }: { step: number; names: readonly st
         return (
           <li
             key={name}
-            className="flex flex-1 items-center gap-[14px]"
+            // `min-w-0` is load-bearing: without it a flex item will not shrink
+            // below its content, and the three segments overflowed the viewport
+            // by 6px at 375px, scrolling the whole page sideways.
+            className="flex min-w-0 flex-1 items-center gap-[14px]"
             aria-current={index === step ? "step" : undefined}
           >
             <span

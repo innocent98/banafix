@@ -56,7 +56,7 @@ const SECTIONS = [
       "50% refund: within the first month with 25% or less of the course completed",
       "No refund: after 25% course completion or 1 month, whichever comes first",
     ],
-    footnote: "Refunds are processed within 7–14 business days to the original payment method.",
+    footnote: "Refunds are processed within 7 to 14 business days to the original payment method.",
   },
   {
     number: "5",

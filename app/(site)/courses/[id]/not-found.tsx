@@ -4,7 +4,6 @@
  * the site header and footer.
  */
 import { Display, Eyebrow, PillLink } from "@/components/site/primitives"
-import { TRIAL_HREF } from "@/lib/site"
 
 export default function CourseNotFound() {
   return (
@@ -22,8 +21,8 @@ export default function CourseNotFound() {
           <PillLink href="/courses" variant="ink" size="md">
             Browse all courses
           </PillLink>
-          <PillLink href={TRIAL_HREF} variant="outlineSoft" size="md">
-            Book a free trial
+          <PillLink href="/contact" variant="outlineSoft" size="md">
+            Talk to us
           </PillLink>
         </div>
       </div>

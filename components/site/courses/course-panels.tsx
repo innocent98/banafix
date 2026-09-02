@@ -12,6 +12,8 @@
  *   • The tutor's "180+ students taught / 4.9 / ABRSM" tiles are only rendered
  *     for the fields that exist on the record; a stat with no data is dropped.
  */
+import Link from "next/link"
+
 import { MediaSlot } from "@/components/site/media-slot"
 import { CheckPip, Display, MetaChip } from "@/components/site/primitives"
 import { plural } from "@/components/site/courses/course-data"
@@ -64,10 +66,18 @@ export function OverviewPanel({
                 {item}
               </div>
             ))}
-            {/* STATIC MARKETING COPY — the rental price is not a DB field. */}
+            {/* STATIC MARKETING COPY. Verbatim copy supplied by the business:
+                no rental price is asserted, because none is a DB field. */}
             <p className="py-5 text-[14.5px] leading-relaxed text-bfx-note-text">
-              No instrument yet? We rent for ₦8,000 a term, or you can use ours in the studio at no
-              cost.
+              No worries! We offer instrument rental services and starter kits for beginners.
+              Contact our{" "}
+              <Link
+                href="/contact"
+                className="font-semibold text-bfx-bronze underline underline-offset-4"
+              >
+                support team
+              </Link>{" "}
+              to learn more about equipment options.
             </p>
           </div>
         </>

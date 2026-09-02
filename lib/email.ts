@@ -435,7 +435,7 @@ export async function sendAdminEnrollmentNotification(
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
       replyTo: enrollment.email,
-      subject: `New paid enrollment — ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
+      subject: `New paid enrollment: ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -538,12 +538,12 @@ export async function sendBirthdayEmail(recipient: {
                     ${
                       recipient.type === 'parent'
                         ? `<p>Thank you for being part of the Banafix family. On your special day, we celebrate you and the support you give to your children's musical journey. May your year ahead be filled with joy, music, and beautiful moments.</p>`
-                        : `<p>Today we celebrate you! Keep making music and chasing your goals — we're so glad to have you learning with us. May your new year be full of growth, creativity, and happy melodies.</p>`
+                        : `<p>Today we celebrate you! Keep making music and chasing your goals. We're so glad to have you learning with us. May your new year be full of growth, creativity, and happy melodies.</p>`
                     }
                     <p style="margin-top: 24px; font-weight: bold; color: #d98a1f;">Warmest wishes,<br/>The Banafix Team</p>
                 </div>
                 <div class="footer">
-                    <p>Banafix Music Academy — Building Musical Excellence</p>
+                    <p>Banafix Music Academy, Building Musical Excellence</p>
                     <p>Questions? Contact us at ${SUPPORT_EMAIL}</p>
                 </div>
             </div>

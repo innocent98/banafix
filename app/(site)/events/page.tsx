@@ -9,7 +9,7 @@ import {
 } from "@/components/site/events/events"
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, Eyebrow, LevelBadge, PillAnchor, PillLink } from "@/components/site/primitives"
-import { SITE_EMAIL, SITE_EMAIL_MAILTO, SITE_WHATSAPP, TRIAL_HREF } from "@/lib/site"
+import { ENROL_HREF, ENROL_LABEL, SITE_EMAIL, SITE_EMAIL_MAILTO, SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Events & workshops | Banafix",
@@ -152,7 +152,7 @@ export default function EventsPage() {
                 <p className="bfx-pretty mb-7 max-w-[460px] text-[16.5px] leading-[1.65] text-bfx-body">
                   The next recital and workshop dates go up here as soon as they&apos;re set. Tell
                   us what you&apos;d like to sit in on and we&apos;ll message you when it&apos;s
-                  scheduled — no mailing list, just a WhatsApp note.
+                  scheduled. No mailing list, just a WhatsApp note.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <PillAnchor
@@ -194,8 +194,8 @@ export default function EventsPage() {
             <PillAnchor variant="ink" size="md" href={SITE_EMAIL_MAILTO}>
               Email {SITE_EMAIL}
             </PillAnchor>
-            <PillLink variant="outlineSoft" size="md" href={TRIAL_HREF}>
-              Book a free trial
+            <PillLink variant="outlineSoft" size="md" href={ENROL_HREF}>
+              {ENROL_LABEL}
             </PillLink>
           </div>
         </div>

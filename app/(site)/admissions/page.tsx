@@ -8,7 +8,7 @@ import {
   PillAnchor,
   PillLink,
 } from "@/components/site/primitives"
-import { SITE_PHONE_DISPLAY, SITE_PHONE_TEL, SITE_WHATSAPP, TRIAL_HREF } from "@/lib/site"
+import { ENROL_HREF, ENROL_LABEL, SITE_PHONE_DISPLAY, SITE_PHONE_TEL, SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Admissions | Banafix",
@@ -41,7 +41,7 @@ const STEPS = [
   {
     title: "Choose your path",
     detail:
-      "Pick your instrument and the format that fits your week — at the studio, one-on-one, online, or home training.",
+      "Pick your instrument and the format that fits your week: at the studio, one-on-one, online, or home training.",
   },
   {
     title: "Send your details",
@@ -51,7 +51,7 @@ const STEPS = [
   {
     title: "Placement chat",
     detail:
-      "A brief conversation — or a free trial lesson — so we place you at the right level with the right tutor.",
+      "A brief conversation, so we place you at the right level with the right tutor.",
   },
   {
     title: "Start learning",
@@ -211,7 +211,7 @@ export default function AdmissionsPage() {
             </div>
             <p className="bfx-pretty self-end text-[17px] leading-[1.65] text-bfx-body">
               We keep admissions light on purpose. The only thing we really need to get right is the
-              tutor match — everything else is scheduling.
+              tutor match. Everything else is scheduling.
             </p>
           </div>
 
@@ -303,7 +303,7 @@ export default function AdmissionsPage() {
           </div>
 
           <div className="border-t border-bfx-note-border bg-bfx-note-bg px-7 py-[18px] text-[14.5px] leading-[1.6] text-bfx-note-text">
-            Missed a semester intake? It doesn&apos;t matter — rolling admissions means we start you
+            Missed a semester intake? It doesn&apos;t matter. Rolling admissions means we start you
             on the next available weekly slot.
           </div>
         </div>
@@ -368,7 +368,7 @@ export default function AdmissionsPage() {
             <p className="bfx-pretty m-0 max-w-[560px] text-[14.5px] leading-[1.6] text-bfx-note-text">
               These are indicative. Real prices are set per course and per format, and a ₦5,000
               registration fee holds your spot at enrolment. Sibling discounts and split payments
-              are available — ask.
+              are available. Just ask.
             </p>
             <PillLink variant="ink" size="md" href="/courses">
               See real prices →
@@ -386,16 +386,16 @@ export default function AdmissionsPage() {
                 as="h2"
                 className="mb-3.5 text-[clamp(32px,3.6vw,46px)] leading-[1.08] text-white"
               >
-                Your first lesson is free.
+                Ready when you are.
               </Display>
               <p className="bfx-pretty m-0 max-w-[490px] text-[17.5px] leading-[1.6] text-bfx-on-dark-2">
-                Thirty minutes with a tutor, no card required. You&apos;ll leave knowing whether
-                this is for you.
+                Tell us what you want to play and we place you with a tutor at your level.
+                Admissions are rolling, so you start on the next available weekly slot.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <PillLink variant="amberOnInk" size="xl" href={TRIAL_HREF}>
-                Book a free trial
+              <PillLink variant="amberOnInk" size="xl" href={ENROL_HREF}>
+                {ENROL_LABEL}
               </PillLink>
               <PillAnchor variant="outlineOnInk" size="xl" href={SITE_PHONE_TEL}>
                 Call {SITE_PHONE_DISPLAY}

@@ -48,7 +48,7 @@ export const pillButton = cva(
         /** Hero secondary. */
         outline:
           "border-[1.5px] border-[#D8CEBE] bg-transparent text-bfx-ink hover:border-bfx-ink hover:bg-white",
-        /** Section secondary ("All N courses →", "Book a free trial first"). */
+        /** Section secondary ("All N courses", "Ask about this course"). */
         outlineSoft:
           "border-[1.5px] border-[#E1D8C9] bg-transparent text-bfx-ink hover:border-bfx-ink",
         /** Secondary on an ink ground. */

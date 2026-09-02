@@ -15,7 +15,7 @@ import type { Prisma } from "@prisma/client"
 import { CtaBand } from "@/components/site/home/cta-band"
 import { FeaturedCourses, type FeaturedCourse } from "@/components/site/home/featured-courses"
 import { HomeHero } from "@/components/site/home/home-hero"
-import { HowYouLearn } from "@/components/site/home/how-you-learn"
+import { HowYouLearn, type HomeFormat } from "@/components/site/home/how-you-learn"
 import { Testimonials } from "@/components/site/home/testimonials"
 import { TrustedBy } from "@/components/site/home/trusted-by"
 import { WhyBanafix } from "@/components/site/home/why-banafix"
@@ -37,33 +37,43 @@ type CourseRow = {
   title: string
   level: string
   image: string | null
+  instrument: string
   availableModes: string[]
   pricing: Prisma.JsonValue
 }
 
+type ModeRow = { id: string; name: string }
+
 /**
- * Lowest real price per delivery mode, across every publicly visible course
- * that actually offers that mode. `availableModes` is the authoritative
- * "offers this" list — `app/api/enrollments/route.ts:104` validates against
- * it — so a stale key left in the `pricing` JSON is ignored.
+ * Turns the active `DeliveryMode` rows into the figures the ink section
+ * renders, using only what the database actually holds: the canonical name,
+ * how many publicly visible courses offer the mode, and the lowest real price
+ * among them.
+ *
+ * `availableModes` is the authoritative "offers this" list —
+ * `app/api/enrollments/route.ts:104` validates against it — so a stale key
+ * left behind in the `pricing` JSON is ignored, and a mode no course offers
+ * keeps a null price rather than borrowing one.
  */
-function minPriceByMode(courses: readonly CourseRow[]): Record<string, number> {
-  const lowest: Record<string, number> = {}
+function buildFormats(modes: readonly ModeRow[], courses: readonly CourseRow[]): HomeFormat[] {
+  return modes.map((mode) => {
+    let from: number | null = null
+    let courseCount = 0
 
-  for (const course of courses) {
-    const pricing = course.pricing
-    if (typeof pricing !== "object" || pricing === null || Array.isArray(pricing)) continue
+    for (const course of courses) {
+      if (!course.availableModes.includes(mode.name)) continue
+      courseCount += 1
 
-    for (const mode of course.availableModes) {
-      const value = (pricing as Record<string, unknown>)[mode]
+      const pricing = course.pricing
+      if (typeof pricing !== "object" || pricing === null || Array.isArray(pricing)) continue
+
+      const value = (pricing as Record<string, unknown>)[mode.name]
       if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue
-
-      const current = lowest[mode]
-      if (current === undefined || value < current) lowest[mode] = value
+      if (from === null || value < from) from = value
     }
-  }
 
-  return lowest
+    return { id: mode.id, name: mode.name, from, courseCount }
+  })
 }
 
 async function getPublishedCourses(): Promise<CourseRow[]> {
@@ -84,20 +94,32 @@ async function getPublishedCourses(): Promise<CourseRow[]> {
       title: true,
       level: true,
       image: true,
+      instrument: true,
       availableModes: true,
       pricing: true,
     },
   })
 }
 
+/** The delivery formats the ink section lists, straight off the `DeliveryMode` table. */
+async function getActiveDeliveryModes(): Promise<ModeRow[]> {
+  return prisma.deliveryMode.findMany({
+    where: { isActive: true },
+    orderBy: { order: "asc" },
+    select: { id: true, name: true },
+  })
+}
+
 export default async function HomePage() {
-  const courses = await getPublishedCourses()
+  // Independent queries, so they run together rather than in a waterfall.
+  const [courses, modes] = await Promise.all([getPublishedCourses(), getActiveDeliveryModes()])
 
   const featured: FeaturedCourse[] = courses.slice(0, FEATURED_COUNT).map((course) => ({
     id: course.id,
     title: course.title,
     level: course.level,
     image: course.image,
+    instrument: course.instrument,
   }))
 
   return (
@@ -106,7 +128,7 @@ export default async function HomePage() {
       <TrustedBy />
       <FeaturedCourses courses={featured} total={courses.length} />
       <WhyBanafix />
-      <HowYouLearn prices={minPriceByMode(courses)} />
+      <HowYouLearn formats={buildFormats(modes, courses)} />
       <Testimonials />
       <CtaBand />
     </>

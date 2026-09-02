@@ -12,7 +12,7 @@ import {
 export const metadata: Metadata = {
   title: "Student area | Banafix",
   description:
-    "Student accounts aren't live yet at Banafix — here's how lessons, schedules and payments are handled today.",
+    "Student accounts aren't live yet at Banafix. Here's how lessons, schedules and payments are handled today.",
   robots: { index: false, follow: true },
 }
 
@@ -68,7 +68,7 @@ export default function DashboardPage() {
         <div className="max-w-[660px]">
           <Eyebrow>STUDENT AREA</Eyebrow>
           <Display as="h1" className="mb-4 text-[clamp(38px,5vw,62px)] leading-none">
-            Not built yet —
+            Not built yet,
             <br />
             and we won&apos;t pretend
           </Display>
@@ -84,7 +84,7 @@ export default function DashboardPage() {
         <div className="rounded-[18px] border border-bfx-note-border bg-bfx-note-bg px-6 py-5 text-[14.5px] leading-[1.6] text-bfx-note-text sm:px-7">
           If you were expecting to sign in: you haven&apos;t missed a step and nothing is broken.
           There is no account to sign into. Your enrolment confirmation and payment receipt were
-          emailed to you when you enrolled — search your inbox for {SITE_EMAIL}, and check spam.
+          emailed to you when you enrolled. Search your inbox for {SITE_EMAIL}, and check spam.
         </div>
       </section>
 
@@ -135,7 +135,7 @@ export default function DashboardPage() {
               SOMETHING URGENT
             </div>
             <p className="bfx-pretty mb-5 text-[15.5px] leading-[1.6] text-bfx-body-2">
-              Running late, tutor hasn&apos;t shown, wrong room — call the studio. Someone is always
+              Running late, tutor hasn&apos;t shown, wrong room: call the studio. Someone is always
               teaching, so someone always picks up.
             </p>
             <PillAnchor variant="outlineSoft" size="md" href={SITE_PHONE_TEL}>
@@ -148,8 +148,8 @@ export default function DashboardPage() {
               NOT ENROLLED YET
             </div>
             <p className="bfx-pretty mb-5 text-[15.5px] leading-[1.6] text-bfx-body-2">
-              Start with the free thirty-minute trial. No card, no account, no commitment on either
-              side.
+              Browse the courses, pick the format that fits your week, and enrol online. You do not
+              need an account to do it.
             </p>
             <PillLink variant="outlineSoft" size="md" href="/courses">
               Browse courses

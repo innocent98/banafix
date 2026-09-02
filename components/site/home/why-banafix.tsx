@@ -13,7 +13,7 @@ const REASONS = [
   {
     num: "01",
     title: "A tutor matched to you",
-    body: "We pair every student with a tutor by instrument, level, and temperament — and you can switch after any lesson.",
+    body: "We pair every student with a tutor by instrument, level, and temperament. You can switch after any lesson.",
   },
   {
     num: "02",

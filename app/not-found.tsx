@@ -24,7 +24,7 @@ export default function NotFound() {
         <div className="bfx-shell flex h-[76px] items-center">
           <Link
             href="/"
-            aria-label="Banafix — back to the homepage"
+            aria-label="Banafix, back to the homepage"
             className="text-bfx-ink"
           >
             <Wordmark />
@@ -36,7 +36,7 @@ export default function NotFound() {
         <div className="bfx-shell grid w-full items-center gap-14 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
           <div className="bfx-rise">
             <div className="mb-3 text-xs font-bold tracking-[0.12em] text-bfx-bronze">
-              404 — PAGE NOT FOUND
+              404 · PAGE NOT FOUND
             </div>
             <Display as="h1" className="mb-4 text-[clamp(38px,5vw,62px)] leading-none">
               That page hit
@@ -44,7 +44,7 @@ export default function NotFound() {
               a wrong note
             </Display>
             <p className="bfx-pretty mb-8 max-w-[440px] text-[18px] leading-[1.65] text-bfx-body">
-              The link is broken or the page has moved. Nothing you did — start again from the
+              The link is broken or the page has moved. Nothing you did. Start again from the
               homepage, or go straight to the courses.
             </p>
             <div className="flex flex-wrap gap-3">

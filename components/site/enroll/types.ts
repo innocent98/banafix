@@ -111,18 +111,18 @@ export const EMPTY_FORM: EnrollFormData = {
 /** `Enrollment.priorLevel`. Values are fixed; labels follow the handoff. */
 export const PRIOR_LEVEL_OPTIONS = [
   { value: "complete-beginner", label: "Complete beginner" },
-  { value: "some-experience", label: "Some experience (1–2 years)" },
-  { value: "intermediate", label: "Intermediate (3–5 years)" },
+  { value: "some-experience", label: "Some experience (1-2 years)" },
+  { value: "intermediate", label: "Intermediate (3-5 years)" },
   { value: "advanced", label: "Advanced (5+ years)" },
 ] as const
 
 /** `Enrollment.schedulePreference`. All six values the admin UI can receive. */
 export const SCHEDULE_OPTIONS = [
-  { value: "weekday-morning", label: "Weekday mornings (9am–12pm)" },
-  { value: "weekday-afternoon", label: "Weekday afternoons (1pm–5pm)" },
-  { value: "weekday-evening", label: "Weekday evenings (6pm–9pm)" },
-  { value: "weekend-morning", label: "Weekend mornings (9am–12pm)" },
-  { value: "weekend-afternoon", label: "Weekend afternoons (1pm–5pm)" },
+  { value: "weekday-morning", label: "Weekday mornings, 9am to 12pm" },
+  { value: "weekday-afternoon", label: "Weekday afternoons, 1pm to 5pm" },
+  { value: "weekday-evening", label: "Weekday evenings, 6pm to 9pm" },
+  { value: "weekend-morning", label: "Weekend mornings, 9am to 12pm" },
+  { value: "weekend-afternoon", label: "Weekend afternoons, 1pm to 5pm" },
   { value: "flexible", label: "Flexible" },
 ] as const
 
@@ -139,26 +139,11 @@ export const WEEKDAYS = [
 ] as const
 
 /**
- * Static marketing copy — the DB has no per-mode description field. Keyed by the
- * four canonical delivery-mode names. The handoff's ±₦5,000 / +₦10,000 deltas are
- * design filler and are deliberately NOT reproduced; real per-mode prices come
- * from `course.pricing`.
+ * The payment channels this app actually asks Paystack to offer:
+ * `lib/paystack.ts:280` sends `channels: ['card', 'bank', 'ussd', 'bank_transfer']`.
+ * The student picks one on Paystack's hosted page, so this list is informational.
+ * No settlement-time or card-brand claims: the code makes none.
  */
-export const MODE_NOTES: Record<string, string> = {
-  "On-site": "At the studio, weekly slot",
-  "One-on-One": "Private tutor, flexible time",
-  Online: "Live video lessons",
-  "Home Training": "Your tutor comes to you",
-}
-
-/**
- * Static copy. These are the channels Paystack's hosted checkout offers — the app
- * does not choose one, so this list is informational, not a control.
- */
-export const PAYSTACK_CHANNELS = [
-  { name: "Card", note: "Visa, Mastercard, Verve" },
-  { name: "Bank transfer", note: "Confirmed within minutes" },
-  { name: "USSD", note: "Pay from any Nigerian bank app" },
-] as const
+export const PAYSTACK_CHANNELS = ["Card", "Bank transfer", "USSD"] as const
 
 export const STEP_NAMES = ["Your details", "Format", "Payment"] as const

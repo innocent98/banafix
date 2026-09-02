@@ -2,10 +2,15 @@
  * Closing CTA band — handoff `isHome`, final <section>.
  *
  * The gradient is the handoff's exactly: a #B0730C base under a 115deg ink →
- * ink-3 → bronze-brown ramp. Static marketing copy throughout.
+ * ink-3 → bronze-brown ramp.
+ *
+ * The handoff's copy here offered a complimentary introductory lesson with no
+ * payment details taken. Banafix does not run that offer, so the whole block
+ * is rewritten around what the site can actually do: enrol, or talk to us.
+ * Static marketing copy, but nothing in it is a promise we do not honour.
  */
 import { Display, PillLink } from "@/components/site/primitives"
-import { TRIAL_HREF } from "@/lib/site"
+import { ENROL_HREF, ENROL_LABEL } from "@/lib/site"
 
 export function CtaBand() {
   return (
@@ -14,18 +19,19 @@ export function CtaBand() {
         <div>
           <Display
             as="h2"
-            className="mb-3.5 text-[clamp(32px,3.6vw,46px)] leading-[1.08] text-white"
+            className="mb-3.5 text-[clamp(32px,3.6vw,46px)] leading-[1.08]"
           >
-            Your first lesson is free.
+            Start playing this term.
           </Display>
           <p className="max-w-[490px] text-[17.5px] leading-[1.6] text-bfx-on-dark-2">
-            Thirty minutes with a tutor, no card required. You&rsquo;ll leave knowing whether this
-            is for you.
+            Pick your instrument, pick how you want to be taught, and enrol online in a few
+            minutes. Still deciding? Tell us what you want to play and we&rsquo;ll point you at
+            the right course.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <PillLink href={TRIAL_HREF} variant="amberOnInk" size="xl">
-            Book a free trial
+          <PillLink href={ENROL_HREF} variant="amberOnInk" size="xl">
+            {ENROL_LABEL}
           </PillLink>
           {/* Handoff pads this one to 28px, not the shared 30px. */}
           <PillLink href="/contact" variant="outlineOnInk" size="xl" className="px-7">

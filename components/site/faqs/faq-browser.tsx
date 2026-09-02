@@ -158,7 +158,7 @@ export function FaqBrowser({ faqs }: { faqs: Faq[] }) {
             No answer matched “{query.trim()}”
           </p>
           <p className="mx-auto mt-3 max-w-[380px] text-[15px] leading-[1.6] text-bfx-body-2">
-            Try a shorter word, or ask us directly — we answer WhatsApp within the hour on weekdays.
+            Try a shorter word, or ask us directly. We answer WhatsApp within the hour on weekdays.
           </p>
           {isFiltered ? (
             <button

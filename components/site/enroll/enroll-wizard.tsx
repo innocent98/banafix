@@ -16,10 +16,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { calculateApplicationFee } from "@/lib/application-fee"
+import { isCourseExpired } from "@/lib/course-utils"
 import { formatNaira } from "@/lib/site"
 import { Display } from "@/components/site/primitives"
 
-import { EnrollLoadError, EnrollSkeleton, NoCourseSelected } from "./enroll-states"
+import {
+  CourseUnavailable,
+  EnrollLoadError,
+  EnrollSkeleton,
+  NoCourseSelected,
+} from "./enroll-states"
 import { EnrollSummary } from "./enroll-summary"
 import { PolicyDialog } from "./policy-dialog"
 import { StepDetails } from "./step-details"
@@ -37,6 +43,8 @@ import {
 /** Same rule the server applies (app/api/enrollments/route.ts:68). */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const GATE_HINT_ID = "enroll-gate-hint"
+
 /**
  * Resolve the delivery mode to start on. `?mode=` comes from the course page;
  * it is validated against the course's real `availableModes` (exposed by the API
@@ -46,6 +54,56 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function resolveMode(requested: string | null, modes: string[]): string {
   if (requested && modes.includes(requested)) return requested
   return modes[0] ?? ""
+}
+
+/**
+ * The three preconditions `POST /api/enrollments` enforces that the course
+ * payload already lets us check. Without this the student fills every step and
+ * meets the refusal on the Pay button.
+ */
+function unavailableReason(course: EnrollCourse): { headline: string; body: string } | null {
+  if (isCourseExpired(course.sessionStartDate)) {
+    return {
+      headline: "Enrolment has closed",
+      body: "This session has already started, so we are no longer taking enrolments for it. Browse the other courses, or ask us when the next session opens.",
+    }
+  }
+  if (!course.unlimitedSeats && course.seatsLeft <= 0) {
+    return {
+      headline: "This course is full",
+      body: "Every seat in this session has been taken. Browse the other courses, or ask us to let you know when a seat frees up.",
+    }
+  }
+  if ((course.modes ?? []).length === 0) {
+    return {
+      headline: "No formats available",
+      body: "This course has no delivery format set up yet, so there is nothing to enrol on. Ask us and we will sort it out.",
+    }
+  }
+  return null
+}
+
+/**
+ * The server answers with a bare sentence in `{ error }`. These are the ones a
+ * student can act on, so they get an action rather than a "Try again" that would
+ * fail identically.
+ */
+function describeServerError(message: string): { text: string; retryable: boolean } {
+  const known: Record<string, string> = {
+    "You are already enrolled in this course":
+      "You already have a place on this course. Check the confirmation email we sent you, or contact us if you cannot find it.",
+    "Course is fully booked":
+      "The last seat went while you were filling this in. Browse the other courses, or ask us to hold you for the next session.",
+    "Course enrollment has expired":
+      "Enrolment for this session closed while you were filling this in. Ask us when the next session opens.",
+    "Course is not available for enrollment":
+      "This course is no longer open for enrolment. Browse the other courses, or ask us about it.",
+    "Selected delivery mode is not available for this course":
+      "That format is no longer offered on this course. Go back a step and pick another one.",
+    "Invalid email format": "Check your email address, then try again.",
+  }
+  const text = known[message]
+  return text ? { text, retryable: false } : { text: message, retryable: true }
 }
 
 export function EnrollWizard() {
@@ -66,6 +124,7 @@ export function EnrollWizard() {
 
   const [submitting, setSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState("")
+  const [paymentRetryable, setPaymentRetryable] = useState(true)
 
   const topRef = useRef<HTMLDivElement | null>(null)
 
@@ -128,8 +187,6 @@ export function EnrollWizard() {
   const activeMode = form.selectedMode || (course ? resolveMode(null, course.modes ?? []) : "")
 
   const courseFee = course ? course.pricing?.[activeMode] ?? course.price ?? 0 : 0
-  // Display only. Never charged, never sent to the server.
-  const vat = Math.round(courseFee * 0.075)
 
   /* ------------------------------------------------------------ form state */
 
@@ -157,7 +214,8 @@ export function EnrollWizard() {
 
   /* ------------------------------------------------------------ validation */
 
-  const emailValid = EMAIL_REGEX.test(form.email.trim())
+  const trimmedEmail = form.email.trim()
+  const emailValid = EMAIL_REGEX.test(trimmedEmail)
   const emailError = emailTouched && form.email && !emailValid ? "Enter a valid email address." : undefined
 
   const needsAddress = activeMode === HOME_TRAINING_MODE
@@ -165,14 +223,14 @@ export function EnrollWizard() {
   const blockedReason = useMemo(() => {
     if (step === 0) {
       if (
-        !form.firstName ||
-        !form.lastName ||
-        !form.email ||
-        !form.phone ||
+        !form.firstName.trim() ||
+        !form.lastName.trim() ||
+        !form.email.trim() ||
+        !form.phone.trim() ||
         !form.priorLevel ||
         !form.schedulePreference
       ) {
-        return "Fill in your name, email, phone, level and preferred day to continue."
+        return "Fill in your name, email, phone, current level and preferred time to continue."
       }
       if (!emailValid) return "Enter a valid email address to continue."
       return ""
@@ -180,7 +238,7 @@ export function EnrollWizard() {
 
     if (step === 1) {
       if (!form.selectedMode) return "Pick a format to continue."
-      if (needsAddress && (!form.address || !form.landmark)) {
+      if (needsAddress && (!form.address.trim() || !form.landmark.trim())) {
         return "Home training needs an address and a nearby landmark."
       }
       if (!form.agreeToTerms || !form.agreeToRefundPolicy) {
@@ -219,12 +277,18 @@ export function EnrollWizard() {
 
     setSubmitting(true)
     setPaymentError("")
+    setPaymentRetryable(true)
 
     try {
       // Identical body shape to the outgoing flow. `selectedMode` is now a real
       // user choice rather than always falling through to `modes[0]`.
+      // Same keys as before the redesign. `email` is sent trimmed because the
+      // server runs its regex on the raw string (route.ts:68) while the client
+      // validates the trimmed one; a trailing space used to pass the gate here
+      // and come back as an undiagnosable "Invalid email format" 400.
       const payload = {
         ...form,
+        email: form.email.trim(),
         courseId: course.id,
         selectedMode: activeMode,
       }
@@ -243,10 +307,16 @@ export function EnrollWizard() {
         return
       }
 
-      setPaymentError(result?.error || result?.message || "Failed to process enrolment.")
+      const raw = result?.error || result?.message || ""
+      const described = raw
+        ? describeServerError(raw)
+        : { text: "We couldn't start your payment. Please try again.", retryable: true }
+      setPaymentError(described.text)
+      setPaymentRetryable(described.retryable)
       setSubmitting(false)
     } catch {
-      setPaymentError("Network error. Check your connection and try again.")
+      setPaymentError("We couldn't reach the server. Check your connection and try again.")
+      setPaymentRetryable(true)
       setSubmitting(false)
     }
   }, [course, form, activeMode])
@@ -277,6 +347,19 @@ export function EnrollWizard() {
     )
   }
 
+  // Checked after the course resolves and before the first step renders, so the
+  // student never fills a form the server was always going to refuse.
+  const unavailable = unavailableReason(course)
+  if (unavailable) {
+    return (
+      <CourseUnavailable
+        courseTitle={course.title}
+        headline={unavailable.headline}
+        body={unavailable.body}
+      />
+    )
+  }
+
   const nextLabel = step === 2 ? `Pay ${formatNaira(applicationFee)} →` : "Continue →"
 
   return (
@@ -292,7 +375,8 @@ export function EnrollWizard() {
           Hold your spot
         </Display>
         <p className="text-[17.5px] text-bfx-body">
-          Three short steps. Only the {formatNaira(applicationFee)} registration fee is due today.
+          Three short steps. The {formatNaira(applicationFee)} registration fee is the only amount
+          charged on this page.
         </p>
       </header>
 
@@ -325,6 +409,7 @@ export function EnrollWizard() {
               form={form}
               applicationFee={applicationFee}
               paymentError={paymentError}
+              paymentRetryable={paymentRetryable}
               onChange={update}
               onRetry={() => void submit()}
             />
@@ -344,14 +429,17 @@ export function EnrollWizard() {
               <button
                 type="button"
                 onClick={handleNext}
-                // Not `disabled` — an aria-disabled button still takes focus and a
-                // click, which is how the reason below gets shown to the student.
-                aria-disabled={blocked || submitting}
+                // Deliberately neither `disabled` nor `aria-disabled`. Both tell
+                // assistive tech the control is inoperable, which left the reason
+                // it is blocked reachable only by a click the user had just been
+                // told not to make. The button stays operable; `aria-describedby`
+                // carries the reason, which is rendered whenever it applies.
+                aria-describedby={blockedReason ? GATE_HINT_ID : undefined}
                 title={blockedReason || undefined}
                 className={
                   "rounded-xl border-0 px-7 py-[14px] text-[15px] font-bold transition-colors " +
                   (blocked || submitting
-                    ? "cursor-not-allowed bg-bfx-border-5 text-bfx-muted-2"
+                    ? "bg-bfx-border-5 text-bfx-muted-2"
                     : "bg-bfx-ink text-white hover:bg-bfx-amber hover:text-bfx-ink")
                 }
               >
@@ -359,8 +447,18 @@ export function EnrollWizard() {
               </button>
             </div>
 
-            {showGateHint && blockedReason ? (
-              <p role="alert" className="mt-3 text-right text-[13.5px] font-semibold text-bfx-note-text">
+            {/* Always present while the step is incomplete, so the reason is
+                announced with the button rather than discovered by clicking it.
+                A click that was refused promotes it to an assertive alert. */}
+            {blockedReason ? (
+              <p
+                id={GATE_HINT_ID}
+                role={showGateHint ? "alert" : "status"}
+                className={
+                  "mt-3 text-right text-[13.5px] " +
+                  (showGateHint ? "font-semibold text-bfx-note-text" : "text-bfx-muted")
+                }
+              >
                 {blockedReason}
               </p>
             ) : null}
@@ -372,7 +470,6 @@ export function EnrollWizard() {
             course={course}
             selectedMode={activeMode}
             courseFee={courseFee}
-            vat={vat}
             applicationFee={applicationFee}
           />
         </div>

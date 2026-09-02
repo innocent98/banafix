@@ -6,7 +6,6 @@
  * The copy is static marketing copy; nothing here claims a number.
  */
 import { Display, PillLink } from "@/components/site/primitives"
-import { TRIAL_HREF } from "@/lib/site"
 
 export function TutorsEmpty() {
   return (
@@ -24,8 +23,8 @@ export function TutorsEmpty() {
         Tutors go up alongside the courses they teach. Tell us what you would like to learn and we
         will match you with someone by hand.
       </p>
-      <PillLink href={TRIAL_HREF} variant="ink" size="md">
-        Book a free trial
+      <PillLink href="/contact" variant="ink" size="md">
+        Talk to us
       </PillLink>
     </div>
   )

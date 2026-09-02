@@ -3,7 +3,16 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-01):** Modules — ✅ 10 done · all four requested modules + foundation + the public UI redesign shipped (email delivery pending a real `RESEND_API_KEY`)
+**Snapshot (2026-09-02):** Modules — ✅ 11 done · four requested modules + foundation + instructor roster + the public UI redesign (email delivery pending a real `RESEND_API_KEY`)
+
+## ✅ Instructor roster  *(branch `instructor-roster`)*
+- [x] Flip `Instructor` one-to-one → reusable one-to-many (`Course.instructorId` FK `onDelete:SetNull`; `Instructor.courses[]`); drop `instructors.courseId`
+- [x] Data-preserving migration `20260902114015_instructor_roster` — backfill from old `courseId` + **dedup roster by normalized name** (keep highest-rated, repoint courses)
+- [x] Roster CRUD: `GET/POST /api/admin/instructors`, `GET/PATCH/DELETE /api/admin/instructors/[id]`; audit `instructor.create|update|delete`; course-set reassignment in PATCH
+- [x] `/admin/instructors` page + modal (course multi-select) + nav item
+- [x] Rewired `PUT /api/admin/courses/[id]/instructor` (assign existing / update / create+assign / unassign); fixed public `/api/instructors` + dashboard count + seed
+- [x] Verify: dup-name migration on ephemeral Postgres (3→2, courses repointed, no loss); `tsc` 0 + build
+- [~] Live authed HTTP-route run not executed (types + build + migration scratch-test cover it)
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
@@ -117,6 +126,33 @@ Full-parity rebuild of the public site against the Claude Design handoff. See
 - [x] Enrol POST contract re-proven field-by-field **by execution** against `app/api/enrollments/route.ts`
 - [x] `POST /api/contact` exercised live across 7 cases
 - [ ] **Visual QA in a browser at 375px / 1280px — not done, the one real gap**
+
+### ✅ Round 2 corrections (2026-09-02)
+- [x] "Free trial" removed sitewide (copy rewritten, not relabelled); CTA is `ENROL_LABEL` → `ENROL_HREF` (`/courses`); contact `?subject=` aliases updated
+- [x] Em/en dashes removed from all public-site copy and the customer-facing email templates
+- [x] Course images: `lib/course-photo.ts` instrument fallback (admin upload always wins). **Every photo verified by eye** — the id first earmarked for saxophone was a trumpet
+- [x] Home "How you learn" now reads the `DeliveryMode` table: all **four** modes, was three invented ones missing `One-on-One`
+- [x] Invented `MODE_NOTES` deleted; format rows show real mode name + real price only
+- [x] Rental copy replaced verbatim, "support team" links to `/contact`
+- [x] Per-course tab coverage verified live: tutor + FAQ tabs appear only on `sample-guitar-course`, matching the data
+- [x] Merged `origin/banafix` (`63609a2` instructor roster); ported `/tutors` + `TutorCard` to the roster shape by hand
+- [x] `npx tsc --noEmit` clean · `npx next build` 38/38 · 13 public routes 200
+
+### ✅ Enrolment audit (by execution, not inspection)
+- [x] **`dateOfBirth` was never collected** — every student enrolled through the site had a null birthday, so the birthday cron could never fire for them. Now collected and verified persisting
+- [x] Expired / fully-booked / no-modes courses now blocked before step 1 (previously only refused at the Pay button, with a raw server string)
+- [x] Email trim divergence, whitespace-only name gate, `aria-disabled` Continue button, 6px overflow at 375px, "Preferred day" mislabel
+- [x] Server rejections mapped to actionable copy with the right control
+- [x] Unsupported claims removed from the wizard, including the **VAT (7.5%) line** (nothing configures or charges VAT; it inflated the shown total by ₦1,500-2,600)
+- [x] Full submission exercised end to end to Paystack checkout; all test rows deleted (2 students, 2 enrolments, 2 payments, verified 0 remaining)
+
+### Needs a decision from round 2
+- [ ] **Home Training address is discarded for returning students** — `app/api/enrollments/route.ts` upserts with `update: {}` and never writes `address`/`landmark` onto the `Enrollment`. Proven live: a hard client gate collects an address the tutor never receives
+- [ ] **Policy dialog contradicts the code** — offers PayPal (no integration) and an instalment plan `installmentPlan` never actions. Left alone: it is text a student legally consents to
+- [ ] **`billingAddress`/`City`/`State`** written to every `ApplicationPayment` as empty strings. Drop server-side or collect them
+- [ ] **Dead code sweep** — `components/sections/*`, `components/enrollment/*`, `components/contact/faq-section.tsx`, `components/instructors/*` all unreferenced; three still contain "free trial" copy (0 importers, so nothing live)
+- [ ] Confirm the removed aside claims stay removed ("Free makeup lesson each term", "End-of-term recital included") and whether `seatsLeft` should be public
+- [ ] Six em dashes remain in **admin** UI, deliberately out of scope
 
 ### Needs a product decision (fabricated content removed, not restyled)
 - [ ] **`/dashboard`** — was 100% fabricated with zero auth and publicly reachable: a named student + email, invented course progress, and **a payment history showing ₦25,000 and ₦18,000 as paid**. Removed; the route now states there is no student login. Everything removed is listed in the file header. → build a real student session, or drop the route

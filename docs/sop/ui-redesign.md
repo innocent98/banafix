@@ -158,3 +158,141 @@ the form degrades honestly (tells the visitor to use WhatsApp) rather than silen
    `lib/email.ts` does not, which is fine for admin input but a trap for the next
    public-input template.
 7. **Policy pages still say "Last updated: December 15, 2024"** — ~21 months stale.
+
+---
+
+# Round 2 — corrections (2026-09-02)
+
+Follow-up pass after the owner reviewed round 1. Brief:
+`docs/superpowers/specs/2026-09-02-redesign-corrections.md`.
+
+## What changed
+
+### 1. No "free trial" anywhere
+Banafix does not run trial lessons. `TRIAL_HREF` was deleted; the site CTA is now `ENROL_LABEL`
+("Enrol now") pointing at `ENROL_HREF` (`/courses`), both in `lib/site.ts`. This was a rewrite,
+not a relabel: the hero sub-copy, the home CTA band, the course-detail secondary button, a
+contact FAQ, the contact enquiry-subject allow-list, page metadata and several empty states all
+*promised* something free, so changing only the button text would have left the promise standing.
+The contact `?subject=` alias map now resolves `enrol` / `enroll` / `course`; a stale
+`?subject=trial` degrades to the placeholder instead of erroring.
+
+### 2. No em or en dashes in copy
+Removed from every user-visible string on the public site, plus the customer-facing email
+templates in `lib/email.ts` and the contact endpoint's mail subject and body. Rewritten as
+commas or full stops rather than swapped for hyphens.
+
+**Deliberately not changed:** admin UI (`app/admin/**`, `components/admin/**`) still contains
+six, including two em-dash "no value" table placeholders. Admin was out of scope for the
+redesign. Code comments were also left alone.
+
+### 3. Course images
+`lib/course-photo.ts` (new) supplies a fallback photograph keyed on `Course.instrument`, used by
+the home featured cards, the courses list and the detail hero. An admin-uploaded `course.image`
+always wins. Four of five published courses have `image: null`, so without this almost every card
+rendered the empty state.
+
+**Every photo was verified by downloading the file and looking at it.** That mattered: the id
+first earmarked for saxophone is a photograph of a **trumpet**, and two of the five courses are
+saxophone. It was replaced with a verified saxophonist shot. A trumpet entry was then dropped
+entirely because its photographer could not be confirmed and shipping invented attribution is
+worse than shipping no photo.
+
+### 4. Delivery formats now come from the backend
+- The home "How you learn" section hardcoded **three** formats under invented names
+  ("At the studio", "Home training") and omitted `One-on-One` entirely. It now reads the
+  `DeliveryMode` table (active, ordered) and renders all four, with the "from" price computed as
+  the minimum `course.pricing[mode]` across published courses offering that mode.
+- `MODE_NOTES` / `modeNote()` in `components/site/courses/course-data.ts` were invented per-mode
+  descriptions. Deleted. Format rows now show the real mode name and its real price only.
+- The per-format blurbs and bullet lists asserted specifics no field supports. Deleted.
+
+### 5. Copy replacement
+The course Overview rental note is now, verbatim:
+> No worries! We offer instrument rental services and starter kits for beginners. Contact our support team to learn more about equipment options.
+
+"support team" links to `/contact`.
+
+### 6. Coverage audit (verified live, per course)
+
+| Course | Tabs rendered | outcomes | equipment | curriculum | faqs | instructor |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sample-guitar-course` | Overview, Curriculum, Your tutor, FAQs | 6 | 4 | 5 | 3 | John Adebayo |
+| `saxophone-beginner` | Overview, Curriculum | 4 | 4 | 12 | 0 | none |
+| `saxophone-intermediate` | Overview, Curriculum | 4 | 4 | 12 | 0 | none |
+| `violin-beginner` | Overview, Curriculum | 4 | 4 | 12 | 0 | none |
+| `violin-intermediate` | Overview, Curriculum | 4 | 4 | 12 | 0 | none |
+
+Reviews and per-course policies have no Prisma model, so no tabs for them. The aside links to
+`/policies` instead.
+
+## Instructor roster merge
+
+`origin/banafix` (`63609a2`) was merged in. The live database had been migrated to the roster
+shape (`20260902114015_instructor_roster`) while the branch still assumed one instructor per
+course, which broke the build. The merge brought the migration, the schema and fixed versions of
+`app/api/instructors/route.ts`, the admin instructor route, dashboard stats and `prisma/seed.ts`.
+`app/(site)/tutors/page.tsx` and `components/site/tutors/tutor-card.tsx` were ported by hand:
+`where: { courses: { some: … } }`, and a tutor's specialties are now the deduped instruments of
+every published course they teach. One conflict in `master-checklist.md`, resolved to keep both
+modules.
+
+## Enrolment audit — bugs found and fixed
+
+Audited by execution against the live database and a real browser, not by reading.
+
+| # | Bug | Fix |
+| --- | --- | --- |
+| 1 | **Expired and fully-booked courses were never gated client-side.** You could fill all three steps and only be refused at the Pay button, with the raw server string. | `CourseUnavailable` renders before step 1 for expired, fully booked, and no-delivery-modes |
+| 2 | **`dateOfBirth` was never collected by any screen.** The server writes it to `Student.dateOfBirth`, which is the field the birthday-email cron reads, so **every student enrolled through the site had a null birthday and could never receive one** | Added as an optional field; persistence verified |
+| 3 | Client trimmed the email, server did not, so a trailing space passed the gate and 400'd | Sends `email.trim()` |
+| 4 | Whitespace-only names passed the required gate (`" "` is truthy) | Gate tests trimmed values |
+| 5 | Server rejections surfaced as raw sentences with a Try-again that could not help | Six known messages mapped to actionable copy and the right control |
+| 6 | Continue button was `aria-disabled` with its reason hidden behind a click | Genuinely operable, reason wired via `aria-describedby` |
+| 7 | 6px horizontal overflow at 375px in the step-progress header | `min-w-0` on the flex item; measured 0px after |
+| 8 | "Preferred day" labelled a time-of-day select, in a wizard that also has a real preferred-days chip group | Relabelled "Preferred time"; stored values unchanged |
+
+Unsupported commercial claims removed from the wizard: the **VAT (7.5%) line** (nothing in the
+codebase configures or charges VAT, and it inflated the displayed total by ₦1,500-2,600), "billed
+before classes begin", "any travel fee", payment-channel settlement times, and the guardian
+under-18 note. The payment **channel names** were kept and are accurate: `lib/paystack.ts:280`
+really does send `['card','bank','ussd','bank_transfer']`.
+
+A full valid submission was exercised end to end and reached Paystack checkout
+(`PAYSTACK_SECRET_KEY` is a working `sk_test_` key, not a placeholder). All test rows were
+deleted afterwards: 2 students, 2 enrolments, 2 application payments, verified 0 remaining.
+
+## Verification
+
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | Clean, exit 0, whole project |
+| `npx next build` | Passes, 38/38 static pages |
+| 13 public routes | All 200 |
+| Home formats | All four modes from `DeliveryMode` with real prices |
+| Course images | Violin and saxophone fallbacks confirmed in the served HTML |
+| "free trial" in live code | Zero. Three dead files still contain it, all with **0 importers** |
+| Dashes outside comments | Zero on the public site; 6 remain in admin UI, deliberately |
+
+## Follow-ups from round 2
+
+1. **Home Training address is silently discarded for returning students.** In
+   `app/api/enrollments/route.ts` the student upsert is `update: {}` and `Enrollment.create` does
+   not write `address`/`landmark`, so a returning student passes a hard client gate and the tutor
+   gets no address. Proven live. Fix: write `address`, `landmark` and the guardian fields onto the
+   `Enrollment` so per-enrolment details stop fighting the student record.
+2. **The policy dialog contradicts the code** — it offers PayPal (no integration) and an
+   instalment plan the `installmentPlan` field never actions. Left untouched: this is text a
+   student legally consents to, and rewriting it unilaterally is worse than leaving it. Needs a
+   decision.
+3. **`billingAddress` / `billingCity` / `billingState`** are written to every `ApplicationPayment`
+   as empty strings. Either drop them server-side or collect them.
+4. **Dead code**: `components/sections/*`, `components/enrollment/*`,
+   `components/contact/faq-section.tsx`, `components/instructors/*` are all unreferenced. Three of
+   them still contain "free trial" copy. One deletion commit would remove the phrase from the repo
+   entirely.
+5. **An agent edited `prisma/schema.prisma` despite it being declared frozen**, to unblock its own
+   type-checking after finding the checked-out schema did not match the live database. The merge
+   superseded the edit and nothing of it survives, but the process failure is worth noting.
+6. Visual QA in a browser at 375px and 1280px is still outstanding for the pages the enrolment
+   audit did not cover.

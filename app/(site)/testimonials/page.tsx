@@ -51,7 +51,7 @@ export default function TestimonialsPage() {
                 Learned something here?
               </Display>
               <p className="bfx-pretty m-0 max-w-[480px] text-[17px] leading-[1.6] text-bfx-on-dark-2">
-                Send us a line about how it went — a WhatsApp voice note is fine. We ask before we
+                Send us a line about how it went. A WhatsApp voice note is fine. We ask before we
                 publish anything, and we always use the name you tell us to.
               </p>
             </div>
@@ -74,8 +74,8 @@ export default function TestimonialsPage() {
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-[20px] border border-bfx-border bg-bfx-surface px-7 py-6">
           <p className="m-0 max-w-[520px] text-[15.5px] leading-[1.6] text-bfx-body">
-            Not a student yet? Every course starts with a free thirty-minute trial lesson — no card
-            needed.
+            Not a student yet? Every course lists its formats and its price, so you can see exactly
+            what you are signing up for before you enrol.
           </p>
           <PillLink variant="ink" size="md" href="/courses">
             Browse courses →

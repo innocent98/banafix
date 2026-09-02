@@ -19,7 +19,7 @@ import { Menu, X } from "lucide-react"
 
 import { PillAnchor, PillLink } from "@/components/site/primitives"
 import { Wordmark } from "@/components/site/wordmark"
-import { PRIMARY_NAV, SITE_PHONE_DISPLAY, SITE_PHONE_TEL, TRIAL_HREF } from "@/lib/site"
+import { ENROL_HREF, ENROL_LABEL, PRIMARY_NAV, SITE_PHONE_DISPLAY, SITE_PHONE_TEL } from "@/lib/site"
 import { cn } from "@/lib/utils"
 
 function isActive(pathname: string, href: string) {
@@ -64,8 +64,8 @@ export function SiteHeader() {
           >
             {SITE_PHONE_DISPLAY}
           </a>
-          <PillLink href={TRIAL_HREF} variant="ink" size="sm" className="hidden sm:inline-flex">
-            Book a free trial
+          <PillLink href={ENROL_HREF} variant="ink" size="sm" className="hidden sm:inline-flex">
+            {ENROL_LABEL}
           </PillLink>
           <button
             type="button"
@@ -96,8 +96,8 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-bfx-border-3 pt-4">
-              <PillLink href={TRIAL_HREF} variant="ink" size="blockSm" className="sm:hidden">
-                Book a free trial
+              <PillLink href={ENROL_HREF} variant="ink" size="blockSm" className="sm:hidden">
+                {ENROL_LABEL}
               </PillLink>
               <PillAnchor href={SITE_PHONE_TEL} variant="outlineSoft" size="blockSm">
                 {SITE_PHONE_DISPLAY}

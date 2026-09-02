@@ -66,23 +66,6 @@ export function parseWeeks(duration: string | null | undefined): number | null {
   return Number.isFinite(weeks) && weeks > 0 ? weeks : null
 }
 
-/**
- * STATIC MARKETING COPY. There is no per-mode description field on the Course
- * model, and the handoff's own notes ("Lekki, weekly slot") are canvas filler.
- * These describe the four canonical delivery modes; an unrecognised mode simply
- * renders without a note rather than borrowing someone else's.
- */
-const MODE_NOTES: Record<string, string> = {
-  "On-site": "Weekly slot at the studio",
-  "One-on-One": "Private tutor, flexible time",
-  Online: "Live video lessons",
-  "Home Training": "Your tutor travels to you",
-}
-
-export function modeNote(mode: string): string | null {
-  return MODE_NOTES[mode] ?? null
-}
-
 /** "1 course" / "6 courses", "1 format" / "4 formats". */
 export function plural(count: number, singular: string, pluralWord = `${singular}s`) {
   return `${count} ${count === 1 ? singular : pluralWord}`

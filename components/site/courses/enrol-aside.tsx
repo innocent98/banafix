@@ -7,25 +7,32 @@
  * padding, `0 24px 48px -30px rgba(16,26,40,0.28)` shadow. The price is
  * Instrument Serif at 46px; the format rows use `row()` from styles.ts.
  *
- * Three substitutions against the handoff, all of them to stay honest to data:
+ * Substitutions against the handoff, all of them to stay honest to data:
  *   • "Total for 12 weeks" uses the course's own `duration`.
  *   • The per-lesson caption is only rendered when `duration` parses to a week
  *     count; the handoff divides by a hardcoded 12.
- *   • "pay ₦5,000 to hold a spot" is `calculateApplicationFee(course.location)`,
+ *   • The handoff's flat "₦5,000" is `calculateApplicationFee(course.location)`,
  *     which is ₦2,000 or ₦8,000 outside Lagos/Abuja/Online.
+ *   • The handoff's second CTA offered something Banafix does not run, so it
+ *     points at /contact instead.
+ *   • Format rows carry no note: no per-mode description exists on any model.
  */
 import * as React from "react"
+import Link from "next/link"
 import * as RadioGroup from "@radix-ui/react-radio-group"
 
 import { row } from "@/components/site/courses/styles"
 import { PillLink } from "@/components/site/primitives"
-import { formatNaira, TRIAL_HREF } from "@/lib/site"
+import { formatNaira } from "@/lib/site"
 
+/**
+ * A format row is the delivery mode's real name and its real price from
+ * `course.pricing`. Neither `DeliveryMode` nor `Course` carries a description
+ * of a mode, so nothing else belongs on the row.
+ */
 export interface ModeOption {
   mode: string
   price: number
-  /** Static marketing note for the four canonical modes; null when unknown. */
-  note: string | null
 }
 
 export function EnrolAside({
@@ -34,12 +41,18 @@ export function EnrolAside({
   modes,
   weeks,
   applicationFee,
+  seatsLeft,
+  totalSeats,
+  unlimitedSeats,
 }: {
   courseId: string
   duration: string
   modes: ModeOption[]
   weeks: number | null
   applicationFee: number
+  seatsLeft: number
+  totalSeats: number
+  unlimitedSeats: boolean
 }) {
   const first = modes[0]
   const [selectedMode, setSelectedMode] = React.useState(first ? first.mode : "")
@@ -78,14 +91,7 @@ export function EnrolAside({
                 value={option.mode}
                 className={`${row(option.mode === selectedMode)} w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bfx-amber focus-visible:ring-offset-2`}
               >
-                <span className="block text-left">
-                  <span className="block text-[15px] font-bold text-bfx-ink">{option.mode}</span>
-                  {option.note ? (
-                    <span className="block text-[12.5px] font-semibold text-bfx-muted">
-                      {option.note}
-                    </span>
-                  ) : null}
-                </span>
+                <span className="text-left text-[15px] font-bold text-bfx-ink">{option.mode}</span>
                 <span className="text-[15.5px] font-extrabold text-bfx-ink">
                   {formatNaira(option.price)}
                 </span>
@@ -101,31 +107,52 @@ export function EnrolAside({
       )}
 
       {selected ? (
-        <PillLink
-          href={`/enroll?courseId=${encodeURIComponent(courseId)}&mode=${encodeURIComponent(selected.mode)}`}
-          variant="amber"
-          size="block"
-          className="mb-2.5 shadow-none"
-        >
-          Enrol — pay {formatNaira(applicationFee)} to hold a spot
-        </PillLink>
+        <>
+          <PillLink
+            href={`/enroll?courseId=${encodeURIComponent(courseId)}&mode=${encodeURIComponent(selected.mode)}`}
+            variant="amber"
+            size="block"
+            className="mb-2.5 shadow-none"
+          >
+            Enrol now, {formatNaira(applicationFee)} to register
+          </PillLink>
+          <PillLink href="/contact" variant="outlineSoft" size="blockSm">
+            Ask about this course
+          </PillLink>
+        </>
       ) : (
-        <PillLink href="/contact" variant="amber" size="block" className="mb-2.5 shadow-none">
+        <PillLink href="/contact" variant="amber" size="block" className="shadow-none">
           Ask about this course
         </PillLink>
       )}
 
-      <PillLink href={TRIAL_HREF} variant="outlineSoft" size="blockSm">
-        Book a free trial first
-      </PillLink>
-
-      {/* STATIC MARKETING COPY — none of these three are DB-backed. */}
+      {/* Every line below is derived, not asserted: the registration fee comes
+          from `calculateApplicationFee(course.location)`, the "billed
+          separately" split is how enrolment actually charges (see
+          components/enrollment/enrollment-sidebar.tsx), and the capacity line
+          reads `unlimitedSeats` / `seatsLeft` / `totalSeats` off the course. */}
       <ul className="mt-[22px] flex flex-col gap-[11px] border-t border-bfx-hair pt-5">
         <li className="text-sm font-medium text-bfx-label">
-          Course fee billed before classes begin
+          {formatNaira(applicationFee)} registration fee is all you pay today
         </li>
-        <li className="text-sm font-medium text-bfx-label">Free makeup lesson each term</li>
-        <li className="text-sm font-medium text-bfx-label">End-of-term recital included</li>
+        <li className="text-sm font-medium text-bfx-label">
+          The course fee is billed separately, before classes begin
+        </li>
+        {unlimitedSeats ? (
+          <li className="text-sm font-medium text-bfx-label">Places on this course are open</li>
+        ) : (
+          <li className="text-sm font-medium text-bfx-label">
+            {seatsLeft} of {totalSeats} places left
+          </li>
+        )}
+        <li className="text-sm font-medium text-bfx-label">
+          <Link
+            href="/policies"
+            className="font-semibold text-bfx-bronze underline-offset-4 hover:underline"
+          >
+            Refunds, conduct and terms
+          </Link>
+        </li>
       </ul>
     </aside>
   )

@@ -32,7 +32,7 @@ export interface BanafixEvent {
   category: EventCategory
   /** ISO date, e.g. "2026-10-04". */
   date: string
-  /** Free text, e.g. "2:00 PM – 4:00 PM". */
+  /** Free text, e.g. "2:00 PM to 4:00 PM". */
   time: string
   location: string
   /** Display string. Use "Free" when there is no charge. */

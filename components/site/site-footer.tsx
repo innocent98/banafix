@@ -14,6 +14,8 @@ import Link from "next/link"
 
 import { Wordmark } from "@/components/site/wordmark"
 import {
+  ENROL_HREF,
+  ENROL_LABEL,
   POPULAR_INSTRUMENTS,
   SITE_ADDRESS_LINES,
   SITE_EMAIL,
@@ -21,14 +23,13 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_PHONE_TEL,
   SOCIAL_LINKS,
-  TRIAL_HREF,
 } from "@/lib/site"
 
 const ACADEMY_LINKS = [
   { label: "Courses", href: "/courses" },
   { label: "Tutors", href: "/tutors" },
   { label: "Contact", href: "/contact" },
-  { label: "Free trial", href: TRIAL_HREF },
+  { label: ENROL_LABEL, href: ENROL_HREF },
   { label: "FAQs", href: "/faqs" },
   { label: "Testimonials", href: "/testimonials" },
 ]

@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * The three non-happy states of the enrolment screen, in the redesign's system.
+ * The non-happy states of the enrolment screen, in the redesign's system.
  * The skeleton mirrors the real layout — same shell width, same progress header,
  * same 1fr/330px split — so nothing shifts when the course resolves.
  */
@@ -9,6 +9,7 @@
 import type * as React from "react"
 
 import { Display, PillLink } from "@/components/site/primitives"
+import { ENROL_HREF } from "@/lib/site"
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -29,7 +30,7 @@ export function EnrollSkeleton() {
 
         <div className="mb-[34px] flex items-center gap-[14px]">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="flex flex-1 items-center gap-[14px]">
+            <div key={index} className="flex min-w-0 flex-1 items-center gap-[14px]">
               <div className="h-[34px] w-[34px] flex-none rounded-full bg-bfx-border-5" />
               <div className="flex-1">
                 <div className="h-3.5 w-20 rounded bg-bfx-hair" />
@@ -100,7 +101,7 @@ export function NoCourseSelected() {
           Enrolment starts from a course page, so we know which lessons, tutor and format you're
           signing up for.
         </p>
-        <PillLink href="/courses" variant="ink" size="md">
+        <PillLink href={ENROL_HREF} variant="ink" size="md">
           Browse courses →
         </PillLink>
       </div>
@@ -131,8 +132,55 @@ export function EnrollLoadError({ message, onRetry }: { message: string; onRetry
           >
             Try again
           </button>
-          <PillLink href="/courses" variant="outlineSoft" size="md">
+          <PillLink href={ENROL_HREF} variant="outlineSoft" size="md">
             Browse courses
+          </PillLink>
+        </div>
+      </div>
+    </Shell>
+  )
+}
+
+/**
+ * The course loaded, but `POST /api/enrollments` would reject it on one of its
+ * own preconditions:
+ *
+ *   expired      — `isCourseExpired(sessionStartDate)`  (route.ts:84)
+ *   fully booked — `!unlimitedSeats && seatsLeft <= 0`  (route.ts:89)
+ *   no modes     — `availableModes` empty, so no `selectedMode` can ever validate
+ *
+ * Before this state existed the student filled all three steps and only met the
+ * refusal on the Pay button, with a raw server string and no way forward.
+ */
+export function CourseUnavailable({
+  courseTitle,
+  headline,
+  body,
+}: {
+  courseTitle: string
+  headline: string
+  body: string
+}) {
+  return (
+    <Shell>
+      <div className="mx-auto max-w-[560px] rounded-[24px] border border-bfx-border-6 bg-bfx-surface p-8 text-center sm:p-[42px]">
+        <span
+          aria-hidden
+          className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-full bg-bfx-note-bg text-[26px] leading-none"
+        >
+          ⏱
+        </span>
+        <Display as="h1" className="mb-2.5 text-[30px] leading-[1.08] text-bfx-ink">
+          {headline}
+        </Display>
+        <p className="mb-2 text-[15.5px] font-semibold text-bfx-ink">{courseTitle}</p>
+        <p className="mb-7 text-[15.5px] leading-[1.6] text-bfx-body">{body}</p>
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <PillLink href={ENROL_HREF} variant="ink" size="md">
+            Browse courses
+          </PillLink>
+          <PillLink href="/contact" variant="outlineSoft" size="md">
+            Ask about this course
           </PillLink>
         </div>
       </div>

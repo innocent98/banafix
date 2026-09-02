@@ -10,7 +10,6 @@
  * reproduces the route's published/active/not-expired predicate exactly.
  */
 import type { Metadata } from "next"
-import Link from "next/link"
 
 import { CourseCard, type CourseCardData } from "@/components/site/courses/course-card"
 import { CourseFilterBar } from "@/components/site/courses/course-filter-bar"
@@ -22,7 +21,7 @@ import {
 } from "@/components/site/courses/course-data"
 import { Display, Eyebrow, PillLink } from "@/components/site/primitives"
 import { prisma } from "@/lib/prisma"
-import { TRIAL_HREF } from "@/lib/site"
+import { SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Courses | Banafix",
@@ -48,6 +47,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       id: true,
       title: true,
       description: true,
+      instrument: true,
       level: true,
       duration: true,
       image: true,
@@ -77,6 +77,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       level: course.level,
       duration: course.duration,
       image: course.image,
+      instrument: course.instrument,
       formatCount: course.availableModes.length,
       fromPrice: fromPrice(pricing),
     }
@@ -133,18 +134,20 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         ) : (
           <EmptyPanel
             heading="No courses published yet"
-            body="New terms are added as they open. Book a free trial and we will match you with a tutor in the meantime."
+            body="New terms are added as they open. Tell us the instrument you want to learn and we will let you know as soon as the next one is announced."
             action={
               <>
-                <PillLink href={TRIAL_HREF} variant="amber" size="md">
-                  Book a free trial
+                <PillLink href="/contact" variant="amber" size="md">
+                  Talk to us
                 </PillLink>
-                <Link
-                  href="/contact"
+                <a
+                  href={SITE_WHATSAPP}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-[14.5px] font-semibold text-bfx-bronze underline-offset-4 hover:underline"
                 >
-                  Talk to us
-                </Link>
+                  Message us on WhatsApp
+                </a>
               </>
             }
           />

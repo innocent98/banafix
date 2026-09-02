@@ -1,17 +1,19 @@
 "use client"
 
 /**
- * The sticky ink summary aside (handoff.html:538–556).
+ * The sticky ink summary aside (handoff.html:538-556).
  *
- * Money rules, unchanged from the outgoing sidebar
- * (components/enrollment/enrollment-sidebar.tsx:15–26):
+ * Money rules:
  *
- *   Course fee   — `course.pricing[selectedMode]`, informational. Billed separately.
- *   VAT (7.5%)   — DISPLAY ONLY, on the course fee. Never charged, never sent.
- *   Registration — `calculateApplicationFee(course.location).amount`. The ONLY
- *                  amount Paystack is asked to collect. Never hardcoded.
- *   Due today    — the registration fee.
- *   Remaining    — course fee + display VAT.
+ *   Course fee   `course.pricing[selectedMode]`, informational. Not charged here.
+ *   Registration `calculateApplicationFee(course.location).amount`. The ONLY
+ *                amount Paystack is asked to collect. Never hardcoded.
+ *   Due today    the registration fee.
+ *
+ * The outgoing sidebar also showed a "VAT (7.5%)" line and a "remaining"
+ * total. Both were dropped in the round-2 audit: nothing in the codebase
+ * configures VAT, nothing charges it, and nothing schedules the course fee, so
+ * the numbers asserted a bill the app cannot produce.
  */
 
 import { formatNaira } from "@/lib/site"
@@ -21,17 +23,13 @@ export function EnrollSummary({
   course,
   selectedMode,
   courseFee,
-  vat,
   applicationFee,
 }: {
   course: EnrollCourse
   selectedMode: string
   courseFee: number
-  vat: number
   applicationFee: number
 }) {
-  const remaining = courseFee + vat
-
   return (
     <aside className="rounded-[24px] bg-bfx-ink p-7 text-white lg:sticky lg:top-[104px]">
       <h2 className="mb-[18px] text-xs font-bold tracking-[0.1em] text-bfx-amber">YOUR ENROLMENT</h2>
@@ -57,12 +55,8 @@ export function EnrollSummary({
 
       <dl className="mb-5 flex flex-col gap-[13px] border-y border-bfx-line-dark py-5">
         <div className="flex justify-between gap-4 text-[14.5px]">
-          <dt className="text-bfx-on-dark-3">Course fee</dt>
+          <dt className="text-bfx-on-dark-3">Course fee (not charged today)</dt>
           <dd className="font-semibold">{formatNaira(courseFee)}</dd>
-        </div>
-        <div className="flex justify-between gap-4 text-[14.5px]">
-          <dt className="text-bfx-on-dark-3">VAT (7.5%)</dt>
-          <dd className="font-semibold">{formatNaira(vat)}</dd>
         </div>
         <div className="flex justify-between gap-4 text-[14.5px]">
           <dt className="text-bfx-on-dark-3">Registration</dt>
@@ -78,8 +72,8 @@ export function EnrollSummary({
       </div>
 
       <p className="text-[13px] leading-[1.6] text-bfx-on-dark-5">
-        Only the registration fee is charged today. The remaining {formatNaira(remaining)} is billed
-        separately before classes begin.
+        The registration fee is the only amount charged on this page. The {formatNaira(courseFee)}{" "}
+        course fee is arranged with us separately, and we will confirm how before lessons start.
       </p>
     </aside>
   )

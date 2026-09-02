@@ -4,9 +4,10 @@
  * a 64px gap, so it collapses to one column below ~864px on its own.
  *
  * A Server Component: it reads `?subject=` and hands it to the form as the
- * preselected option. `TRIAL_HREF` in `lib/site.ts` is `/contact?subject=trial`,
- * so every "Book a free trial" CTA on the site lands here with "Booking a free
- * trial" already chosen.
+ * preselected option. The aliases live in `lib/contact-message.ts`, so a link
+ * to `/contact?subject=enrol` lands here with "Enrolling in a course" already
+ * chosen, `?subject=fees` with "Course fees", and so on. An unknown value
+ * falls back to the placeholder rather than erroring.
  */
 import type { Metadata } from "next"
 
@@ -41,7 +42,7 @@ export default async function ContactPage({
         </Display>
         {/* Static marketing copy — the handoff's response-time promise. */}
         <p className="bfx-pretty mb-[34px] max-w-[440px] text-[18px] leading-[1.6] text-bfx-body">
-          We answer WhatsApp within the hour on weekdays. Or just walk in — someone is always
+          We answer WhatsApp within the hour on weekdays. Or just walk in, someone is always
           teaching.
         </p>
         <ContactChannels />

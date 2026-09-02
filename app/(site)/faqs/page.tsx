@@ -36,7 +36,7 @@ export default function FaqsPage() {
           </Display>
           <p className="bfx-pretty text-[18px] leading-[1.6] text-bfx-body">
             Enrolling, lesson formats, scheduling and fees. If your question isn&apos;t here, ask us
-            on WhatsApp — someone is always teaching.
+            on WhatsApp. Someone is always teaching.
           </p>
         </div>
       </section>

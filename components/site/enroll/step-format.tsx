@@ -9,8 +9,10 @@
  *    unless BOTH `agreeToTerms` and `agreeToRefundPolicy` are true
  *    (app/api/enrollments/route.ts:63). Collapsing them would either break the
  *    submit or record a consent the student never gave.
- * 2. Real per-mode prices from `course.pricing`. The handoff's ±₦5,000 deltas are
- *    design filler.
+ * 2. Real per-mode prices from `course.pricing`. The handoff's per-mode deltas are
+ *    design filler. Round-2 audit: the invented per-mode blurbs (MODE_NOTES) are
+ *    gone too. There is no description field on `DeliveryMode`, so the row shows
+ *    the real mode name and its real price and nothing else.
  * 3. When "Home Training" is the selected mode, the address / landmark /
  *    preferred-days block appears here, because this is where the mode is chosen.
  *    The outgoing flow put it on the details step, where it could only ever show
@@ -30,7 +32,6 @@ import {
 } from "./fields"
 import {
   HOME_TRAINING_MODE,
-  MODE_NOTES,
   WEEKDAYS,
   type EnrollCourse,
   type EnrollFormData,
@@ -72,7 +73,6 @@ export function StepFormat({
               key={mode}
               active={form.selectedMode === mode}
               name={mode}
-              note={MODE_NOTES[mode]}
               trailing={price === undefined ? undefined : formatNaira(price)}
               onSelect={() => onSelectMode(mode)}
             />
@@ -84,7 +84,7 @@ export function StepFormat({
         <div className="mb-6 rounded-[14px] border border-bfx-border-5 bg-bfx-field p-5">
           <SubHeading
             title="Where should your tutor come?"
-            sub="We confirm coverage and any travel fee before your first session."
+            sub="We check that we cover your area and get back to you before the first session."
           />
           <div className="mb-4">
             <TextField
@@ -109,7 +109,7 @@ export function StepFormat({
           </div>
           <fieldset>
             <legend className="mb-[7px] text-[13px] font-bold text-bfx-label">
-              Preferred days <span className="font-semibold text-bfx-muted-2">— optional</span>
+              Preferred days <span className="font-semibold text-bfx-muted-2">(optional)</span>
             </legend>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {WEEKDAYS.map((day) => (
@@ -163,8 +163,8 @@ export function StepFormat({
           checked={form.consentToEmails}
           onChange={(next) => onChange("consentToEmails", next)}
         >
-          <span className="font-semibold text-bfx-muted">Optional — </span>
-          send me course updates, practice tips and offers from Banafix.
+          <span className="font-semibold text-bfx-muted">Optional. </span>
+          Send me course updates, practice tips and offers from Banafix.
         </ConsentRow>
       </div>
     </div>

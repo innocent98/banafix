@@ -96,11 +96,11 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
         }
       }),
       
-      // Active instructors - count instructors whose course is published
+      // Active instructors - count instructors teaching at least one published course
       prisma.instructor.count({
         where: {
-          course: {
-            isPublished: true
+          courses: {
+            some: { isPublished: true }
           }
         }
       })

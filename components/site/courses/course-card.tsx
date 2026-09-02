@@ -14,6 +14,7 @@ import Link from "next/link"
 import { MediaSlot } from "@/components/site/media-slot"
 import { LevelBadge, MetaChip } from "@/components/site/primitives"
 import { plural } from "@/components/site/courses/course-data"
+import { coursePhotoSrc } from "@/lib/course-photo"
 import { formatNaira } from "@/lib/site"
 
 export interface CourseCardData {
@@ -22,7 +23,10 @@ export interface CourseCardData {
   description: string | null
   level: string
   duration: string
+  /** Admin upload; wins over the instrument fallback in `coursePhotoSrc`. */
   image: string | null
+  /** Keys the fallback photograph when `image` is null. */
+  instrument: string
   formatCount: number
   fromPrice: number | null
 }
@@ -34,7 +38,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
       className="group flex flex-col overflow-hidden rounded-[22px] border border-bfx-border bg-bfx-surface transition-shadow duration-200 hover:shadow-[0_22px_44px_-24px_rgba(16,26,40,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bfx-amber focus-visible:ring-offset-2 focus-visible:ring-offset-bfx-cream"
     >
       <div className="relative h-[196px]">
-        <MediaSlot src={course.image} alt={course.title} glyph="note" glyphSize={68} />
+        <MediaSlot src={coursePhotoSrc(course)} alt={course.title} glyph="note" glyphSize={68} />
         <LevelBadge className="left-[13px] top-[13px]">{course.level}</LevelBadge>
       </div>
 

@@ -38,9 +38,9 @@ const sora = Sora({
 })
 
 export const metadata: Metadata = {
-  title: "Banafix — Learn the instrument you've always meant to play",
+  title: "Banafix | Learn the instrument you've always meant to play",
   description:
-    "One-on-one music tuition with performing musicians in Lekki, Lagos — at our studio, at your home, or online. Start with a free 30-minute trial lesson.",
+    "One-on-one music tuition with performing musicians in Lekki, Lagos. Learn at our studio, at your home, or online. Browse the courses and enrol on the format that fits your week.",
   keywords: ["music academy", "violin lessons", "guitar lessons", "music school nigeria", "online music classes"],
 }
 

@@ -24,22 +24,30 @@ export interface Tutor {
   experience: string | null
   availability: string | null
   verified: boolean
-  /** Derived from the course instrument — there is no specialties column. */
+  /**
+   * Derived from the instruments of the courses this tutor teaches. There is
+   * no specialties column.
+   */
   specialties: string[] | null
-  course: {
+  /**
+   * Every published course this tutor teaches. `Instructor` became a reusable
+   * roster in migration `20260902114015_instructor_roster`, so this is a list,
+   * not a single course.
+   */
+  courses: Array<{
     id: string
     title: string
     instrument: string
     level: string
-  } | null
+  }>
 }
 
 /**
  * The handoff's `t.tags` has no counterpart in the DB, so the chips are
- * assembled from fields that genuinely exist on the record: the course
- * instrument (`specialties`), the tutor's `credentials`, their `experience`
- * string, and a "Verified" chip only when `verified` is true. Nothing here is
- * invented.
+ * assembled from fields that genuinely exist on the record: the instruments of
+ * the courses they teach (`specialties`), the tutor's `credentials`, their
+ * `experience` string, and a "Verified" chip only when `verified` is true.
+ * Nothing here is invented.
  */
 export function tutorTags(tutor: Tutor): string[] {
   const raw = [
@@ -62,11 +70,16 @@ export function tutorTags(tutor: Tutor): string[] {
   return tags
 }
 
-/** The handoff's specialty line — instrument first, course title as fallback. */
+/**
+ * The handoff's specialty line. Instruments first; a tutor on the roster can
+ * teach several, so they join. Course titles are the fallback when a course
+ * somehow carries no instrument.
+ */
 function specialtyLine(tutor: Tutor): string {
   const specialties = (tutor.specialties ?? []).map((s) => s.trim()).filter(Boolean)
   if (specialties.length > 0) return specialties.join(" · ")
-  return tutor.course?.instrument?.trim() || tutor.course?.title?.trim() || ""
+  const titles = tutor.courses.map((c) => c.title?.trim()).filter(Boolean)
+  return titles.join(" · ")
 }
 
 export function TutorCard({ tutor }: { tutor: Tutor }) {

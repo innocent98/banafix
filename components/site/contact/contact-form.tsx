@@ -105,7 +105,7 @@ export function ContactForm({ initialSubject = "" }: { initialSubject?: string }
             Message sent
           </h2>
           <p className="bfx-pretty mb-6 text-[15px] leading-[1.65] text-bfx-ok-text">
-            It has landed in our inbox. We answer within the hour on weekdays — check your email,
+            It has landed in our inbox. We answer within the hour on weekdays. Check your email,
             including the spam folder.
           </p>
           <div className="flex flex-wrap gap-3">

@@ -37,7 +37,7 @@ export default function SiteError({
         That didn&rsquo;t load.
       </Display>
       <p className="mb-9 max-w-[440px] text-[17px] leading-[1.6] text-bfx-body">
-        Something went wrong on our side — not on yours. Try again, and if it keeps happening give
+        Something went wrong on our side, not on yours. Try again, and if it keeps happening give
         us a call and we&rsquo;ll sort it out.
       </p>
       <div className="flex flex-wrap justify-center gap-3">

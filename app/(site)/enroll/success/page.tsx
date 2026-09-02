@@ -220,8 +220,8 @@ function SuccessContent() {
           </p>
           {reference ? (
             <p className="mt-3 text-[14px] text-bfx-muted">
-              Reference <span className="font-mono text-bfx-ink">{reference}</span> — quote this if
-              you contact us.
+              Quote reference <span className="font-mono text-bfx-ink">{reference}</span> if you
+              contact us.
             </p>
           ) : null}
         </Panel>

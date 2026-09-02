@@ -1,79 +1,95 @@
 /**
  * "HOW YOU LEARN" — handoff `isHome`, the ink <section>.
  *
- * Mixed data. The three names, blurbs, bullet points and photos are STATIC
- * MARKETING COPY — no DB field describes a delivery mode's benefits. The
- * "from ₦X" price is REAL: the page computes, per canonical delivery mode, the
- * minimum `course.pricing[mode]` across every published course that lists that
- * mode in `availableModes`. If no course offers a mode, the price line is
- * omitted rather than invented.
+ * Every word of data on these cards is real. The formats are the rows of the
+ * `DeliveryMode` table (active, ordered), rendered under their canonical
+ * names; the "from ₦X" is the minimum `course.pricing[mode]` across published
+ * courses that list the mode in `availableModes`; the course count is how many
+ * of those courses there are. `DeliveryMode` has no description field, so this
+ * section asserts nothing else about a format.
+ *
+ * The previous version hardcoded three invented formats ("At the studio",
+ * "Home training") with blurbs and bullet lists claiming lesson recordings,
+ * sibling discounts and pre-class practice rooms. No field backs any of that,
+ * so it is gone rather than reworded.
  */
 import { MediaSlot } from "@/components/site/media-slot"
-import { CheckPip, Display, Eyebrow } from "@/components/site/primitives"
+import { Display, Eyebrow } from "@/components/site/primitives"
 import { formatNaira } from "@/lib/site"
 
-/** Minimum real price per canonical delivery-mode name, keyed as in `pricing`. */
-export type FormatPrices = Readonly<Record<string, number | undefined>>
+/** One active `DeliveryMode` row, with the real figures the page derived for it. */
+export interface HomeFormat {
+  id: string
+  /** The canonical `DeliveryMode.name`: On-site · One-on-One · Online · Home Training. */
+  name: string
+  /** Minimum `course.pricing[name]` across published courses offering it, or null. */
+  from: number | null
+  /** How many published courses list this mode in `availableModes`. */
+  courseCount: number
+}
 
 /**
- * Static marketing copy, except `mode` — that is the canonical delivery-mode
- * name (`On-site` / `Online` / `Home Training`) the price is looked up under.
- * Photos are the handoff's own Unsplash picks; images.unsplash.com is
- * allowlisted in next.config.ts.
+ * Stock photography, keyed by canonical mode name. Each file was downloaded
+ * and looked at before being placed, and its alt text describes what is
+ * actually in the frame rather than what we would like it to show.
+ *
+ * `One-on-One` is deliberately absent. Nothing in the shipped photography
+ * depicts it, and dropping a picture of a home piano lesson into the slot to
+ * avoid an empty card would be a claim the photo does not support. It falls
+ * through to MediaSlot's designed dark empty state, and so will any mode an
+ * admin adds later.
  */
-const FORMATS = [
-  {
-    name: "At the studio",
-    mode: "On-site",
-    photo:
-      "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=1400&q=70",
-    alt: "Studio lesson room",
-    blurb: "Weekly slot in our Lekki rooms, with instruments and practice space provided.",
-    points: ["Full instrument access", "Practice rooms before class", "Termly recital"],
+const MODE_PHOTOS: Record<string, { src: string; alt: string }> = {
+  "On-site": {
+    src: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=1400&q=70",
+    alt: "A music room with a keyboard, a drum kit and a microphone stand",
   },
-  {
-    name: "Online",
-    mode: "Online",
-    photo:
-      "https://images.unsplash.com/photo-1593697820940-43e77b53a1e1?auto=format&fit=crop&w=1400&q=70",
-    alt: "Student on a video lesson",
-    blurb: "Live video lessons with your tutor, recorded so you can review the tricky parts.",
-    points: ["Lessons recorded for replay", "Digital sheet music", "Reschedule up to 24h before"],
+  Online: {
+    src: "https://images.unsplash.com/photo-1593697820940-43e77b53a1e1?auto=format&fit=crop&w=1400&q=70",
+    alt: "A student playing a digital piano in headphones, with a laptop open beside the keys",
   },
-  {
-    name: "Home training",
-    mode: "Home Training",
-    photo:
-      "https://images.unsplash.com/photo-1540593463874-59835505e99d?auto=format&fit=crop&w=1400&q=70",
-    alt: "Tutor teaching at a home piano",
-    blurb: "Your tutor travels to you anywhere on the Lekki–Ajah axis, at a time you choose.",
-    points: ["Tutor comes to you", "Family and sibling discounts", "Equipment brought along"],
+  "Home Training": {
+    src: "https://images.unsplash.com/photo-1540593463874-59835505e99d?auto=format&fit=crop&w=1400&q=70",
+    alt: "An adult and a young child at an upright piano in a living room",
   },
-] as const
+}
 
-export function HowYouLearn({ prices }: { prices: FormatPrices }) {
+export function HowYouLearn({ formats }: { formats: readonly HomeFormat[] }) {
+  // No active delivery mode means there is nothing true to say here.
+  if (formats.length === 0) return null
+
   return (
     <section className="bg-bfx-ink text-white">
       <div className="bfx-shell py-[88px]">
         <div className="mb-[46px] max-w-[560px]">
           <Eyebrow onInk>HOW YOU LEARN</Eyebrow>
+          {/*
+            Count-free on purpose: an admin can activate or retire a delivery
+            mode at any time, and "Three ways to take a lesson" would then be
+            a lie sitting above four cards.
+          */}
           <Display as="h2" className="text-[clamp(32px,4vw,50px)] leading-[1.08]">
-            Three ways to take a lesson
+            Pick the format that fits your week.
           </Display>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-6">
-          {FORMATS.map((format) => {
-            const from = prices[format.mode]
+        {/*
+          Explicit 1 / 2 / 4 columns rather than auto-fill. With four formats,
+          an auto-fill track leaves a single orphan card on its own row between
+          the three- and four-column breakpoints; 1 / 2 / 4 never does.
+        */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          {formats.map((format) => {
+            const photo = MODE_PHOTOS[format.name]
             return (
-              <div
-                key={format.name}
+              <article
+                key={format.id}
                 className="overflow-hidden rounded-[22px] border border-bfx-line-dark bg-bfx-ink-2"
               >
                 <div className="relative h-[200px] bg-bfx-ink-3">
                   <MediaSlot
-                    src={format.photo}
-                    alt={format.alt}
+                    src={photo?.src}
+                    alt={photo ? photo.alt : ""}
                     glyph="beamed"
                     glyphSize={76}
                     tone="dark"
@@ -81,30 +97,23 @@ export function HowYouLearn({ prices }: { prices: FormatPrices }) {
                 </div>
                 <div className="px-7 pt-[26px] pb-[30px]">
                   <div className="mb-2.5 flex items-center justify-between gap-3">
-                    <div className="text-[21px] font-bold tracking-[-0.01em]">{format.name}</div>
+                    <h3 className="text-[21px] font-bold tracking-[-0.01em]">{format.name}</h3>
                     {/* Omitted entirely when no published course offers this mode. */}
-                    {typeof from === "number" ? (
+                    {format.from !== null ? (
                       <div className="text-[13.5px] font-bold whitespace-nowrap text-bfx-amber">
-                        from {formatNaira(from)}
+                        from {formatNaira(format.from)}
                       </div>
                     ) : null}
                   </div>
-                  <div className="mb-5 text-[15px] leading-[1.6] text-bfx-on-dark-4">
-                    {format.blurb}
-                  </div>
-                  <div className="flex flex-col gap-[9px]">
-                    {format.points.map((point) => (
-                      <div
-                        key={point}
-                        className="flex items-center gap-2.5 text-sm font-medium text-bfx-on-dark"
-                      >
-                        <CheckPip onInk />
-                        {point}
-                      </div>
-                    ))}
-                  </div>
+                  <p className="m-0 text-[15px] leading-[1.6] text-bfx-on-dark-4">
+                    {format.courseCount > 0
+                      ? `${format.courseCount} ${
+                          format.courseCount === 1 ? "course is" : "courses are"
+                        } taught this way.`
+                      : "No course on the current timetable is taught this way."}
+                  </p>
                 </div>
-              </div>
+              </article>
             )
           })}
         </div>

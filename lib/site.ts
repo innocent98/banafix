@@ -1,9 +1,6 @@
 /**
  * Single source of truth for the public site's chrome: navigation, contact
  * channels and the shared CTA target.
- *
- * Contact details are transcribed from the "Banafix Redesign.dc.html" handoff,
- * which matches what the previous footer already shipped.
  */
 
 export const SITE_PHONE_DISPLAY = "0903 856 3822"
@@ -19,15 +16,16 @@ export const SITE_ADDRESS_LINES = [
   "Olokonla Bus Stop, Eti-Osa, Lekki",
 ] as const
 
-export const SITE_HOURS = "Mon–Fri 9am–8pm · Sat 8am–6pm"
+export const SITE_HOURS = "Mon to Fri 9am to 8pm · Sat 8am to 6pm"
 
 /**
- * The header/footer "Book a free trial" CTA. There is no trial booking flow in
- * the app, so it lands on the contact form with the enquiry subject preset —
- * `subject=trial` is read by the contact form to preselect "Booking a free
- * trial", which is one of the options the handoff's own dropdown lists.
+ * The site-wide primary CTA. Banafix does not run free trial lessons, so the
+ * handoff's "Book a free trial" is not used anywhere: the CTA is "Enrol now"
+ * and it sends people to the course catalogue to choose what they are
+ * enrolling in.
  */
-export const TRIAL_HREF = "/contact?subject=trial"
+export const ENROL_HREF = "/courses"
+export const ENROL_LABEL = "Enrol now"
 
 /** The handoff's four-item primary nav, in order. */
 export const PRIMARY_NAV = [
@@ -37,7 +35,7 @@ export const PRIMARY_NAV = [
   { label: "Contact", href: "/contact" },
 ] as const
 
-/** Footer "POPULAR" column — deep-links into the courses filter. */
+/** Footer "POPULAR" column. Deep-links into the courses filter. */
 export const POPULAR_INSTRUMENTS = ["Piano", "Guitar", "Saxophone", "Violin"] as const
 
 export const SOCIAL_LINKS = [

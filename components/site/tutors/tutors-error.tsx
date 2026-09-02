@@ -21,7 +21,7 @@ export function TutorsError() {
         We could not load the tutors
       </Display>
       <p className="bfx-pretty mx-auto mb-7 max-w-[440px] text-[15.5px] leading-[1.6] text-bfx-note-text">
-        Something went wrong on our side, not yours. Try again in a moment — or message us on
+        Something went wrong on our side, not yours. Try again in a moment, or message us on
         WhatsApp at {SITE_PHONE_DISPLAY} and we will tell you who teaches what.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">

@@ -40,7 +40,7 @@ export default function PoliciesPage() {
           </Display>
           <p className="bfx-pretty text-[18px] leading-[1.6] text-bfx-body">
             How we handle your data, what you agree to when you enrol, and how refunds work. All of
-            it on one page — nothing hidden behind a tab.
+            it on one page, nothing hidden behind a tab.
           </p>
         </div>
       </section>
@@ -84,8 +84,8 @@ export default function PoliciesPage() {
               Questions about any of this?
             </h2>
             <p className="bfx-pretty mb-6 max-w-[560px] text-[14.5px] leading-[1.65] text-bfx-note-text">
-              If something here is unclear — especially around refunds or how we hold your data —
-              ask before you enrol. We&apos;d rather answer it twice than have you guess.
+              If something here is unclear, especially around refunds or how we hold your data, ask
+              before you enrol. We&apos;d rather answer it twice than have you guess.
             </p>
             <div className="flex flex-wrap gap-3">
               <PillLink variant="ink" size="md" href="/contact">
