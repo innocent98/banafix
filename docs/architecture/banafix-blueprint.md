@@ -34,6 +34,7 @@
 | Tuition: full/part marking + balance | 🟡 Code | **req #1 built** — Full/Part marker; balance = `course.pricing[mode] − totalPaid` on receipt/modal/table |
 | Edit student record (admin) | 🟡 Code | **req #2 built** — `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled (re-enroll no longer overwrites edits) |
 | Parent records + parent↔child mapping | 🟡 Code | **req #3 built** — `Parent` model + m-n `_ParentChildren` to `Student`; `/admin/parents` CRUD + child picker; `parent.*` audit |
+| Instructor roster (reusable, many courses) | 🟡 Code | **built** — `Instructor` flipped one-to-one → one-to-many (`Course.instructorId`); `/admin/instructors` CRUD; migration dedups roster by name |
 | Birthday automation (students + parents) | 🟡 Code | **req #4 built** — Vercel Cron → `/api/cron/birthdays` (CRON_SECRET); `BirthdayEmailLog` dedup; delivery pending real `RESEND_API_KEY` |
 
 ---

@@ -21,7 +21,8 @@ import {
   Menu,
   X,
   GraduationCap,
-  Users
+  Users,
+  Award
 } from "lucide-react"
 
 interface AdminLayoutProps {
@@ -55,6 +56,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: BookOpen,
       href: "/admin/courses",
       description: "Manage course catalog"
+    },
+    {
+      id: "instructors",
+      label: "Instructors",
+      icon: Award,
+      href: "/admin/instructors",
+      description: "Instructor roster"
     },
     {
       id: "enrollments",
