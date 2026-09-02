@@ -43,7 +43,11 @@ add a management page.
 - **Not verified live:** authed HTTP request cycle (types + build + migration scratch-test cover it).
 
 ## Follow-ups
-- Course create/edit UI could add an instructor **picker** (assign from roster) alongside the
-  existing inline create.
+- ~~Course create/edit UI could add an instructor **picker** (assign from roster).~~ **Done
+  (2026-09-02, branch `ui-redesign`):** added `components/admin/instructor-picker.tsx` (roster
+  dialog with search) wired into both the create and edit course "Instructor" tabs ("Select
+  Existing Instructor" / "Change"). Also fixed a latent bug — `POST /api/admin/courses` ignored
+  the instructor entirely, so inline-created instructors were never persisted on course create;
+  it now accepts `instructorId` (assign existing) or inline `instructor` data (create + assign).
 - If two genuinely different instructors share a name, the migration's name-dedup would merge them —
   vanishingly unlikely at this scale, but worth an admin review of the roster after the prod migration.

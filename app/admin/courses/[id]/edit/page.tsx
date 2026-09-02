@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { InstructorFormModal } from "@/components/admin/instructor-form-modal"
+import { InstructorPicker, type RosterInstructor } from "@/components/admin/instructor-picker"
 import {
   ArrowLeft,
   Save,
@@ -194,6 +195,7 @@ export default function EditCoursePage() {
 
   // Instructor modal state
   const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false)
+  const [isInstructorPickerOpen, setIsInstructorPickerOpen] = useState(false)
   const [editingInstructor, setEditingInstructor] = useState<any>(null)
 
   useEffect(() => {
@@ -317,6 +319,11 @@ export default function EditCoursePage() {
 
   const handleInstructorSubmit = async (instructorData: any) => {
     await updateInstructor(instructorData)
+  }
+
+  // Assign an existing roster instructor to this course (PUT accepts instructorId).
+  const handleSelectExistingInstructor = async (instructor: RosterInstructor) => {
+    await updateInstructor({ instructorId: instructor.id })
   }
 
   const addCurriculumModule = async () => {
@@ -1045,14 +1052,24 @@ export default function EditCoursePage() {
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenInstructorModal(course.instructor)}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsInstructorPickerOpen(true)}
+                            >
+                              <User className="h-4 w-4 mr-2" />
+                              Change
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenInstructorModal(course.instructor)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                          </div>
                         </div>
 
                         {course.instructor.bio && (
@@ -1089,13 +1106,23 @@ export default function EditCoursePage() {
                         Add an instructor to provide teaching expertise for this course.
                         Students will be able to see instructor information and credentials.
                       </p>
-                      <Button
-                        onClick={() => handleOpenInstructorModal()}
-                        className="min-w-[140px]"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Instructor
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsInstructorPickerOpen(true)}
+                          className="min-w-[180px]"
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Select Existing Instructor
+                        </Button>
+                        <Button
+                          onClick={() => handleOpenInstructorModal()}
+                          className="min-w-[140px]"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add New
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1499,6 +1526,12 @@ export default function EditCoursePage() {
           onSubmit={handleInstructorSubmit}
           initialData={editingInstructor}
           isLoading={isSaving}
+        />
+
+        <InstructorPicker
+          isOpen={isInstructorPickerOpen}
+          onClose={() => setIsInstructorPickerOpen(false)}
+          onSelect={handleSelectExistingInstructor}
         />
       </div>
     </AdminLayout>
