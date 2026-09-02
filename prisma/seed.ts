@@ -83,26 +83,30 @@ async function main() {
     },
   })
 
-  // Create instructor for the sample course
-  await prisma.instructor.upsert({
-    where: { courseId: sampleCourse.id },
-    update: {},
-    create: {
-      courseId: sampleCourse.id,
-      name: 'John Adebayo',
-      bio: 'Professional guitarist with 15+ years of teaching experience. Specializes in acoustic and electric guitar across multiple genres.',
-      avatar: '/instructor-john.jpg',
-      credentials: [
-        'Certified Music Educator',
-        'Berklee Graduate',
-        '500+ Students Taught',
-      ],
-      rating: 4.9,
-      experience: '15 years',
-      availability: 'Mon-Fri: 9AM-6PM, Sat: 10AM-4PM',
-      verified: true,
-    },
+  // Create a roster instructor and assign the sample course (idempotent: only if unassigned)
+  const sampleWithInstructor = await prisma.course.findUnique({
+    where: { id: sampleCourse.id },
+    select: { instructorId: true },
   })
+  if (!sampleWithInstructor?.instructorId) {
+    await prisma.instructor.create({
+      data: {
+        name: 'John Adebayo',
+        bio: 'Professional guitarist with 15+ years of teaching experience. Specializes in acoustic and electric guitar across multiple genres.',
+        avatar: '/instructor-john.jpg',
+        credentials: [
+          'Certified Music Educator',
+          'Berklee Graduate',
+          '500+ Students Taught',
+        ],
+        rating: 4.9,
+        experience: '15 years',
+        availability: 'Mon-Fri: 9AM-6PM, Sat: 10AM-4PM',
+        verified: true,
+        courses: { connect: { id: sampleCourse.id } },
+      },
+    })
+  }
 
   // Create curriculum modules for the sample course
   const curriculumModules = [

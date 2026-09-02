@@ -77,18 +77,20 @@ model Course {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  instructor  Instructor?
+  instructorId String?
+  instructor   Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   curriculum  CurriculumModule[]
   faqs        CourseFAQ[]
   enrollments Enrollment[]
 
+  @@index([instructorId])
   @@map("courses")
 }
 
 // Instructor model
+// Reusable instructor roster — one instructor can teach many courses.
 model Instructor {
   id           String @id @default(cuid())
-  courseId     String @unique
   name         String
   bio          String?
   avatar       String?
@@ -97,8 +99,10 @@ model Instructor {
   experience   String?  // "15 years"
   availability String?  // "Mon-Fri: 9AM-6PM"
   verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courses      Course[]
 
   @@map("instructors")
 }

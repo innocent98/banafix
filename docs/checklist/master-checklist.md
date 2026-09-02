@@ -3,7 +3,16 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-01):** Modules — ✅ 9 done · all four requested modules + foundation shipped (email delivery pending a real `RESEND_API_KEY`)
+**Snapshot (2026-09-02):** Modules — ✅ 10 done · four requested modules + foundation + instructor roster (email delivery pending a real `RESEND_API_KEY`)
+
+## ✅ Instructor roster  *(branch `instructor-roster`)*
+- [x] Flip `Instructor` one-to-one → reusable one-to-many (`Course.instructorId` FK `onDelete:SetNull`; `Instructor.courses[]`); drop `instructors.courseId`
+- [x] Data-preserving migration `20260902114015_instructor_roster` — backfill from old `courseId` + **dedup roster by normalized name** (keep highest-rated, repoint courses)
+- [x] Roster CRUD: `GET/POST /api/admin/instructors`, `GET/PATCH/DELETE /api/admin/instructors/[id]`; audit `instructor.create|update|delete`; course-set reassignment in PATCH
+- [x] `/admin/instructors` page + modal (course multi-select) + nav item
+- [x] Rewired `PUT /api/admin/courses/[id]/instructor` (assign existing / update / create+assign / unassign); fixed public `/api/instructors` + dashboard count + seed
+- [x] Verify: dup-name migration on ephemeral Postgres (3→2, courses repointed, no loss); `tsc` 0 + build
+- [~] Live authed HTTP-route run not executed (types + build + migration scratch-test cover it)
 
 Legend: `[x]` done+verified · `[~]` shipped-but-unproven (note why) · `[ ]` not started
 
