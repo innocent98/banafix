@@ -20,8 +20,8 @@
   --accent-foreground: oklch(0.145 0 0); /* Dark text on gold */
   --destructive: oklch(0.577 0.245 27.325); /* Red-600 */
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.922 0 0); /* Grey-200 for borders */
-  --input: oklch(1 0 0); /* White input backgrounds */
+  --border: oklch(0.90 0 0); /* Grey-250 for section/card borders */
+  --input: oklch(0.845 0 0); /* Grey-350 — control borders (inputs) + switch off-track; must be visible on white */
   --ring: oklch(0.708 0.15 258.338); /* Blue ring for focus */
 
   /* Added Banafix-specific color tokens */

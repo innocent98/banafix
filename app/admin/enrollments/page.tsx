@@ -30,9 +30,12 @@ import {
   Receipt,
   Mail,
   Pencil,
+  UserPlus,
+  BadgeCheck,
 } from "lucide-react"
 import { TuitionPaymentModal } from "@/components/admin/tuition-payment-modal"
 import { StudentEditModal } from "@/components/admin/student-edit-modal"
+import { StudentRegistrationModal } from "@/components/admin/student-registration-modal"
 
 interface Enrollment {
   id: string
@@ -53,6 +56,7 @@ interface Enrollment {
     title: string
     instrument: string
     level: string
+    location?: string
     sessionStartDate?: string
     pricing?: Record<string, number> | null
     instructor?: {
@@ -93,6 +97,8 @@ export default function EnrollmentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [paymentFilter, setPaymentFilter] = useState("all")
+  const [locationFilter, setLocationFilter] = useState("all")
+  const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editStudentId, setEditStudentId] = useState<string | null>(null)
@@ -112,7 +118,7 @@ export default function EnrollmentsPage() {
 
   useEffect(() => {
     filterEnrollments()
-  }, [enrollments, searchTerm, statusFilter, paymentFilter])
+  }, [enrollments, searchTerm, statusFilter, paymentFilter, locationFilter])
 
   const loadEnrollments = async () => {
     try {
@@ -178,6 +184,11 @@ export default function EnrollmentsPage() {
     // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(enrollment => enrollment.status === statusFilter)
+    }
+
+    // Location filter (by the enrollment's course location)
+    if (locationFilter !== "all") {
+      filtered = filtered.filter(enrollment => enrollment.course.location === locationFilter)
     }
 
     // Payment filter
@@ -252,6 +263,25 @@ export default function EnrollmentsPage() {
     setShowPaymentModal(true)
   }
 
+  const handleMarkPaid = async (enrollment: Enrollment) => {
+    if (!confirm(`Mark the application fee as paid (cash) for ${enrollment.student.firstName} ${enrollment.student.lastName}? This enrolls the student.`)) return
+    try {
+      const token = localStorage.getItem("admin_token")
+      const res = await fetch(`/api/admin/enrollments/${enrollment.id}/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentMethod: "cash" }),
+      })
+      if (res.ok) loadEnrollments()
+      else {
+        const d = await res.json().catch(() => ({}))
+        alert(d.message || "Failed to mark fee paid")
+      }
+    } catch {
+      alert("Failed to mark fee paid")
+    }
+  }
+
   const sendReceipt = async (enrollmentId: string, type: 'application' | 'tuition') => {
     try {
       const token = localStorage.getItem("admin_token")
@@ -299,6 +329,10 @@ export default function EnrollmentsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button onClick={() => setShowRegisterModal(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Register Student
+            </Button>
             <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Export Data
@@ -392,6 +426,17 @@ export default function EnrollmentsPage() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="enrolled">Enrolled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {Array.from(new Set(enrollments.map(e => e.course.location).filter(Boolean))).map((loc) => (
+                    <SelectItem key={loc as string} value={loc as string}>{loc as string}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
@@ -537,6 +582,17 @@ export default function EnrollmentsPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            {!enrollment.applicationPaid && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMarkPaid(enrollment)}
+                                title="Mark application fee paid (cash)"
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <BadgeCheck className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -673,6 +729,12 @@ export default function EnrollmentsPage() {
         onSaved={() => {
           loadEnrollments() // Refresh so edited names/details show
         }}
+      />
+
+      <StudentRegistrationModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onRegistered={() => loadEnrollments()}
       />
     </AdminLayout>
   )

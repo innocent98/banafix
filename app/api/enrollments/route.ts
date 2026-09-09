@@ -294,6 +294,7 @@ export async function GET(req: NextRequest) {
               title: true,
               instrument: true,
               level: true,
+              location: true,
               sessionStartDate: true,
               pricing: true,
               instructor: {

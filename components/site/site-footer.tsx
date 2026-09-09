@@ -11,8 +11,35 @@
  */
 
 import Link from "next/link"
+import { Facebook, Instagram, Youtube } from "lucide-react"
 
 import { Wordmark } from "@/components/site/wordmark"
+
+// The X (formerly Twitter) mark isn't in lucide; render it inline.
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+    </svg>
+  )
+}
+
+// Map a SOCIAL_LINKS entry name to its brand icon.
+function socialIcon(name: string, className: string) {
+  switch (name.toLowerCase()) {
+    case "facebook":
+      return <Facebook className={className} />
+    case "instagram":
+      return <Instagram className={className} />
+    case "youtube":
+      return <Youtube className={className} />
+    case "x":
+    case "twitter":
+      return <XIcon className={className} />
+    default:
+      return null
+  }
+}
 import {
   ENROL_HREF,
   ENROL_LABEL,
@@ -59,9 +86,9 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={social.name}
-                className="grid h-[38px] w-[38px] place-items-center rounded-[11px] bg-white/[0.08] text-sm font-bold text-bfx-on-dark transition-colors hover:bg-white/[0.16]"
+                className="grid h-[38px] w-[38px] place-items-center rounded-[11px] bg-white/[0.08] text-bfx-on-dark transition-colors hover:bg-white/[0.16]"
               >
-                {social.label}
+                {socialIcon(social.name, "h-[18px] w-[18px]")}
               </a>
             ))}
           </div>

@@ -3,7 +3,17 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-02):** Modules — ✅ 11 done · four requested modules + foundation + instructor roster + the public UI redesign (email delivery pending a real `RESEND_API_KEY`)
+**Snapshot (2026-09-09):** Modules — ✅ 12 done · four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration (email delivery pending a real `RESEND_API_KEY`)
+
+## ✅ Admin UX polish + walk-in registration  *(branch `ui-redesign`, 2026-09-09)*
+- [x] Fixed invisible input borders + off-toggle (root cause: `--input` was white) — global token fix in `app/globals.css`; larger/clearer `Switch`; taller `Input`; `DialogContent` scroll cap so popups don't cramp
+- [x] Real footer social icons (lucide + inline X) replacing letters — `components/site/site-footer.tsx`
+- [x] Walk-in student registration: `POST /api/admin/enrollments` (captures full info; optional cash fee) + `StudentRegistrationModal` + "Register Student" button
+- [x] Mark application fee paid (cash) for existing pending enrollments: `POST /api/admin/enrollments/[id]/mark-paid` + row action; audited `enrollment.admin_create` / `application.cash_paid`
+- [x] Filter enrollments by location (`course.location`) on `/admin/enrollments` + `location` added to list-GET select
+- [x] Verify: `tsc` 0 + build
+- [~] Visual + live authed-route confirmation pending on user side (points at prod DB)
+- SOPs: `docs/sop/admin-ui-polish.md`, `docs/sop/walk-in-registration.md`
 
 ## ✅ Instructor roster  *(branch `instructor-roster`)*
 - [x] Flip `Instructor` one-to-one → reusable one-to-many (`Course.instructorId` FK `onDelete:SetNull`; `Instructor.courses[]`); drop `instructors.courseId`
