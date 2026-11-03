@@ -69,3 +69,51 @@ export function getCourseStatus(course: {
     status: expired ? 'expired' : course.isPublished ? 'published' : 'draft'
   }
 }
+/**
+ * Normalise a curriculum module's optional timeframe ("Weeks 1-2"). Blank,
+ * missing or non-string input is stored as null so the public curriculum can
+ * simply omit the label instead of rendering an empty one.
+ */
+export function normalizeWeeks(input: unknown): string | null {
+  if (typeof input !== "string") return null
+  const trimmed = input.trim()
+  return trimmed === "" ? null : trimmed
+}
+
+function cleanText(input: unknown): string {
+  return typeof input === "string" ? input.trim() : ""
+}
+
+function cleanTextList(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  return input.map(cleanText).filter((item) => item !== "")
+}
+
+/**
+ * Turn the curriculum array the admin create form submits into rows ready for
+ * `CurriculumModule`. Untitled modules are dropped; the survivors are numbered
+ * and ordered from 1, matching how `POST .../curriculum` numbers a single add.
+ */
+export function buildCurriculumRows(input: unknown) {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((m): m is Record<string, unknown> => typeof m === "object" && m !== null)
+    .map((m) => ({
+      title: cleanText(m.title),
+      weeks: normalizeWeeks(m.weeks),
+      outcomes: cleanTextList(m.outcomes),
+      tasks: cleanTextList(m.tasks),
+    }))
+    .filter((m) => m.title !== "")
+    .map((m, i) => ({ module: i + 1, order: i + 1, ...m }))
+}
+
+/** Same for `CourseFAQ`: a row needs both a question and an answer. */
+export function buildFaqRows(input: unknown) {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((f): f is Record<string, unknown> => typeof f === "object" && f !== null)
+    .map((f) => ({ question: cleanText(f.question), answer: cleanText(f.answer) }))
+    .filter((f) => f.question !== "" && f.answer !== "")
+    .map((f, i) => ({ ...f, order: i + 1 }))
+}

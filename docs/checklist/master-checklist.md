@@ -3,7 +3,71 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-09-09):** Modules — ✅ 12 done · four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration (email delivery pending a real `RESEND_API_KEY`)
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams planned from the 2026-11-03 client meeting (below)
+
+## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(planned, nothing built)*
+Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
+
+### Stream 0 — Unblock operations (config, not code)
+- [ ] Real `RESEND_API_KEY` + verify `banafix.com` sender domain (blocks every email)
+- [ ] `CRON_SECRET` in Vercel; direct DB URL + prod snapshot, then deploy pending migrations
+- [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
+- [ ] Official contact + feedback email addresses and forwarding
+
+### Stream 1 — Quick wins (independent) — ✅ built 2026-11-03, branch `feature/per-class-copy-and-modules` (SOP: [`per-class-copy-and-modules`](../sop/per-class-copy-and-modules.md))
+- [x] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
+- [x] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
+- [x] Add Vitest for pure logic (no test runner exists today)
+- [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
+
+### Stream 2 — Location + offering model  *(foundation for 3–5)*
+- [ ] `Location` entity (physical/online, assessment fee, active) + admin CRUD; seed from `lib/locations.ts` + `lib/application-fee.ts` tiers
+- [ ] `CourseOffering` (course × location × format) + `OfferingRate` (per-class price per duration 45/60) + classes-per-week options
+- [ ] `Material` (course-level books/materials: name, price, required)
+- [ ] Staged migration: legacy courses → offerings **inactive** until per-class rates are set (legacy lump prices are not per-class)
+- [ ] Public flow: location → course → format → per-class rate; admin course form Offerings + Materials tabs
+- [ ] Retire seat enforcement (D9)
+
+### Stream 3 — Assessment-first admission  *(supersedes D1)*
+- [ ] Status machine: `pending → assessment_paid → assessment_scheduled → assessed → plan_agreed → enrolled` (+ `cancelled`); legacy `enrolled` rows grandfathered
+- [ ] Webhook / cash mark-paid → `assessment_paid` (no longer `enrolled`, no seat decrement)
+- [ ] `Assessment` entity: arrangement (home/centre/online), preferred date+time, scheduled slot, assessor, result (level, notes), editable + audited
+- [ ] Plan step: offering, duration, classes/week, planned class count, rate snapshot
+- [ ] Rename "application fee" → "assessment fee" in UI, emails, receipts, policy text; fee stays non-refundable
+- [ ] Admin pipeline view (stage filters, schedule + result forms)
+
+### Stream 4 — Scheduling
+- [ ] Structured instructor availability (weekly slots per location/online) + `InstructorCourse` many-to-many
+- [ ] `ClassSession` (enrollment, instructor, start, duration, status) + transactional conflict prevention
+- [ ] Student preferences: days, time bands, frequency; admin timetable + assignment
+
+### Stream 5 — Per-class tuition
+- [ ] Invoice = classes × rate snapshot; paid status per class; partial payments
+- [ ] Manual recording (cash/transfer/POS) kept; online tuition via Paystack; materials as line items
+- [ ] Receipts + balance rewritten (replaces D3)
+
+### Stream 6 — Registration + parents
+- [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
+
+### Stream 7 — Communications
+- [ ] Channel-agnostic outbox + templates + triggers (ack, payment, assessment scheduled, enrolment, new-month, birthdays incl. parents)
+- [ ] Admin announcements; `Feedback` model with testimonial-consent flag
+- [ ] WhatsApp/SMS provider plugged in later (John's choice; cost comparison to research)
+
+### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*
+- [ ] Models + admin CRUD: `Testimonial` (name, text, optional video, publish-permission flag), `TrustedPartner` (name, logo), `SiteEvent` (title, date, location, registration link), `SiteStat` (label, value; real figures only)
+- [ ] Public home / testimonials / events render from the DB; honest empty states, no invented content; remove hardcoded `testimonials.ts` / `events.ts` / trusted-by constants
+- [ ] Remove "Lagos Music Academy" overreach; stats show only entered values
+- [ ] Team-review readiness: noindex/preview guard decision (John wants staff to review before rollout)
+
+### Wave plan (lead session)
+- **Wave 1 (now, ≤3 sessions):** S1 quick wins · S2+3 assessment-first admission · S8 site content
+- **Wave 2 (after S2 lands):** S4 scheduling · S5 per-class tuition · S7 communications (starts when S3's transitions exist as triggers)
+- **Wave 3 (after S3):** S6 registration + parents
+- Sub-sessions open PRs, never merge; merging waits for Adebayo's "merge #N"
+
+### John's data entry (via admin, once Streams 2/4 ship — not code blockers)
+- [ ] Locations + assessment fee per location · [ ] Offerings and per-class rates (incl. 45 vs 60 min) · [ ] Which courses need materials · [ ] Instructor availability · [ ] Team review of the site
 
 ## ✅ Admin UX polish + walk-in registration  *(branch `ui-redesign`, 2026-09-09)*
 - [x] Fixed invisible input borders + off-toggle (root cause: `--input` was white) — global token fix in `app/globals.css`; larger/clearer `Switch`; taller `Input`; `DialogContent` scroll cap so popups don't cramp
@@ -188,7 +252,13 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [~] **Live-webhook verification** — the `status='enrolled'` write, `AuditLog` row, and student-sourced receipt fields are verified via scratch-DB assertions + `tsc`/build + code review only. **Not exercised against a real Paystack test-mode charge** (the local harness's fabricated reference fails Paystack's own verify step before this code path runs). Run one real test-mode charge before production use to close this gap.
 
 ## Decisions log
-- [x] **D1** — paying = enrollment (no gate); webhook sets `enrolled`; fee non-refundable
+- [x] **D1** — paying = enrollment (no gate); webhook sets `enrolled`; fee non-refundable — **⚠️ SUPERSEDED by D6 (2026-11-03)**
+- [x] **D6** (2026-11-03) — paying the fee buys an *assessment*, not enrolment; admission follows assessment. Existing `enrolled` rows grandfathered. Fee stays non-refundable
+- [x] **D7** — `CourseOffering` (course × location × format) replaces `Course.pricing/availableModes/location`
+- [x] **D8** — price is per class, stored per duration (`OfferingRate`, 45/60 min)
+- [x] **D9** — seat counting retired (columns kept, not enforced)
+- [x] **D10** — messaging behind a channel interface; email now, WhatsApp/SMS later
+- [x] **D11** — all commercial config (fees, offerings, rates, materials, availability) is admin-editable data, never hardcoded
 - [x] **D2** — introduce `Student` person entity (unique email)
 - [x] **D4** — Vercel Cron for birthdays
 - [x] **D3** — expected-total-tuition = `course.pricing[mode]` (decided; consumed by the future tuition module)

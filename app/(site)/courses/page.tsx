@@ -90,9 +90,9 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       <section className="bfx-shell pb-[34px] pt-16">
         <div className="max-w-[640px]">
           <Eyebrow>COURSES</Eyebrow>
-          {/* The handoff heading reads "Twelve-week programmes". `duration` is
-              a real per-course field and varies, so the copy states the shape
-              of a programme without asserting a length the data contradicts. */}
+          {/* The handoff heading read "Twelve-week programmes". A course is a set
+              of modules (normally twelve) with no fixed length in weeks, so
+              the heading states the shape of a programme without a duration. */}
           <Display as="h1" className="mb-4 text-[clamp(38px,5vw,62px)] leading-none text-bfx-ink">
             Structured programmes
           </Display>

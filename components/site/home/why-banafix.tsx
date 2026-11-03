@@ -18,7 +18,7 @@ const REASONS = [
   {
     num: "02",
     title: "Progress you can hear",
-    body: "Twelve-week programmes with clear milestones, a termly recital, and written feedback after every fourth lesson.",
+    body: "Programmes of twelve modules with clear milestones, a termly recital, and written feedback after every fourth lesson.",
   },
   {
     num: "03",

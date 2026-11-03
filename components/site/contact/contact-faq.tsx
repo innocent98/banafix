@@ -37,7 +37,7 @@ const FAQS = [
   },
   {
     q: "How do payments work?",
-    a: "₦5,000 registration holds your spot. The course fee is billed the week before classes begin, and can be split across two payments.",
+    a: "₦5,000 registration holds your spot. Lessons are charged per class, and the rate depends on the course and the format you pick.",
   },
 ] as const
 
