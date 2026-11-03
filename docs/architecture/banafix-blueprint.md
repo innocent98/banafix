@@ -36,7 +36,7 @@
 | Admin "new paid assessment application" notice | 🟡 Code | Webhook → `ADMIN_EMAIL`/`SUPPORT_EMAIL` (subject `New paid assessment application: …`) |
 | **Email delivery (all of the above)** | ⚠️ **Blocked** | `RESEND_API_KEY` is a placeholder (401); `banafix.com` sender domain unverified — **unchanged by this shipment** |
 | Walk-in registration + cash fee | 🟡 Code | `POST /api/admin/enrollments` now picks location → course → optional offering; `feePaid` moves `pending → assessment_paid` (not `enrolled`). See `docs/sop/walk-in-registration.md` |
-| **Per-class tuition ledger** (Stream 5) | 🟡 Code | `TuitionCharge` rows per enrollment (classes at the rate snapshot + required/optional materials + later top-ups; voided, never deleted). Balance = charges − counted payments; `classesCovered` derived by a pure helper. Created when the plan is agreed. Migration `20261103180000_per_class_tuition` proven on an ephemeral Postgres 🟢. **Legacy rows (no plan, no charges) keep the old `Course.pricing` balance** (`lib/tuition-balance.ts`) |
+| **Per-class tuition ledger** (Stream 5) | 🟡 Code | `TuitionCharge` rows per enrollment (classes at the rate snapshot + required/optional materials + later top-ups; voided, never deleted). Balance = charges − counted payments; `classesCovered` derived by a pure helper. Created when the plan is agreed. Migration `20261103190000_per_class_tuition` proven on an ephemeral Postgres 🟢. **Legacy rows (no plan, no charges) keep the old `Course.pricing` balance** (`lib/tuition-balance.ts`) |
 | Tuition payment: manual (cash / transfer / POS / card / cheque / mobile money / other) + **online Paystack link** + receipts | 🟡 Code | `POST …/tuition` (manual, partial payments, overpayment guard), `POST …/tuition/payment-link` (admin shares the link), Paystack webhook `tuition` branch (idempotent, amount verified). Per-class PDF/email receipts, student copy + admin copy, point-in-time. Proven on the **local Paystack mock** 🟢 (73 checks); **real Paystack test charge NOT done** |
 | Admin payments dashboard | 🟡 Code | `/admin/payments`: payments (filters: location, method, status, search, dates), outstanding view, CSV export; `GET /api/admin/payments` |
 | Migration 2 — drop dormant `Enrollment` identity columns | ❌ **Deferred** | Unchanged: nullable, unread, still in DB and `schema.prisma` |
@@ -197,6 +197,7 @@ stateDiagram-v2
 
 | Move | Who / what triggers it | Route / code |
 | --- | --- | --- |
+| `assessment_paid → assessed` | admin "reuse latest assessment" (`POST /api/admin/enrollments/[id]/assessment/reuse`); only meaningful for a student already assessed | route |
 | `pending → assessment_paid` | Paystack `charge.success`; admin cash mark-paid; walk-in `feePaid` | `settleAssessmentFee`; `POST /api/admin/enrollments/[id]/mark-paid`; `POST /api/admin/enrollments` |
 | `assessment_paid → assessment_scheduled` | Admin sets a slot | `POST …/[id]/assessment` (also walk-in with `scheduleAssessmentAt`) |
 | `assessment_scheduled → assessed` | Admin records result | `PATCH …/[id]/assessment` |
@@ -310,7 +311,9 @@ erDiagram
     ApplicationPayment {
       string id PK
       int amount
-      string status "pending|completed|failed|refunded"
+      string status "pending|completed|failed|superseded|duplicate|refunded"
+      datetime refundedAt
+      string refundedBy
       string paystackReference UK
       string receiptNumber UK
     }
@@ -388,6 +391,8 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | GET | `/api/enrollments` | **JWT (working tree)** / public (HEAD `713a3b2`) | Admin list incl. `location`, `offering{deliveryMode}`, latest `assessment`. ⚠️ the working tree adds `withAuth` and a `limit` clamp (1–200); uncommitted when this was written — **confirm against the merged code** | 🟡 |
 | GET | `/api/enrollments/[id]` | **JWT (working tree)** / public (HEAD) | Enrollment detail incl. student PII (same working-tree change as above; nothing in the app called it) | 🟡 |
 | GET | `/api/enrollments/verify` | public | Confirm payment for success page (read-only) | 🟡 |
+| POST | `/api/admin/application-payments/[id]/refund` | JWT | Records a `duplicate` fee payment as refunded (the refund itself is done in the Paystack dashboard). Audit `application.duplicate_refunded` | 🟡 |
+| POST | `/api/admin/enrollments/[id]/assessment/reuse` | JWT | Copies the student's latest completed assessment (or the given `sourceAssessmentId`) and moves `assessment_paid → assessed`. Audit `assessment.reuse` | 🟡 |
 | POST | `/api/webhooks/paystack` | signature | `charge.success` → assessment fee (`pending → assessment_paid`) **or online tuition** (looked up by reference; `plan_agreed → enrolled`) + audit + emails | 🟢 mock + sig / ⚠️ real Paystack not exercised (§10) |
 | POST | `/api/admin/enrollments` | JWT | Walk-in registration: `locationId` + `courseId` required, `offeringId` optional (must match course + location), `arrangement` default `CENTRE`, `feePaid`, optional `scheduleAssessmentAt` (needs `feePaid`). Audit `enrollment.admin_create` (+ `assessment.schedule`) | 🟡 |
 | GET | `/api/admin/enrollments/[id]` | JWT | Everything the "Assessment & plan" panel needs: `{enrollment, assessments[] (newest first), offerings[] with rates}`; legacy rows return empty/null, not an error | 🟡 |
@@ -447,7 +452,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **D10** | Messaging | ✅ Decided, **not built** | Behind a channel interface; email now, WhatsApp/SMS later (Stream 7) |
 | **D11** | Commercial config | ✅ DECIDED + BUILT | Assessment fee per location, offerings, rates, materials are all admin-editable data; `lib/application-fee.ts` (hardcoded tiers) is deleted; `lib/locations.ts` survives only as seed input |
 
-**Builder decisions B1–B13** (left open by the spec; recorded in `docs/sop/assessment-first-admission.md`): B1 `Location.slug`, chooser = `?location=<slug>`; B2 `Assessment` uses `preferredDate` + `preferredTimeBand`; B3 `Assessment.address/landmark` for home visits; B4 public enrol creates `Assessment{requested}` with the pending enrollment; B5 `assessed → assessment_scheduled` re-assessment move; B6 "offerable" predicate; B7 walk-in `offeringId` optional; B8 public POST requires `offeringId`; B9 duplicate guard blocks only non-`pending`, non-`cancelled`; B10 `PAYSTACK_BASE_URL` override for the local mock; B11 seat enforcement removed; B12 webhook payment + enrollment move in one transaction; B13 DB defaults on deprecated `Course` NOT NULL columns.
+**D12 (2026-11-03, Adebayo): the assessment fee is charged ONCE PER STUDENT** (legacy payments count; covered applications start at `assessment_paid`; a payment that arrives anyway is stored `duplicate` and refunded by hand). **Builder decisions B1–B17** (left open by the spec; recorded in `docs/sop/assessment-first-admission.md`): B1 `Location.slug`, chooser = `?location=<slug>`; B2 `Assessment` uses `preferredDate` + `preferredTimeBand`; B3 `Assessment.address/landmark` for home visits; B4 public enrol creates `Assessment{requested}` with the pending enrollment; B5 `assessed → assessment_scheduled` re-assessment move; B6 "offerable" predicate; B7 walk-in `offeringId` optional; B8 public POST requires `offeringId`; B9 duplicate guard blocks only non-`pending`, non-`cancelled`; B10 `PAYSTACK_BASE_URL` override for the local mock; B11 seat enforcement removed; B12 webhook payment + enrollment move in one transaction; B13 DB defaults on deprecated `Course` NOT NULL columns.
 
 **Open business rule (the client's):** is the assessment fee charged once per student or once per course application? Default until answered: once per application (today's behaviour).
 
@@ -491,7 +496,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **Real Paystack test-mode charge** (webhook with a real reference, receipt/ack emails) | — | ⚠️ **NOT DONE** |
 | Email delivery | send functions read; delivery blocked on Resend key (pre-existing) | 🟡 CODE / ⚠️ UNVERIFIED |
 | Migration 2 (drop dormant `Enrollment` identity columns) / Migration 3 (drop deprecated `Course` columns) | not built | 🔵 INTENT (deferred) |
-| **Migration `20261103180000_per_class_tuition`** — legacy rows untouched, plan rows backfilled with one CLASSES charge each, balance preserved, backfill idempotent, no schema drift | `scripts/verify-tuition-migration.sh` (ephemeral Postgres, legacy fixture) | 🟢 LIVE (local) |
+| **Migration `20261103190000_per_class_tuition`** — legacy rows untouched, plan rows backfilled with one CLASSES charge each, balance preserved, backfill idempotent, no schema drift | `scripts/verify-tuition-migration.sh` (ephemeral Postgres, legacy fixture) | 🟢 LIVE (local) |
 | **Tuition: plan → charges, manual partial payments, overpayment guard, online link → webhook, replay, 3 concurrent, amount/currency/metadata mismatch, unknown reference, late payment on cancelled, failed→paid, top-up at today's rate, void, legacy untouched, point-in-time receipt, dashboard filters, 401s** | `scripts/test-tuition-e2e.mjs` against the real routes + local Paystack mock (73 checks); captures in `docs/captures/stream5/` | 🟢 mock / ⚠️ not real Paystack |
 | Ledger maths (classes covered, credit, as-of, amount check, legacy parity, CSV injection) | `npm test` | 🟢 LIVE |
 | **Real Paystack test-mode charge for tuition** | — | ⚠️ **NOT DONE** (John's keys) |

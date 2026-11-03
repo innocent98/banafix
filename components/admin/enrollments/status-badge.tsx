@@ -26,3 +26,22 @@ export function StatusBadge({ status, paidInFull }: { status: string; paidInFull
     </Badge>
   )
 }
+
+const PAYMENT_STYLES: Record<string, { label: string; className: string }> = {
+  completed: { label: "Paid", className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/40" },
+  pending: { label: "Pending", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-900/40" },
+  failed: { label: "Failed", className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40" },
+  superseded: { label: "Superseded", className: "bg-muted text-muted-foreground" },
+  duplicate: { label: "Duplicate - refund needed", className: "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40" },
+  refunded: { label: "Refunded", className: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700" },
+}
+
+/** Assessment-fee payment status; unknown values are shown as-is. */
+export function PaymentStatusBadge({ status }: { status: string }) {
+  const style = PAYMENT_STYLES[status]
+  return (
+    <Badge variant="outline" className={style?.className}>
+      {style?.label ?? status}
+    </Badge>
+  )
+}

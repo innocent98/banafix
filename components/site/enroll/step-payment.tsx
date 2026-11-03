@@ -56,6 +56,9 @@ export function StepPayment({
         title="Agree and pay the assessment fee"
         sub={`${formatNaira(applicationFee)} today. This is the only amount charged on this page, and it is non-refundable.`}
       />
+      <p className="-mt-3 mb-6 text-[14px] leading-[1.6] text-bfx-muted">
+        If you have paid the assessment fee before, you will not be charged again.
+      </p>
 
       <div className="mb-6 flex flex-col gap-[11px]">
         <ConsentRow

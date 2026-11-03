@@ -4,8 +4,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Users, Filter, Eye, CreditCard, Mail, Pencil, BadgeCheck, ClipboardList } from "lucide-react"
 import { computeTuitionBalance, type TuitionBalance } from "@/lib/tuition-balance"
 import { COUNTED_STATUSES, toLedgerCharges } from "@/lib/tuition-ledger"
+import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "./status-badge"
-import { enrollmentLocationName, formatCurrency, formatDate, type Enrollment } from "./types"
+import {
+  duplicatePayments,
+  enrollmentLocationName,
+  formatCurrency,
+  formatDate,
+  needsRefund,
+  type ApplicationPayment,
+  type Enrollment,
+} from "./types"
 
 interface Props {
   enrollments: Enrollment[]
@@ -16,6 +25,7 @@ interface Props {
   onAssessment: (e: Enrollment) => void
   onPayments: (e: Enrollment) => void
   onSendReceipt: (enrollmentId: string, type: "application" | "tuition") => void
+  onRefund: (payment: ApplicationPayment) => void
 }
 
 const balanceOf = (e: Enrollment): TuitionBalance =>
@@ -49,6 +59,7 @@ export function EnrollmentTable({
   onAssessment,
   onPayments,
   onSendReceipt,
+  onRefund,
 }: Props) {
   return (
     <Card>
@@ -120,6 +131,20 @@ export function EnrollmentTable({
                           status={enrollment.status}
                           paidInFull={isPaidInFull(enrollment, balance)}
                         />
+                        {(needsRefund(enrollment) || enrollment.feeCoveredByPaymentId) && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {needsRefund(enrollment) && (
+                              <Badge variant="outline" className="border-red-300 bg-red-100 text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                                Refund needed
+                              </Badge>
+                            )}
+                            {enrollment.feeCoveredByPaymentId && (
+                              <Badge variant="outline" className="border-sky-200 bg-sky-50 px-1.5 py-0 text-[10px] text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300">
+                                Fee covered
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                         {latest?.status === "scheduled" && latest.scheduledAt && (
                           <p className="text-xs text-muted-foreground mt-1">
                             {new Date(latest.scheduledAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
@@ -130,18 +155,59 @@ export function EnrollmentTable({
                         )}
                       </TableCell>
                       <TableCell>
-                        {enrollment.applicationPaid ? (
-                          <div>
-                            <p className="text-sm font-medium text-green-600">
-                              ₦{(enrollment.applicationPayments[0]?.amount || 0).toLocaleString()} Paid
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {enrollment.applicationPayments[0]?.paidAt && formatDate(enrollment.applicationPayments[0].paidAt)}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-orange-600">Pending</p>
-                        )}
+                        {(() => {
+                          const completed = enrollment.applicationPayments.find((p) => p.status === "completed")
+                          const duplicates = duplicatePayments(enrollment)
+                          const refunded = enrollment.applicationPayments.filter((p) => p.status === "refunded")
+                          const superseded = enrollment.applicationPayments.filter((p) => p.status === "superseded")
+                          return (
+                            <div className="space-y-1">
+                              {enrollment.applicationPaid ? (
+                                completed ? (
+                                  <div>
+                                    <p className="text-sm font-medium text-green-600">
+                                      ₦{completed.amount.toLocaleString()} Paid
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {completed.paidAt && formatDate(completed.paidAt)}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm font-medium text-green-600">
+                                    {enrollment.feeCoveredByPaymentId ? "Covered" : "Paid"}
+                                  </p>
+                                )
+                              ) : (
+                                <p className="text-sm text-orange-600">Pending</p>
+                              )}
+                              {duplicates.map((p) => (
+                                <div key={p.id} className="rounded border border-red-200 bg-red-50 p-1.5 dark:border-red-900/40 dark:bg-red-900/10">
+                                  <p className="text-xs font-medium text-red-700 dark:text-red-300">
+                                    {formatCurrency(p.amount)} duplicate
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-1 !h-6 !px-2 text-xs"
+                                    onClick={() => onRefund(p)}
+                                  >
+                                    Mark refunded
+                                  </Button>
+                                </div>
+                              ))}
+                              {refunded.map((p) => (
+                                <p key={p.id} className="text-xs text-muted-foreground">
+                                  {formatCurrency(p.amount)} refunded{p.refundedAt ? ` ${formatDate(p.refundedAt)}` : ""}
+                                </p>
+                              ))}
+                              {superseded.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  {superseded.length} superseded attempt{superseded.length > 1 ? "s" : ""}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div>

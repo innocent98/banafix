@@ -92,6 +92,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const [offerings, setOfferings] = useState<OfferingLite[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [coveredNote, setCoveredNote] = useState("")
 
   const token = () => (typeof window !== "undefined" ? localStorage.getItem("admin_token") : null)
 
@@ -102,6 +103,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     setPaymentMethod("cash")
     setConsentToEmails(false)
     setError("")
+    setCoveredNote("")
     setOfferings([])
     const headers = { Authorization: `Bearer ${token()}` }
     fetch(`/api/admin/locations`, { headers })
@@ -139,6 +141,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setCoveredNote("")
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.locationId || !form.courseId) {
       setError("First name, last name, email, location and course are required")
       return
@@ -159,10 +162,18 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
           consentToEmails,
         }),
       })
-      const d = await res.json()
+      const d = await res.json().catch(() => ({}))
       if (res.ok) {
         onRegistered()
-        onClose()
+        if (d.feeCovered) {
+          // Keep the dialog open so the note is read; the list behind it already refreshed.
+          setCoveredNote("Registered. Assessment fee already covered for this student, no fee recorded.")
+        } else {
+          onClose()
+        }
+      } else if (res.status === 409) {
+        // Conflict (e.g. fee already paid): the server message says exactly what to do.
+        setError(d.error || d.message || "This registration conflicts with an existing record")
       } else {
         setError(d.message || d.error || "Failed to register student")
       }
@@ -350,10 +361,11 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
           </section>
 
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          {coveredNote && <Alert><AlertDescription>{coveredNote}</AlertDescription></Alert>}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Registering…" : "Register Student"}</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{coveredNote ? "Close" : "Cancel"}</Button>
+            {!coveredNote && <Button type="submit" disabled={saving}>{saving ? "Registering…" : "Register Student"}</Button>}
           </DialogFooter>
         </form>
       </DialogContent>

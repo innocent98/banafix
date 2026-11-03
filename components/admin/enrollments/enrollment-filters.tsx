@@ -13,6 +13,8 @@ export interface EnrollmentFilterState {
 
 interface Props extends EnrollmentFilterState {
   locations: string[]
+  /** Number of rows with a duplicate payment awaiting refund. */
+  refundCount: number
   onSearchChange: (v: string) => void
   onStatusChange: (v: string) => void
   onPaymentChange: (v: string) => void
@@ -25,6 +27,7 @@ export function EnrollmentFilters({
   paymentFilter,
   locationFilter,
   locations,
+  refundCount,
   onSearchChange,
   onStatusChange,
   onPaymentChange,
@@ -75,6 +78,9 @@ export function EnrollmentFilters({
               <SelectItem value="application_pending">Assessment fee pending</SelectItem>
               <SelectItem value="tuition_paid">Tuition Paid</SelectItem>
               <SelectItem value="tuition_pending">Tuition Pending</SelectItem>
+              <SelectItem value="refund_needed">
+                {refundCount > 0 ? `Refund needed (${refundCount})` : "Refund needed"}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

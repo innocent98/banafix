@@ -2,7 +2,14 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
-import { transitionEnrollment } from '@/lib/enrollment-transition'
+import {
+  coverApplication,
+  findCoveringFeePayment,
+  lockStudent,
+  recordCashAssessmentFee,
+  FeeAlreadyPaidError,
+  FeeStateChangedError,
+} from '@/lib/assessment-payment'
 import { logAdminAction } from '@/lib/audit'
 
 // POST /api/admin/enrollments/[id]/mark-paid - mark the assessment fee paid in
@@ -37,39 +44,51 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       }
     }
 
-    // Payment row + status move in ONE transaction; the compare-and-set makes a double click harmless.
-    const moved = await prisma.$transaction(async (tx) => {
-      const won = await transitionEnrollment(tx, enrollment.id, 'pending', 'assessment_paid', {
-        applicationPaid: true,
-      })
-      if (!won) return false
-      await tx.applicationPayment.create({
-        data: {
+    // Student row locked, fee-already-paid check, pending Paystack payments superseded, payment row
+    // and status move: ONE transaction (lib/assessment-payment.ts).
+    let result: { paymentId: string | null; supersededCount: number; covered: boolean }
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        await lockStudent(tx, enrollment.studentId)
+        // The student already paid the (once per student) fee, e.g. an earlier application settled
+        // while this one sat pending. NO second fee is recorded; the application is covered so it
+        // is not stranded at `pending`.
+        const covering = await findCoveringFeePayment(tx, enrollment.studentId)
+        if (covering) {
+          await coverApplication(tx, enrollment.id, covering.id)
+          return { paymentId: null, supersededCount: 0, covered: true }
+        }
+        const recorded = await recordCashAssessmentFee(tx, {
           enrollmentId: enrollment.id,
+          studentId: enrollment.studentId,
           amount: amount as number,
           currency: ASSESSMENT_FEE_CURRENCY,
           paymentMethod,
-          paystackStatus: 'success',
-          status: 'completed',
-          paidAt: new Date(),
-          receiptNumber: `APP-${Date.now()}-${enrollment.id.slice(-6)}`,
           billingEmail: enrollment.student.email,
           billingName: `${enrollment.student.firstName} ${enrollment.student.lastName}`,
-        },
+        })
+        return { ...recorded, covered: false }
       })
-      return true
-    })
-    if (!moved) return createErrorResponse('Assessment fee is already marked paid', 400)
+    } catch (e) {
+      if (e instanceof FeeAlreadyPaidError) return createErrorResponse(e.message, 409)
+      if (e instanceof FeeStateChangedError) return createErrorResponse('Assessment fee is already marked paid', 409)
+      throw e
+    }
 
     await logAdminAction({
       adminId: admin.id,
       action: 'application.cash_paid',
       entityType: 'enrollment',
       entityId: enrollment.id,
-      metadata: { amount, paymentMethod, toStatus: 'assessment_paid' },
+      metadata: { amount: result.covered ? 0 : amount, paymentMethod: result.covered ? null : paymentMethod, toStatus: 'assessment_paid', feeCovered: result.covered, supersededPaystackPayments: result.supersededCount },
     })
 
-    return createResponse({ message: 'Assessment fee marked as paid' })
+    return createResponse({
+      feeCovered: result.covered,
+      message: result.covered
+        ? 'This student already paid the assessment fee, so no second fee was recorded; the application is now covered.'
+        : 'Assessment fee marked as paid',
+    })
   } catch (error) {
     console.error('Mark application fee paid error:', error)
     return createErrorResponse('Failed to mark assessment fee paid', 500)

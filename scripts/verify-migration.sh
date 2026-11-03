@@ -21,6 +21,7 @@ check() { # name expected actual
 echo "1) apply migrations up to $PREV (legacy schema)"
 for d in prisma/migrations/*/; do
   n=$(basename "$d"); [ "$n" = "$NEW" ] && continue
+  [[ "$n" > "$NEW" ]] && continue # later migrations are applied after the assertions (step 4b)
   [ -f "$d/migration.sql" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$d/migration.sql" >/dev/null
 done
 
@@ -70,6 +71,15 @@ check "enrollment offering backfilled (Lagos On-site)" "On-site" "$(Q "select dm
 check "orphan-mode enrollment has NULL offering" "" "$(Q "select \"offeringId\" from enrollments where id='e_ondo'")"
 check "plan fields null for legacy rows" "0" "$(Q 'select count(*) from enrollments where "ratePerClass" is not null or "plannedClasses" is not null')"
 check "new Course can omit deprecated columns" "1" "$(Q "with i as (insert into courses (id,title,instrument,level,\"updatedAt\") values ('c_new','T','Guitar','Beginner',now()) returning 1) select count(*) from i")"
+
+echo "4b) apply every LATER migration on top (additive follow-ups) and re-check the data survived"
+for d in prisma/migrations/*/; do
+  n=$(basename "$d"); [[ "$n" > "$NEW" ]] || continue
+  [ -f "$d/migration.sql" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$d/migration.sql" >/dev/null && echo "  applied $n"
+done
+check "later migrations keep every enrollment" "$before_enr" "$(Q 'select count(*) from enrollments')"
+check "legacy payments untouched by later migrations (still completed)" "1" "$(Q "select count(*) from application_payments where status='completed'")"
+check "no enrollment is fee-covered by backfill (coverage link NULL for legacy rows)" "0" "$(Q 'select count(*) from enrollments where "feeCoveredByPaymentId" is not null')"
 
 echo "5) prisma agrees the migration history matches schema.prisma"
 drift=$(npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script 2>/dev/null | grep -v "^$" | grep -v "Loaded Prisma" | tr -d '\n' || true)

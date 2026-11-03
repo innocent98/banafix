@@ -232,15 +232,6 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
   `
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
 function naira(amount: number): string {
   return `₦${amount.toLocaleString()}`
 }
@@ -709,6 +700,109 @@ export async function sendBirthdayEmail(recipient: {
     return true
   } catch (error) {
     console.error('Error sending birthday email:', error)
+    return false
+  }
+}
+/**
+ * Best-effort notice to the admin inbox: money arrived for an assessment fee the student had already
+ * paid (or that a cash payment superseded). The refund is done by hand in the Paystack dashboard,
+ * then recorded in admin ("Mark refunded").
+ */
+// Escape interpolated values: the covered-fee email goes to an address typed into a public form.
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+export async function sendAdminDuplicatePaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  reference: string | null
+  enrollmentId: string
+  reason: 'already_covered' | 'superseded'
+}): Promise<boolean> {
+  try {
+    const why =
+      data.reason === 'superseded'
+        ? 'a cash/offline fee was recorded for this application first'
+        : 'the student had already paid the assessment fee'
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Refund needed: duplicate assessment fee (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A duplicate assessment fee payment needs a refund.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()} (Paystack reference ${escapeHtml(data.reference ?? 'n/a')}), but ${why}. The application was not changed.</p>
+        <p>Refund it by hand in the Paystack dashboard, then open the enrollment in admin and choose Mark refunded.</p>
+        <p>Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send duplicate-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending duplicate-payment notice:', error)
+    return false
+  }
+}
+
+/**
+ * "Application received, fee already covered": sent instead of a receipt when a student who has
+ * already paid the (once per student, non-refundable) assessment fee applies again.
+ */
+export async function sendApplicationFeeCovered(data: {
+  firstName: string
+  email: string
+  courseName: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: `Application received: ${data.courseName.replace(/[\r\n]+/g, ' ')}`,
+      html: `
+        <p>Hi ${escapeHtml(data.firstName)},</p>
+        <p>We have received your application for <strong>${escapeHtml(data.courseName)}</strong>. You have already paid the assessment fee, so there is nothing to pay now.</p>
+        <p>We will be in touch to arrange your assessment. Questions? Contact us at ${SUPPORT_EMAIL}.</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send fee-covered email:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending fee-covered email:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a fee was paid on an application that had already been cancelled. */
+export async function sendAdminCancelledPaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  enrollmentId: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee paid on a cancelled application (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>An assessment fee arrived for a cancelled application.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()}. The payment is recorded and covers this student's fee, but the application stays cancelled and no receipt was sent.</p>
+        <p>Open the student in admin to decide what to do (for example, register them again; the fee will not be charged twice). Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send cancelled-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending cancelled-payment notice:', error)
     return false
   }
 }

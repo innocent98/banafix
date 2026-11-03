@@ -19,7 +19,9 @@ import { canTransition } from "@/lib/enrollment-status"
 import { planTotal } from "@/lib/offering-rates"
 import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BAND_LABELS, isArrangement, isTimeBand } from "@/lib/assessment-vocab"
 import { formatNaira } from "@/lib/site"
-import { StatusBadge } from "./status-badge"
+import { StatusBadge, PaymentStatusBadge } from "./status-badge"
+import { RefundDialog } from "./refund-dialog"
+import { formatCurrency, type ApplicationPayment } from "./types"
 
 interface Rate { durationMins: number; pricePerClass: number }
 interface OfferingSummary {
@@ -60,11 +62,19 @@ interface Detail {
     offering: { id: string; deliveryMode: { name: string } } | null
     course: { id: string; title: string }
     student: { firstName: string; lastName: string; address: string | null; landmark: string | null }
+    applicationPayments: ApplicationPayment[]
+    feeCoveredBy: { id: string; amount: number; receiptNumber: string; paidAt: string | null } | null
   }
   assessments: AssessmentRow[]
   offerings: OfferingSummary[]
   /** Active materials of the course: required ones are always charged, optional ones are picked here. */
   materials?: MaterialRow[]
+  reusableAssessment: {
+    id: string
+    resultLevel: string | null
+    completedAt: string | null
+    enrollment: { id: string; course: { title: string } }
+  } | null
 }
 
 interface Props {
@@ -159,7 +169,8 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState(false)
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([])
-  const [confirming, setConfirming] = useState<null | "confirm" | "cancel">(null)
+  const [confirming, setConfirming] = useState<null | "confirm" | "cancel" | "reuse">(null)
+  const [refundPayment, setRefundPayment] = useState<ApplicationPayment | null>(null)
   const [cancelReason, setCancelReason] = useState("")
   const [addingRecord, setAddingRecord] = useState(false)
 
@@ -202,6 +213,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
     setNotice("")
     setAddingRecord(false)
     setConfirming(null)
+    setRefundPayment(null)
     setCancelReason("")
     if (!enrollmentId) return
     load()
@@ -380,6 +392,18 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
     if (ok) setConfirming(null)
   }
 
+  const doReuse = async () => {
+    const ok = await run(
+      () => api("POST", `/api/admin/enrollments/${enrollmentId}/assessment/reuse`, {
+          // The assessment the admin was shown, so a newer result is never copied instead.
+          sourceAssessmentId: detail?.reusableAssessment?.id,
+        }),
+      "Failed to reuse assessment",
+      "Previous assessment reused; the student is now Assessed",
+    )
+    if (ok) setConfirming(null)
+  }
+
   const doCancel = async () => {
     const ok = await run(
       () => api("POST", `/api/admin/enrollments/${enrollmentId}/cancel`, { reason: cancelReason.trim() || undefined }),
@@ -411,6 +435,9 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const canPlan = status === "assessed" || status === "plan_agreed"
   const canConfirm = canTransition(status, "enrolled")
   const canCancel = canTransition(status, "cancelled")
+  const reusable = status === "assessment_paid" ? detail?.reusableAssessment ?? null : null
+  const duplicates = enr?.applicationPayments.filter((p) => p.status === "duplicate") ?? []
+  const refundedPayments = enr?.applicationPayments.filter((p) => p.status === "refunded") ?? []
   const showResultForm = canRecord || (isLegacyEnrolled && addingRecord)
 
   return (
@@ -440,6 +467,45 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
                   {[enr.location?.name, enr.offering?.deliveryMode.name].filter(Boolean).join(" • ") || "No location recorded (legacy)"}
                 </span>
               </div>
+
+              {enr.feeCoveredBy && (
+                <Alert>
+                  <AlertDescription>
+                    Fee already covered by receipt {enr.feeCoveredBy.receiptNumber}
+                    {enr.feeCoveredBy.paidAt && `, paid ${new Date(enr.feeCoveredBy.paidAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                    . No second assessment fee is charged for this student.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {(duplicates.length > 0 || refundedPayments.length > 0) && (
+                <Section
+                  title="Duplicate payments"
+                  hint="A second assessment-fee payment arrived after the fee was already covered. Refund it by hand in the Paystack dashboard, then record it here."
+                >
+                  <div className="space-y-2">
+                    {[...duplicates, ...refundedPayments].map((p) => (
+                      <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-3 text-sm">
+                        <div>
+                          <p className="font-medium">{formatCurrency(p.amount)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Receipt {p.receiptNumber}
+                            {p.status === "refunded" && p.refundedAt && `, refunded ${new Date(p.refundedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <PaymentStatusBadge status={p.status} />
+                          {p.status === "duplicate" && (
+                            <Button size="sm" variant="outline" onClick={() => setRefundPayment(p)} disabled={busy}>
+                              Mark refunded
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              )}
 
               {latest ? (
                 <div className="grid grid-cols-1 gap-3 rounded-lg bg-muted p-4 text-sm sm:grid-cols-2">
@@ -487,6 +553,23 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
 
               {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
               {notice && <Alert><AlertDescription>{notice}</AlertDescription></Alert>}
+
+              {/* Reuse a previous assessment */}
+              {reusable && (
+                <Section
+                  title="Reuse latest assessment"
+                  hint="This student has already been assessed. Copy that result instead of scheduling a new assessment, or schedule a new one below."
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm">
+                      <span className="font-medium">{reusable.resultLevel}</span>
+                      {` - ${reusable.enrollment.course.title}`}
+                      {reusable.completedAt && `, ${new Date(reusable.completedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                    </p>
+                    <Button onClick={() => setConfirming("reuse")} disabled={busy}>Reuse latest assessment</Button>
+                  </div>
+                </Section>
+              )}
 
               {/* Schedule */}
               {canSchedule ? (
@@ -705,6 +788,27 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
         busy={busy}
         onConfirm={doConfirm}
         onCancel={() => setConfirming(null)}
+      />
+      <ConfirmDialog
+        open={confirming === "reuse"}
+        title="Reuse latest assessment"
+        description={
+          reusable
+            ? `Copy "${reusable.resultLevel}" (${reusable.enrollment.course.title}${reusable.completedAt ? `, ${new Date(reusable.completedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : ""}) onto this enrollment. The student moves to Assessed and no new assessment is scheduled.`
+            : "No assessment available to reuse."
+        }
+        confirmLabel="Reuse assessment"
+        busy={busy}
+        onConfirm={doReuse}
+        onCancel={() => setConfirming(null)}
+      />
+      <RefundDialog
+        payment={refundPayment}
+        onClose={() => setRefundPayment(null)}
+        onDone={() => {
+          load()
+          onChanged()
+        }}
       />
       <ConfirmDialog
         open={confirming === "cancel"}

@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-NEW="20261103180000_per_class_tuition"
+NEW="20261103190000_per_class_tuition"
 
 URL="$(EPHEMERAL_PG_PORT=5481 EPHEMERAL_PG_DIR="${TMPDIR:-/tmp}/banafix-verify-tuition-pg" scripts/dev/ephemeral-pg.sh reset)"
 export DATABASE_URL="$URL"
