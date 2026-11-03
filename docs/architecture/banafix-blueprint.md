@@ -42,7 +42,8 @@
 | Edit student record (admin) | 🟡 Code | `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled |
 | Parent records + parent↔child mapping | 🟡 Code | `Parent` model + m-n `_ParentChildren`; `/admin/parents` CRUD |
 | Instructor roster (reusable, many courses) | 🟡 Code | `Instructor` one-to-many (`Course.instructorId`); `/admin/instructors`. Now also `Assessment.assessorId → Instructor` |
-| Birthday automation (students + parents) | 🟡 Code | Vercel Cron → `/api/cron/birthdays`; delivery pending real `RESEND_API_KEY` |
+| Birthday automation (students + parents) | 🟡 Code | Vercel Cron → `/api/cron/birthdays`, now through the outbox (idempotent per year, consent respected); delivery pending real `RESEND_API_KEY` |
+| Communications outbox (Stream 7) | 🟡 Code | `MessageTemplate` / `OutboundMessage` / `Announcement` / `Feedback`; Resend email adapter + disabled SMS/WhatsApp stubs; triggers from `transitionEnrollment` + 3 crons; `/admin/{messages,templates,announcements,feedback}` + public `/feedback`. Live email NOT verified (no `RESEND_API_KEY`); SMS/WhatsApp provider not chosen (`docs/research/messaging-providers.md`) |
 
 ---
 
@@ -316,7 +317,32 @@ erDiagram
 
 ### 5.2 Planned additions 🔵
 
-Only seams for later streams remain planned: `ClassSession` + instructor availability + `InstructorCourse` m-n (Stream 4, scheduling); invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5); a messaging outbox keyed off the status transitions (Stream 7, D10). None are built.
+Only seams for later streams remain planned: `ClassSession` + instructor availability + `InstructorCourse` m-n (Stream 4, scheduling); invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5); (the Stream 7 messaging outbox is now built, see §5.3). The rest are not built.
+
+---
+
+### 5.3 Communications (Stream 7) 🟡
+
+```mermaid
+flowchart LR
+  T["transitionEnrollment (won CAS)"] -->|emitEnrollmentEvent, same tx| O[(outbound_messages)]
+  A["POST /api/enrollments, reschedule"] -->|emitEnrollmentEvent| O
+  C1["cron birthdays / new-month"] -->|compose + enqueue| O
+  AN["/admin/announcements"] -->|queueAnnouncement| O
+  F["POST /api/feedback"] -->|admin notice| O
+  O -->|drain: after(), cron, Send now| P{"ChannelProvider"}
+  P -->|EMAIL| R["Resend (works)"]
+  P -->|SMS, WHATSAPP| S["stubs: skipped"]
+```
+
+| Table | Purpose |
+| --- | --- |
+| `message_templates` | admin overrides of code-default copy per event key; `channels[]`, `subject`, `body`, `shortBody`, `isActive` |
+| `outbound_messages` | one row per (event, channel, recipient); unique `idempotencyKey`; `status` queued/sent/failed/skipped; `scheduledFor`, `lockedAt` lease |
+| `announcements` | admin broadcast record; messages carry `batchId` = its id |
+| `feedback` | public/admin feedback; `allowTestimonial`, `status`, `testimonialId` |
+
+`birthday_email_logs` is retained but no longer written (read as an exclusion only). Details: `docs/sop/communications.md`.
 
 ---
 
@@ -353,6 +379,9 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | GET/PATCH/DELETE etc. | `/api/admin/courses*` | JWT | Course CRUD. `POST` no longer requires `location`/`pricing`/`availableModes` (DB defaults); list `_count.offerings` counts **offerable** offerings only | 🟡 |
 | GET/POST | `/api/admin/tuition-payments/[id]/receipt` | JWT | Regenerate/resend tuition receipt | 🟡 |
 | GET | `/api/receipts/application-fee/[enrollmentId]` | JWT | Regenerate/resend the **assessment-fee** receipt (route name kept; download filename now `assessment-fee-receipt-<no>.pdf`) | 🟡 |
+| ANY | `/api/admin/messages` (+`retry`, `dispatch`), `/api/admin/templates` (+`[key]`, `preview`), `/api/admin/announcements` (+`preview`), `/api/admin/feedback` (+`[id]`, `[id]/promote`) | JWT | Stream 7 admin APIs | 🟡 |
+| POST | `/api/feedback` | public (honeypot + throttle) | Feedback form | 🟡 |
+| GET | `/api/cron/new-month`, `/api/cron/messages` | `CRON_SECRET` | New-month message; outbox drain | 🟡 |
 | PATCH | `/api/admin/students/[id]`, `/api/admin/parents*`, `/api/admin/instructors*`, `GET /api/cron/birthdays` | JWT / `CRON_SECRET` | Unchanged by this shipment (student edit, parents, roster, birthdays) | 🟡 |
 
 \* D5: public read endpoints for enrollment detail/list were unauthenticated at HEAD `713a3b2`; see §8.
@@ -382,7 +411,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **D7** | Where do price, format and location live? | ✅ DECIDED + BUILT | `CourseOffering` (course × location × format) replaces `Course.pricing/availableModes/location`; the old columns are deprecated, not dropped |
 | **D8** | How is price stored? | ✅ DECIDED + BUILT | Per class, per duration: `OfferingRate (offering, durationMins, pricePerClass)`; plan snapshots `Enrollment.ratePerClass` |
 | **D9** | Seat counting | ✅ DECIDED + BUILT | Retired. Columns kept, not enforced or decremented anywhere (POST, wizard, webhook, verify route) |
-| **D10** | Messaging | ✅ Decided, **not built** | Behind a channel interface; email now, WhatsApp/SMS later (Stream 7) |
+| **D10** | Messaging | ✅ DECIDED + BUILT | Channel-agnostic outbox; Resend email works, SMS/WhatsApp are disabled stubs recording `skipped` until John picks a provider (research: `docs/research/messaging-providers.md`). Builder calls C1–C15 in `docs/superpowers/specs/2026-11-03-communications-design.md` |
 | **D11** | Commercial config | ✅ DECIDED + BUILT | Assessment fee per location, offerings, rates, materials are all admin-editable data; `lib/application-fee.ts` (hardcoded tiers) is deleted; `lib/locations.ts` survives only as seed input |
 
 **Builder decisions B1–B13** (left open by the spec; recorded in `docs/sop/assessment-first-admission.md`): B1 `Location.slug`, chooser = `?location=<slug>`; B2 `Assessment` uses `preferredDate` + `preferredTimeBand`; B3 `Assessment.address/landmark` for home visits; B4 public enrol creates `Assessment{requested}` with the pending enrollment; B5 `assessed → assessment_scheduled` re-assessment move; B6 "offerable" predicate; B7 walk-in `offeringId` optional; B8 public POST requires `offeringId`; B9 duplicate guard blocks only non-`pending`, non-`cancelled`; B10 `PAYSTACK_BASE_URL` override for the local mock; B11 seat enforcement removed; B12 webhook payment + enrollment move in one transaction; B13 DB defaults on deprecated `Course` NOT NULL columns.
@@ -438,7 +467,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 - **Browser verification** of the new public and admin flows is not recorded in this document.
 - Migration 2 (dormant `Enrollment` identity columns) and **Migration 3** (deprecated `Course` price/format/location/seat columns) — both deferred.
 - **Rates are not entered:** all migrated offerings are inactive with no rates, so every course shows "Enrolment opening soon" until an admin sets rates (no pricing data came from John yet).
-- Class scheduling, instructor availability/conflicts (Stream 4); tuition invoicing, online tuition, materials in billing (Stream 5); parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
+- Class scheduling, instructor availability/conflicts (Stream 4); tuition invoicing, online tuition, materials in billing (Stream 5); parent capture at registration (Stream 6); a real SMS/WhatsApp provider (Stream 7 built the outbox and stubs only), inbound email/WhatsApp, promote-feedback-to-testimonial wiring (waits for Stream 8's model); site content (Stream 8).
 - A student login/dashboard, refunds, coupons. Policy text still contradicts the non-refundable fee (refund schedule in `components/site/enroll/policy-dialog.tsx`; `/policies` dashboard/PayPal/instalment claims) — deliberately **not edited** here, needs the client's review.
 - Per-student vs per-application fee rule (open business question, §8).
 - `GET /api/receipts/application-fee/[enrollmentId]` is still unauthenticated (pre-existing); the webhook cannot detect a cash fee recorded while a Paystack charge is in flight (double fee needs an admin refund decision).

@@ -94,10 +94,16 @@
 ### Task 6: Verify (see spec). Step 1: migration + `scripts/test-messaging.ts`. Step 2: browser at 1280 and 375. Step 3: `tsc`, `next build`, `npm test`.
 ### Task 7: Docs: `docs/sop/communications.md`, update birthday and enrollment-email SOPs, checklist Stream 7, blueprint, `.env.example`; push, open PR (base `feature/assessment-first-admission`).
 
-## Ledger (update as work lands)
+## Ledger (final)
 | Step | State | Notes |
 |---|---|---|
-| Research subagent (`docs/research/messaging-providers.md`) | running | Sonnet, background |
-| Spec | done | `docs/superpowers/specs/2026-11-03-communications-design.md` |
-| Plan | done | this file |
-| Task 1–7 | pending | |
+| Research (`docs/research/messaging-providers.md`) | done | Sonnet subagent, 84 tool calls; UNCONFIRMED register in §9 of the doc |
+| Spec | done | amended for C9 (guardian only from paid stage, security review) and C14 (parents = parents of matching students) |
+| Task 1 pure logic | done | 6 test files, 49 tests, all green first run |
+| Task 2 schema, providers, outbox | done | migration `20261103153950_communications_outbox` (additive, no drift); providers.test (15) |
+| Task 3 triggers | done | `scripts/test-messaging.ts` on scratch 5490: all checks pass |
+| Task 4 feedback | done | promote behind isolated stub (Testimonial not in base) |
+| Task 5 admin APIs + UI | done | 2 Sonnet subagents built the four pages; I fixed 375px overflow in the shared layout |
+| Task 6 verification | done | see SOP; live email NOT verified |
+| Task 7 docs, PR | done | SOP, checklist, blueprint, birthday + enrollment-email SOPs, `.env.example` |
+| Review finding | fixed | security review flagged mailing an unverified guardian address from the public form: `application_received` now goes to the applicant only |

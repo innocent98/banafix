@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 built (PR open, unmerged)**, others planned
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 and Stream 7 built (PRs open, unmerged)**, others planned
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -12,7 +12,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Real `RESEND_API_KEY` + verify `banafix.com` sender domain (blocks every email)
 - [ ] `CRON_SECRET` in Vercel; direct DB URL + prod snapshot, then deploy pending migrations
 - [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
-- [ ] Official contact + feedback email addresses and forwarding
+- [ ] Official contact + feedback email addresses and forwarding (`FEEDBACK_EMAIL` env is consumed by Stream 7)
 
 ### Stream 1 — Quick wins (independent)
 - [ ] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
@@ -54,10 +54,18 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 ### Stream 6 — Registration + parents
 - [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
 
-### Stream 7 — Communications
-- [ ] Channel-agnostic outbox + templates + triggers (ack, payment, assessment scheduled, enrolment, new-month, birthdays incl. parents)
-- [ ] Admin announcements; `Feedback` model with testimonial-consent flag
-- [ ] WhatsApp/SMS provider plugged in later (John's choice; cost comparison to research)
+### Stream 7 — Communications  ✅ built 2026-11-03, branch `feature/communications-outbox` (PR stacked on #12, unmerged)
+- [x] Channel-agnostic outbox (`OutboundMessage`, unique idempotency key) + admin-editable `MessageTemplate` (defaults in code) + `ChannelProvider` interface; Resend email adapter; **SMS/WhatsApp stubs record `skipped`**
+- [x] Triggers from one place: `transitionEnrollment` (assessment scheduled/paid slot, assessed, plan agreed, enrolled) + application received + reschedule; cron birthdays (student + parent), new-month, outbox drain; delayed feedback request (+30 days)
+- [x] Consent respected for marketing-type messages (birthday, new-month, announcement, feedback request); transactional always sends; operational-notice override
+- [x] `/admin/messages` (filters, retry, Send now), `/admin/templates` (preview, SMS segments), `/admin/announcements` (audience: all/location/course/parents), `/admin/feedback`
+- [x] `Feedback` model + public `/feedback` (honeypot + throttle) + `FEEDBACK_EMAIL` + admin add/review/consent; manual forwarding documented
+- [x] `docs/research/messaging-providers.md`: costs, KYC, sender IDs, DND, recommendation, cost model (cited, unconfirmed items marked)
+- [~] **Live email delivery NOT verified** (no real `RESEND_API_KEY`); SMS/WhatsApp provider **not chosen** (John)
+- [ ] **Wire promote-to-testimonial** once Stream 8's `Testimonial` model (PR #11) is in the base: `createTestimonial` in `lib/feedback-promotion.ts` (TODO)
+- [ ] **Deploy gate:** snapshot prod, direct DB URL, `FEEDBACK_EMAIL` + `CRON_SECRET` + real `RESEND_API_KEY`, review templates in `/admin/templates`, new cron entries ship via `vercel.json`
+- [ ] Unsubscribe link for marketing email; Stream 4 to emit `class_scheduled` / `class_reminder` (templates reserved)
+- SOP: [`docs/sop/communications.md`](../sop/communications.md) · Spec: `docs/superpowers/specs/2026-11-03-communications-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream7-communications.md`
 
 ### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*
 - [ ] Models + admin CRUD: `Testimonial` (name, text, optional video, publish-permission flag), `TrustedPartner` (name, logo), `SiteEvent` (title, date, location, registration link), `SiteStat` (label, value; real figures only)

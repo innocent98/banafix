@@ -7,6 +7,8 @@
 > - Email failures are still never rethrown, but a **database** error inside the webhook is now rethrown (HTTP 500) so Paystack retries.
 > - Email delivery is still blocked on a real `RESEND_API_KEY`; unchanged.
 
+> **Superseded in part (2026-11-03, Stream 7) — see `docs/sop/communications.md`.** The **"application received" acknowledgement** no longer calls `sendEnrollmentConfirmation`: `POST /api/enrollments` now calls `emitEnrollmentEvent(prisma, id, 'application_received')`, which writes an outbox row from the editable `application_received` template (applicant only, never the unverified guardian address; idempotent per enrollment; wording in `/admin/templates`). The webhook's **PDF receipt and admin notice are unchanged** (they stay direct sends because of the PDF, and the webhook route was not modified). Stage messages after payment (assessment scheduled, assessed, plan agreed, enrolled) now come from the outbox too.
+
 ## What shipped
 On a successful registration-fee payment, the Paystack webhook now automatically
 (1) emails the student their paid application-fee receipt with the PDF attached, and

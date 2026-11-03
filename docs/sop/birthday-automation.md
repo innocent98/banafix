@@ -1,5 +1,11 @@
 # SOP — Birthday automation (req #4)
 
+> **Superseded in part (2026-11-03) — see `docs/sop/communications.md`.** The cron route, schedule, `CRON_SECRET` guard and "today in Africa/Lagos" matching are unchanged. What changed:
+> - **Delivery goes through the outbox** (`lib/messaging/runs.ts: runBirthdays`): student and parent wishes use the editable templates `birthday_student` / `birthday_parent` (`/admin/templates`), and each is a row in `outbound_messages` visible in `/admin/messages`. `sendBirthdayEmail` in `lib/email.ts` is no longer called.
+> - **Dedup is the outbox idempotency key** `birthday:<year>:<channel>:<type>:<id>`, not `BirthdayEmailLog`. That table is kept, **no longer written**, and still **read** as an exclusion (so a deploy after that morning's run cannot re-send). A failed send now stays `failed` and retries from the outbox (up to 3 attempts, or "Retry" in the admin), instead of "no log row ⇒ retry next run".
+> - **Consent is now respected:** a student is skipped (row `skipped`, "No email consent on record") unless an enrollment has `consentToEmails`; a parent needs a linked child with consent, and a parent linked to nobody is skipped. The old cron ignored consent.
+> - The route response gained `queued` and `skipped`: `{date, candidates, queued, sent, failed, skipped}`.
+
 ## What shipped
 A daily job that emails a professional "happy birthday" message to students (on their date of
 birth) and parents (on their stored month+day), idempotently. Branch `birthday-automation`.
