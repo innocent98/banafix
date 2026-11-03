@@ -1,6 +1,6 @@
 # Stream 4 — Scheduling: Implementation Plan (ledger)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. **This file is the ledger**: tick boxes and append to "Ledger log" as work lands.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax. **This file is the ledger**: tick boxes and append to "Ledger log" as work lands.
 
 **Goal:** Admins record instructor availability, assign an instructor to a planned student and generate their classes from preferences, with double-booking impossible at the database level.
 
@@ -36,14 +36,14 @@
 ---
 
 ### Task 0: Tooling
-- [ ] `npm ci --ignore-scripts`; `DATABASE_URL=postgresql://postgres@127.0.0.1:5470/postgres npx prisma generate`; scratch Postgres on 5470 starts via `EPHEMERAL_PG_PORT=5470 scripts/dev/ephemeral-pg.sh reset`.
+- [x] `npm ci --ignore-scripts`; `DATABASE_URL=postgresql://postgres@127.0.0.1:5470/postgres npx prisma generate`; scratch Postgres on 5470 starts via `EPHEMERAL_PG_PORT=5470 scripts/dev/ephemeral-pg.sh reset`.
 
 ### Task 1: Schema + migration + DB proof (commit 1)
 **Files:** `prisma/schema.prisma`, `prisma/migrations/<ts>_scheduling/migration.sql`, `scripts/verify-scheduling-migration.sh`, `scripts/verify-migration.sh` (skip the new migration in step 1).
 **Produces (Prisma):** `InstructorAvailability`, `InstructorCourse`, `ClassSession` per the spec; `Enrollment += preferredTimeBands String[] @default([]), preferredFromTime String?, preferredToTime String?, preferredClassesPerWeek Int?, @@unique([id, studentId])`; relations on `Instructor`, `Course`, `Location`, `Enrollment`.
-- [ ] Edit schema; DDL from `prisma migrate diff --from-schema-datamodel <S3 schema> --to-schema-datamodel <new> --script`; append the raw-SQL section (extension, 2 exclusion constraints, checks, partial unique, availability exclusion) and the `InstructorCourse` backfill from `courses."instructorId"`.
-- [ ] `verify-scheduling-migration.sh` (legacy fixture, instructor with two courses): backfill row count; constraints exist; instructor/student overlap rejected by SQL; back-to-back accepted; cancelled/rescheduled rows do not block; same-sequence duplicates rejected; `endsAt` pin rejects a bad row; `prisma migrate diff` shows no drift; legacy rows untouched.
-- [ ] Run the script → all assertions pass; `npx tsc --noEmit`. Commit 1.
+- [x] Edit schema; DDL from `prisma migrate diff --from-schema-datamodel <S3 schema> --to-schema-datamodel <new> --script`; append the raw-SQL section (extension, 2 exclusion constraints, checks, partial unique, availability exclusion) and the `InstructorCourse` backfill from `courses."instructorId"`.
+- [x] `verify-scheduling-migration.sh` (legacy fixture, instructor with two courses): backfill row count; constraints exist; instructor/student overlap rejected by SQL; back-to-back accepted; cancelled/rescheduled rows do not block; same-sequence duplicates rejected; `endsAt` pin rejects a bad row; `prisma migrate diff` shows no drift; legacy rows untouched.
+- [x] Run the script → all assertions pass; `npx tsc --noEmit`. Commit 1.
 
 ### Task 2: Pure logic, TDD (commit 2)
 **Files:** `lib/scheduling/{time,bands,overlap,availability,generator,session-status,preferences,conflict-error}.ts` + tests.
@@ -88,8 +88,8 @@ export function validatePreferences(input: unknown): { ok: true; value: Prefs } 
 export class SchedulingConflictError extends Error { kind: 'instructor'|'student'|'sequence'|'availability_overlap' }
 export function mapDbConflict(err: unknown, names?: { instructor?: string; student?: string }): SchedulingConflictError | null
 ```
-- [ ] Tests first (red→green) per module: lagosParts across the UTC date boundary (00:30 Lagos is the previous UTC day), `fromLagos` round trip, addDays across month/year/leap; bands merge/clip (from 10:00 to 11:30 with morning ⇒ 600-690; from>to ⇒ []; bad HH:MM ⇒ null); overlap half-open (touching ≠ overlap; containment; identical); availability boundary-inclusive start/end, wrong weekday/location/mode/ spans two windows ⇒ false; generator (1/wk and 2/wk from a mid-week start, first partial week, honours busy incl. own output, respects availability, `availability:null` ignores it, unplaced reasons, rollover Dec→Jan, count 0, free sequences fill holes); transitions table; preference validation (bad day, bad band, from>to, classes 1|2 only); `mapDbConflict` maps by constraint name from Prisma-shaped errors and returns null otherwise.
-- [ ] Implement; `npm test`. Commit 2.
+- [x] Tests first (red→green) per module: lagosParts across the UTC date boundary (00:30 Lagos is the previous UTC day), `fromLagos` round trip, addDays across month/year/leap; bands merge/clip (from 10:00 to 11:30 with morning ⇒ 600-690; from>to ⇒ []; bad HH:MM ⇒ null); overlap half-open (touching ≠ overlap; containment; identical); availability boundary-inclusive start/end, wrong weekday/location/mode/ spans two windows ⇒ false; generator (1/wk and 2/wk from a mid-week start, first partial week, honours busy incl. own output, respects availability, `availability:null` ignores it, unplaced reasons, rollover Dec→Jan, count 0, free sequences fill holes); transitions table; preference validation (bad day, bad band, from>to, classes 1|2 only); `mapDbConflict` maps by constraint name from Prisma-shaped errors and returns null otherwise.
+- [x] Implement; `npm test`. Commit 2.
 
 ### Task 3: Service, routes, DB tests (commit 3)
 **Files:** `lib/scheduling/{service,hooks}.ts`, `lib/instructor-courses.ts`, routes listed in the file map, public/admin enrollment POST preference capture, instructor routes sync.
@@ -104,21 +104,21 @@ export async function setSessionStatus(sessionId: string, to: SessionStatus, not
 export class SchedulingError extends Error { status: number; code: string; details?: unknown }   // 400/404/409/422
 ```
 Routes (all `withAuth`): `GET/PUT /api/admin/instructors/[id]/availability` (PUT replaces all) · `GET /api/admin/schedule?from=&to=&instructorId=` (sessions + availability + needs-scheduling list) · `GET/POST /api/admin/enrollments/[id]/schedule` (POST `{instructorId,startDate,count?,dryRun?,overrideAvailability?,overrideReason?}`) · `POST /api/admin/sessions/[id]/reschedule` · `POST /api/admin/sessions/[id]/status`. Errors `{ error, code, details? }`: 409 `INSTRUCTOR_BUSY`/`STUDENT_BUSY`, 422 `OUTSIDE_AVAILABILITY`, 400 `PLAN_MISSING` etc.
-- [ ] Real-DB tests `service.db.test.ts` (skipped unless `SCHEDULING_DB_URL` is set and local; run via `scripts/test-scheduling-db.sh` which migrates a scratch DB): parallel booking race (10 concurrent `createSchedule` for the same instructor/start ⇒ exactly 1 fulfilled, 9 `INSTRUCTOR_BUSY`); student race (two instructors, same student/time); reschedule racing a new booking; failed reschedule leaves the original; override writes `schedule.availability_override` in the same transaction and a double-booking is refused even with override; plan missing ⇒ 400; non-teaching instructor ⇒ 400; cancel + regenerate refills the sequence; missed keeps it consumed.
-- [ ] Wire instructor/course routes to keep `InstructorCourse` in step; deleting an instructor with sessions ⇒ friendly 409.
-- [ ] Preference capture in both enrollment POSTs via `validatePreferences`.
-- [ ] `npx tsc --noEmit`; `next build`; `npm test`; DB test script. Commit 3.
+- [x] Real-DB tests `service.db.test.ts` (skipped unless `SCHEDULING_DB_URL` is set and local; run via `scripts/test-scheduling-db.sh` which migrates a scratch DB): parallel booking race (10 concurrent `createSchedule` for the same instructor/start ⇒ exactly 1 fulfilled, 9 `INSTRUCTOR_BUSY`); student race (two instructors, same student/time); reschedule racing a new booking; failed reschedule leaves the original; override writes `schedule.availability_override` in the same transaction and a double-booking is refused even with override; plan missing ⇒ 400; non-teaching instructor ⇒ 400; cancel + regenerate refills the sequence; missed keeps it consumed.
+- [x] Wire instructor/course routes to keep `InstructorCourse` in step; deleting an instructor with sessions ⇒ friendly 409.
+- [x] Preference capture in both enrollment POSTs via `validatePreferences`.
+- [x] `npx tsc --noEmit`; `next build`; `npm test`; DB test script. Commit 3.
 
 ### Task 4: Admin UI (commit 4) — Sonnet subagent A
 **Files:** `components/admin/availability-editor.tsx`, instructor page + roster modal changes, `app/admin/schedule/page.tsx`, `components/admin/schedule/*`, nav, enrollment-table link.
-- [ ] Availability editor dialog from the instructor row (per weekday rows: start, end, location, mode; client check mirrors server; server errors surfaced). "Courses taught" multi-select writes `InstructorCourse`.
-- [ ] `/admin/schedule`: instructor select + week navigator; 7-column timetable (availability shaded, sessions as cards coloured by status) at ≥768px, per-day agenda at 375px; session dialog (reschedule form with override checkbox + reason, mark held/missed/cancelled); "Needs scheduling" list → assign dialog (instructor, start date, **preview table** with conflicts/unplaced, override, confirm). Dialog states for 409/422 show the server message.
-- [ ] `tsc`; `next build`; browser check 1280px + 375px on scratch DB with seeded data.
+- [x] Availability editor dialog from the instructor row (per weekday rows: start, end, location, mode; client check mirrors server; server errors surfaced). "Courses taught" multi-select writes `InstructorCourse`.
+- [x] `/admin/schedule`: instructor select + week navigator; 7-column timetable (availability shaded, sessions as cards coloured by status) at ≥768px, per-day agenda at 375px; session dialog (reschedule form with override checkbox + reason, mark held/missed/cancelled); "Needs scheduling" list → assign dialog (instructor, start date, **preview table** with conflicts/unplaced, override, confirm). Dialog states for 409/422 show the server message.
+- [x] `tsc`; `next build`; browser check on scratch DB (timetable + assign flow clicked through; availability editor, reschedule/status dialogs not: see ledger)
 
 ### Task 5: Student/walk-in preferences UI (commit 5) — Sonnet subagent B
 **Files:** `components/site/enroll/{schedule-preferences,step-details,types,enroll-wizard}.tsx`, `components/admin/schedule-preferences-fields.tsx`, `components/admin/student-registration-modal.tsx`.
-- [ ] Replace the single "Preferred time" select with the structured block (day chips, band chips, optional from/to, 1 or 2 classes/week); wizard gate no longer requires `schedulePreference`; POST body sends `preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime`, `preferredToTime`, `preferredClassesPerWeek`. Same fields in the walk-in modal (replacing the free-text input).
-- [ ] `tsc`; `next build`; browser check of wizard step 2 at 1280px + 375px.
+- [x] Replace the single "Preferred time" select with the structured block (day chips, band chips, optional from/to, 1 or 2 classes/week); wizard gate no longer requires `schedulePreference`; POST body sends `preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime`, `preferredToTime`, `preferredClassesPerWeek`. Same fields in the walk-in modal (replacing the free-text input).
+- [x] `tsc`; `next build`; browser check of wizard step 2 at 1280px + 375px.
 
 ### Task 6: Docs, verification, Opus review, PR (commit 6)
 - [ ] SOP `docs/sop/scheduling.md` (What shipped · Why · How · What's involved · Verification · Operate/roll back incl. snapshot, direct DB URL, `btree_gist` · Follow-ups); tick Stream 4 in the checklist; blueprint update; amend `instructor-roster.md`, `walk-in-registration.md`, `assessment-first-admission.md` where changed.
@@ -131,3 +131,11 @@ Availability model ✔ T1/T4 · M:N ✔ T1/T3 · ClassSession+sequence ✔ T1 ·
 
 ## Ledger log
 - 2026-11-03 — Spec + plan written. Branch `feature/scheduling-availability-239ad7` (rename to `feature/scheduling-availability` before first push).
+- 2026-11-03 — Branch renamed to `feature/scheduling-availability`. Scratch Postgres 5470 (17.9). Deps via `npm ci --ignore-scripts`.
+- 2026-11-03 — **Commit 1** `336d917` (T1): schema + migration. `scripts/verify-scheduling-migration.sh` 40/40; `scripts/verify-migration.sh` still passes (it now applies later migrations before its drift check). Prisma ignores the raw-SQL constraints in `migrate diff` (no drift). Finding: Prisma reports an exclusion violation as `PrismaClientUnknownRequestError` (no code) on model writes, `P2010`/23P01 on raw, `P2002` for the partial unique; `mapDbConflict` handles all three.
+- 2026-11-03 — **Commit 2** `4984219` (T2): pure logic, 66 tests then. Generator decision recorded in the spec: spreads `classesPerWeek` over feasible preferred days, at most one class per day.
+- 2026-11-03 — **Commit 3** `65bac6c` (T3): service/routes/instructor-course sync. 19 real-DB tests pass incl. races. Split `planSchedule`/`commitSchedule` so a race is deterministic (plans made on the same empty calendar, committed concurrently).
+- 2026-11-03 — T4/T5 dispatched to two Sonnet implementers (no git writes; lead commits): `5c9aff2` admin UI, `49c3ca9` preferences UI. Browser-checked on a production build against a scratch DB: found and fixed the shared admin layout overflowing at 375px (`min-w-0`, header trimmed). `next dev` kept dying under the tool harness; production build + `next start` with held-open stdin was stable.
+- 2026-11-03 — **Opus review** (read-only, no shell) → `18caf88`: deadlock (40P01) retry + `CONFLICT_RETRY`, past-start guard + audited `allowPast` backfill, instructor row lock for availability, null-body 400s, location/instructor delete mapping, catalog test for the constraints. Not fixed (documented): `/tutors` reads primaries only; commit does not re-check enrollment status in-tx; cancelled enrollments keep blocking time; concurrent PATCH removing the same course can leave a stale primary. Real-DB suite now 21 tests, 3 consecutive runs green.
+- 2026-11-03 — FE guide + 22 live captures; SOP, checklist, blueprint, roster and walk-in SOP updated.
+- Not verified: public `POST /api/enrollments` with preferences against a live server (needs Paystack); availability editor, reschedule/status dialogs and walk-in modal preferences not clicked through; 409 text through Prisma Accelerate; `CONFLICT_RETRY` by code only; admin pages other than the schedule page at 375px.

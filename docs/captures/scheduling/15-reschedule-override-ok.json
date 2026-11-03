@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/sessions/cmw0vz10t000907nppr278j6k/reschedule",
+    "path": "/api/admin/sessions/cmw0wcd2q000m0793qlq39son/reschedule",
     "body": {
       "startsAt": "2026-11-10T08:00:00.000Z",
       "overrideAvailability": true,
@@ -11,10 +11,10 @@
   "status": 200,
   "response": {
     "session": {
-      "id": "cmw0vz188000i07np75vezv11",
-      "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
-      "studentId": "cmw0vnzb1000i07luy8x29lau",
-      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "id": "cmw0wcdmd000v0793zv3f3in8",
+      "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+      "studentId": "cmw0wbw6f000i07xb16dwyhdw",
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
       "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
       "mode": "CENTRE",
       "startsAt": "2026-11-10T08:00:00.000Z",
@@ -22,10 +22,10 @@
       "endsAt": "2026-11-10T08:45:00.000Z",
       "status": "scheduled",
       "sequence": 1,
-      "rescheduledFromId": "cmw0vz10t000907nppr278j6k",
+      "rescheduledFromId": "cmw0wcd2q000m0793qlq39son",
       "notes": null,
-      "createdAt": "2026-11-03T16:12:27.513Z",
-      "updatedAt": "2026-11-03T16:12:27.513Z"
+      "createdAt": "2026-11-03T16:22:50.101Z",
+      "updatedAt": "2026-11-03T16:22:50.101Z"
     }
   }
 }

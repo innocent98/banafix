@@ -1,9 +1,9 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule",
+    "path": "/api/admin/enrollments/cmw0wbw6f000k07xbsycnyyge/schedule",
     "body": {
-      "instructorId": "cmw0vnzas000a07luobz0tth3",
+      "instructorId": "cmw0wbw65000a07xbyj0msmm2",
       "startDate": "not-a-date"
     }
   },

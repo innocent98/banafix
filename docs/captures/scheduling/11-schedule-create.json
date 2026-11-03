@@ -1,9 +1,9 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule",
+    "path": "/api/admin/enrollments/cmw0wbw6f000k07xbsycnyyge/schedule",
     "body": {
-      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
       "startDate": "2026-11-09",
       "count": 3
     }
@@ -12,10 +12,10 @@
   "response": {
     "sessions": [
       {
-        "id": "cmw0vz10t000907nppr278j6k",
-        "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
-        "studentId": "cmw0vnzb1000i07luy8x29lau",
-        "instructorId": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wcd2q000m0793qlq39son",
+        "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+        "studentId": "cmw0wbw6f000i07xb16dwyhdw",
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
         "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
         "mode": "CENTRE",
         "startsAt": "2026-11-09T09:00:00.000Z",
@@ -25,14 +25,14 @@
         "sequence": 1,
         "rescheduledFromId": null,
         "notes": null,
-        "createdAt": "2026-11-03T16:12:27.245Z",
-        "updatedAt": "2026-11-03T16:12:27.245Z"
+        "createdAt": "2026-11-03T16:22:49.394Z",
+        "updatedAt": "2026-11-03T16:22:49.394Z"
       },
       {
-        "id": "cmw0vz10u000b07nptgbzly7v",
-        "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
-        "studentId": "cmw0vnzb1000i07luy8x29lau",
-        "instructorId": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wcd2r000o0793b9a5pwru",
+        "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+        "studentId": "cmw0wbw6f000i07xb16dwyhdw",
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
         "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
         "mode": "CENTRE",
         "startsAt": "2026-11-16T09:00:00.000Z",
@@ -42,14 +42,14 @@
         "sequence": 2,
         "rescheduledFromId": null,
         "notes": null,
-        "createdAt": "2026-11-03T16:12:27.247Z",
-        "updatedAt": "2026-11-03T16:12:27.247Z"
+        "createdAt": "2026-11-03T16:22:49.395Z",
+        "updatedAt": "2026-11-03T16:22:49.395Z"
       },
       {
-        "id": "cmw0vz10v000d07np77ir3q6g",
-        "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
-        "studentId": "cmw0vnzb1000i07luy8x29lau",
-        "instructorId": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wcd2r000q0793beahjbxn",
+        "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+        "studentId": "cmw0wbw6f000i07xb16dwyhdw",
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
         "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
         "mode": "CENTRE",
         "startsAt": "2026-11-23T09:00:00.000Z",
@@ -59,18 +59,18 @@
         "sequence": 3,
         "rescheduledFromId": null,
         "notes": null,
-        "createdAt": "2026-11-03T16:12:27.247Z",
-        "updatedAt": "2026-11-03T16:12:27.247Z"
+        "createdAt": "2026-11-03T16:22:49.396Z",
+        "updatedAt": "2026-11-03T16:22:49.396Z"
       }
     ],
     "plan": {
-      "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
+      "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
       "instructor": {
-        "id": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wbw64000907xbnqa1l35q",
         "name": "Ada Okafor"
       },
       "student": {
-        "id": "cmw0vnzb1000i07luy8x29lau",
+        "id": "cmw0wbw6f000i07xb16dwyhdw",
         "name": "Dayo Ade"
       },
       "mode": "CENTRE",

@@ -94,3 +94,6 @@ tuition) -> `enrolled`. Those steps live in the "Assessment & plan" panel; see t
 - A receipt email is still not sent on a cash payment (email delivery remains blocked on `RESEND_API_KEY`).
 - The walk-in course picker is not filtered to courses offered at the chosen location (admin may register before offerings exist, by design, B7).
 - Whether the assessment fee is once per student or once per course application is an open business rule; today it is once per application.
+
+## Update 2026-11-03 (Stream 4, scheduling)
+The free-text "Schedule preference" field in the walk-in modal is replaced by structured preferences (weekday chips, morning/afternoon/evening, optional earliest/latest time, 1 or 2 classes a week) sent as `preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime`, `preferredToTime`, `preferredClassesPerWeek`; invalid values are a 400 with a readable message. They feed the class generator when the student reaches `plan_agreed`. See `docs/sop/scheduling.md`.

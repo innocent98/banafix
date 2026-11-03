@@ -36,6 +36,8 @@ E_DAYO=$(Q "select e.id from enrollments e join students s on s.id=e.\"studentId
 E_CHI=$(Q "select e.id from enrollments e join students s on s.id=e.\"studentId\" where s.email='chi@demo.test'")
 E_WALK=$(Q "select e.id from enrollments e join students s on s.id=e.\"studentId\" where s.email='walk@demo.test'")
 
+# Chi Eze books Ada first (not captured) so later captures hit a real conflict.
+curl -s -o /dev/null "$BASE/api/admin/enrollments/$E_CHI/schedule" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"instructorId\":\"$ADA\",\"startDate\":\"2026-11-09\"}"
 cap availability-get GET "/api/admin/instructors/$ADA/availability"
 cap availability-put-overlap PUT "/api/admin/instructors/$ADA/availability" "{\"slots\":[{\"weekday\":1,\"start\":\"09:00\",\"end\":\"12:00\",\"locationId\":\"$LAGOS\",\"mode\":\"CENTRE\"},{\"weekday\":1,\"start\":\"11:00\",\"end\":\"13:00\",\"locationId\":\"$LAGOS\",\"mode\":\"HOME\"}]}"
 cap availability-put-online-mismatch PUT "/api/admin/instructors/$ADA/availability" "{\"slots\":[{\"weekday\":2,\"start\":\"09:00\",\"end\":\"10:00\",\"locationId\":\"$LAGOS\",\"mode\":\"ONLINE\"}]}"

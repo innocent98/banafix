@@ -1,13 +1,13 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/instructors/cmw0vnzar000907luf5gn7y3a/availability"
+    "path": "/api/admin/instructors/cmw0wbw64000907xbnqa1l35q/availability"
   },
   "status": 200,
   "response": {
     "availability": [
       {
-        "id": "cmw0vnzav000b07lue0j9y8or",
+        "id": "cmw0wbw67000b07xb8cxjev76",
         "weekday": 1,
         "startMinute": 540,
         "endMinute": 720,
@@ -19,7 +19,7 @@
         }
       },
       {
-        "id": "cmw0vnzav000c07lusq54i9n7",
+        "id": "cmw0wbw67000c07xbl23144dm",
         "weekday": 3,
         "startMinute": 780,
         "endMinute": 1020,
@@ -31,7 +31,7 @@
         }
       },
       {
-        "id": "cmw0vnzav000d07lud26sf9zy",
+        "id": "cmw0wbw67000d07xbtx3fp5yu",
         "weekday": 5,
         "startMinute": 1080,
         "endMinute": 1260,

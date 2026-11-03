@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/sessions/cmw0vz10t000907nppr278j6k/reschedule",
+    "path": "/api/admin/sessions/cmw0wcd2q000m0793qlq39son/reschedule",
     "body": {
       "startsAt": "2026-11-10T08:00:00.000Z",
       "overrideAvailability": true

@@ -1,9 +1,9 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/cmw0vxqp7000207npptvd2iu8/schedule",
+    "path": "/api/admin/enrollments/cmw0wcbvy00020793wu5lwcpy/schedule",
     "body": {
-      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
       "startDate": "2026-11-09"
     }
   },

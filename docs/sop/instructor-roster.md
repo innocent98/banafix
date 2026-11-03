@@ -51,3 +51,6 @@ add a management page.
   it now accepts `instructorId` (assign existing) or inline `instructor` data (create + assign).
 - If two genuinely different instructors share a name, the migration's name-dedup would merge them —
   vanishingly unlikely at this scale, but worth an admin review of the roster after the prod migration.
+
+## Update 2026-11-03 (Stream 4, scheduling)
+Superseded in part by `docs/sop/scheduling.md`: an instructor can now teach several courses **and** a course can have several instructors (`InstructorCourse`, backfilled from `Course.instructorId`). `PATCH /api/admin/instructors/[id]` with `courseIds` now **adds/removes this instructor's rows only** and no longer takes a course from its current instructor; `Course.instructorId` (the public `/tutors` primary) is set only when empty. The `courses` array in instructor responses is the many-to-many list. Deleting an instructor with classes on record is refused (409).

@@ -1,9 +1,9 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule",
+    "path": "/api/admin/enrollments/cmw0wbw6f000k07xbsycnyyge/schedule",
     "body": {
-      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
       "startDate": "2026-11-09",
       "count": 3,
       "dryRun": true
@@ -12,13 +12,13 @@
   "status": 200,
   "response": {
     "plan": {
-      "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
+      "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
       "instructor": {
-        "id": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wbw64000907xbnqa1l35q",
         "name": "Ada Okafor"
       },
       "student": {
-        "id": "cmw0vnzb1000i07luy8x29lau",
+        "id": "cmw0wbw6f000i07xb16dwyhdw",
         "name": "Dayo Ade"
       },
       "mode": "CENTRE",

@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/sessions/cmw0vz10u000b07nptgbzly7v/status",
+    "path": "/api/admin/sessions/cmw0wcd2r000o0793b9a5pwru/status",
     "body": {
       "status": "rescheduled"
     }

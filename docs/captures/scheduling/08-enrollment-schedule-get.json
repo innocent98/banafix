@@ -1,13 +1,13 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule"
+    "path": "/api/admin/enrollments/cmw0wbw6f000k07xbsycnyyge/schedule"
   },
   "status": 200,
   "response": {
     "enrollment": {
-      "id": "cmw0vnzb2000k07lu2jc04u0k",
-      "courseId": "cmw0vnzan000707lu5mbktlnv",
+      "id": "cmw0wbw6f000k07xbsycnyyge",
+      "courseId": "cmw0wbw62000707xbk8i4py4i",
       "status": "plan_agreed",
       "plannedClasses": 6,
       "durationMins": 45,
@@ -26,11 +26,11 @@
     "sessions": [],
     "instructors": [
       {
-        "id": "cmw0vnzar000907luf5gn7y3a",
+        "id": "cmw0wbw64000907xbnqa1l35q",
         "name": "Ada Okafor"
       },
       {
-        "id": "cmw0vnzas000a07luobz0tth3",
+        "id": "cmw0wbw65000a07xbyj0msmm2",
         "name": "Tunde Bello"
       }
     ]
