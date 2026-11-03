@@ -54,11 +54,13 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Admin announcements; `Feedback` model with testimonial-consent flag
 - [ ] WhatsApp/SMS provider plugged in later (John's choice; cost comparison to research)
 
-### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*
-- [ ] Models + admin CRUD: `Testimonial` (name, text, optional video, publish-permission flag), `TrustedPartner` (name, logo), `SiteEvent` (title, date, location, registration link), `SiteStat` (label, value; real figures only)
-- [ ] Public home / testimonials / events render from the DB; honest empty states, no invented content; remove hardcoded `testimonials.ts` / `events.ts` / trusted-by constants
-- [ ] Remove "Lagos Music Academy" overreach; stats show only entered values
-- [ ] Team-review readiness: noindex/preview guard decision (John wants staff to review before rollout)
+### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*  ✅ built 2026-11-03, PR `feature/site-content-admin` (SOP: [`site-content-admin`](../sop/site-content-admin.md))
+- [x] Models + admin CRUD: `Testimonial` (name, role, quote, optional video, `permissionToPublish`, publish, order), `TrustedPartner` (name, Blob logo, link), `SiteEvent` (title, description, start, location, registration link), `SiteStat` (label, value, admin note; real figures only); all audited, nav items added
+- [x] Publish-permission guard enforced server-side (+ revoking permission unpublishes); unit-tested
+- [x] Public home / testimonials / events render from the DB; honest empty states; hardcoded `testimonials.ts` / `events.ts` / trusted-by list deleted; past events hidden
+- [x] Removed unbacked hero claims ("3,200 alumni", "4.9 / 5 from 412 reviews"); stats show only entered values
+- [x] Team-review readiness: noindex/preview-guard recommendation made (not built; see PR description)
+- [ ] John to enter real content via `/admin` (stats, partners, testimonials with permission, events) and confirm "SINCE 2016"
 
 ### Wave plan (lead session)
 - **Wave 1 (now, ≤3 sessions):** S1 quick wins · S2+3 assessment-first admission · S8 site content

@@ -7,7 +7,7 @@ import { getUpcomingEvents, type PublicEvent } from "@/lib/site-content-queries"
 import { ENROL_HREF, ENROL_LABEL, SITE_EMAIL, SITE_EMAIL_MAILTO, SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
-  title: "Events & workshops | Banafix",
+  title: "Events | Banafix",
   description: "Upcoming events at Banafix in Lekki, Lagos.",
 }
 

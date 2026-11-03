@@ -7,7 +7,7 @@ import { upcomingEvents } from "@/lib/site-content"
  * section. Nothing here ever supplies placeholder content.
  */
 
-const ORDERED = [{ order: "asc" as const }, { createdAt: "desc" as const }]
+const ORDERED = [{ order: "asc" as const }, { createdAt: "asc" as const }]
 
 export function getPublishedStats() {
   return prisma.siteStat.findMany({

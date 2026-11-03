@@ -195,7 +195,7 @@ export const testimonialHandlers = createContentHandlers({
   label: "Testimonial",
   listKey: "testimonials",
   itemKey: "testimonial",
-  orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+  orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   parse: parseTestimonialInput,
   rules: (existing, data) => {
     const r = applyTestimonialRules(
@@ -214,7 +214,7 @@ export const partnerHandlers = createContentHandlers({
   label: "Partner",
   listKey: "partners",
   itemKey: "partner",
-  orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+  orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   parse: parsePartnerInput,
 })
 
@@ -234,6 +234,6 @@ export const statHandlers = createContentHandlers({
   label: "Stat",
   listKey: "stats",
   itemKey: "stat",
-  orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+  orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   parse: parseStatInput,
 })
