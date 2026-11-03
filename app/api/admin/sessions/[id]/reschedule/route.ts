@@ -9,7 +9,7 @@ import { schedulingErrorResponse } from '@/lib/scheduling/http'
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
-    const b = await req.json().catch(() => ({}))
+    const b = (await req.json().catch(() => null)) ?? {}
     const startsAt = new Date(b.startsAt)
     if (typeof b.startsAt !== 'string' || Number.isNaN(startsAt.getTime())) throw new SchedulingError(400, 'BAD_START', 'startsAt must be a valid date and time')
     const session = await rescheduleSession(

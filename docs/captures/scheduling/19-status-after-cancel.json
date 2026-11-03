@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10u000b07nptgbzly7v/status",
+    "body": {
+      "status": "scheduled"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "A cancelled class cannot become scheduled",
+    "code": "BAD_TRANSITION"
+  }
+}

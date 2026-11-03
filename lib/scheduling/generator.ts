@@ -23,6 +23,8 @@ export interface GenerateInput {
   where: { locationId: string | null; mode: string }
   /** Existing active sessions of the instructor AND the student. */
   busy: Interval[]
+  /** Slots starting before this instant are never proposed (no booking in the past). */
+  earliest?: Date
   stepMins?: number
   maxWeeks?: number
 }
@@ -59,6 +61,7 @@ export function generateSessions(i: GenerateInput): { placed: GeneratedSlot[]; u
     for (const w of [...i.windows].sort((a, b) => a.start - b.start)) {
       for (let t = w.start; t + i.durationMins <= w.end; t += step) {
         const cand: Interval = { start: fromLagos(dateKey, t), end: fromLagos(dateKey, t + i.durationMins) }
+        if (i.earliest && cand.start.getTime() < i.earliest.getTime()) continue
         if (i.availability !== null && !isWithinAvailability(cand, i.availability, i.where)) continue
         if (busy.some((b) => overlaps(cand, b))) continue
         return cand

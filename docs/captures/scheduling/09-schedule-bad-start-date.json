@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule",
+    "body": {
+      "instructorId": "cmw0vnzas000a07luobz0tth3",
+      "startDate": "not-a-date"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "startDate must be a date like 2026-11-09",
+    "code": "BAD_START_DATE"
+  }
+}

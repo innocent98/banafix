@@ -1,0 +1,35 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0vxqp7000207npptvd2iu8/schedule",
+    "body": {
+      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "startDate": "2026-11-09"
+    }
+  },
+  "status": 422,
+  "response": {
+    "error": "No classes could be placed with these preferences and this instructor",
+    "code": "UNPLACEABLE",
+    "details": {
+      "unplaced": [
+        {
+          "sequence": 1,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 2,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 3,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 4,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        }
+      ]
+    }
+  }
+}

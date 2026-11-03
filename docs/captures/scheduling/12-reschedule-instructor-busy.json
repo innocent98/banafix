@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10t000907nppr278j6k/reschedule",
+    "body": {
+      "startsAt": "2026-11-09T08:00:00Z"
+    }
+  },
+  "status": 409,
+  "response": {
+    "error": "Ada Okafor already has a class at that time",
+    "code": "INSTRUCTOR_BUSY",
+    "details": {
+      "sequence": 1,
+      "startsAt": "2026-11-09T08:00:00.000Z"
+    }
+  }
+}

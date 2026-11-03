@@ -39,9 +39,30 @@ function audit(tx: Tx, admin: Admin, action: string, entityType: string, entityI
   return tx.auditLog.create({ data: { adminId: admin.id, action, entityType, entityId, metadata: metadata as Prisma.InputJsonValue } })
 }
 
+/**
+ * Two backends inserting conflicting exclusion tuples at the same instant can deadlock on each other's
+ * uncommitted row; Postgres aborts one with 40P01 (Prisma P2034). Nothing was written, so retry: the
+ * retry then hits the ordinary 23P01 conflict and becomes a friendly 409.
+ */
+export function isRetryable(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const e = err as { code?: unknown; message?: unknown }
+  return e.code === 'P2034' || (typeof e.message === 'string' && /40P01|deadlock detected/.test(e.message))
+}
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (i >= attempts || !isRetryable(e)) throw e
+    }
+  }
+}
+
 /** Map a DB conflict to a SchedulingError (409), pass other errors through untouched. */
 function toSchedulingError(err: unknown, names: { instructor?: string; student?: string }, slot?: unknown): unknown {
   if (err instanceof SchedulingError) return err
+  if (isRetryable(err)) return new SchedulingError(409, 'CONFLICT_RETRY', 'Another booking was being saved at the same moment. Try again', slot)
   const c = mapDbConflict(err, names)
   if (!c) return err
   const code = { instructor: 'INSTRUCTOR_BUSY', student: 'STUDENT_BUSY', sequence: 'SLOT_TAKEN', availability_overlap: 'AVAILABILITY_OVERLAP' }[c.kind]
@@ -79,6 +100,8 @@ export async function setAvailability(instructorId: string, slots: AvailabilityW
 
   try {
     return await prisma.$transaction(async (tx) => {
+      // Serialise concurrent edits of one instructor's week (READ COMMITTED would otherwise merge two admins' windows).
+      await tx.$queryRaw`SELECT id FROM instructors WHERE id = ${instructorId} FOR UPDATE`
       const before = await tx.instructorAvailability.count({ where: { instructorId } })
       await tx.instructorAvailability.deleteMany({ where: { instructorId } })
       if (slots.length) await tx.instructorAvailability.createMany({ data: slots.map((s) => ({ ...s, instructorId })) })
@@ -99,6 +122,8 @@ export interface ScheduleInput {
   count?: number
   mode?: string
   dryRun?: boolean
+  /** Backfill: allow classes that start in the past (already taught). Audited as `backfill`. Never set by the UI. */
+  allowPast?: boolean
   /** Accept a plan that places only some of the classes (otherwise the whole request fails, nothing written). */
   allowPartial?: boolean
   overrideAvailability?: boolean
@@ -191,6 +216,7 @@ async function buildPlan(enrollmentId: string, input: ScheduleInput): Promise<Sc
     preferredDays: (enrollment.preferredDays ?? []).map(normaliseDay).filter((n): n is number => n !== null),
     windows: preferredWindows({ bands: enrollment.preferredTimeBands, from: enrollment.preferredFromTime, to: enrollment.preferredToTime }),
     availability: override ? null : availability,
+    earliest: input.allowPast ? undefined : new Date(),
     where: { locationId: enrollment.location.id, mode },
     busy: [...instructorBusy, ...studentBusy].map(toInterval),
   })
@@ -236,7 +262,7 @@ export async function commitSchedule(plan: SchedulePlan, input: ScheduleInput, a
 
   let current: GeneratedSlot | undefined
   try {
-    const sessions = await prisma.$transaction(async (tx) => {
+    const sessions = await withRetry(() => prisma.$transaction(async (tx) => {
       const created: ClassSession[] = []
       // One at a time so a conflict names the slot that failed; the whole transaction rolls back.
       for (const slot of plan.placed) {
@@ -254,7 +280,7 @@ export async function commitSchedule(plan: SchedulePlan, input: ScheduleInput, a
       await audit(tx, admin, 'schedule.generate', 'enrollment', enrollmentId, {
         instructorId: plan.instructor.id, mode: plan.mode, durationMins: plan.durationMins, classesPerWeek: plan.classesPerWeek,
         sequences: plan.placed.map((s) => s.sequence), firstStartsAt: plan.placed[0].startsAt, unplaced: plan.unplaced.length,
-        overrideAvailability: plan.overrideAvailability,
+        overrideAvailability: plan.overrideAvailability, backfill: input.allowPast === true,
       })
       if (plan.overrideAvailability && plan.outsideAvailability.length > 0) {
         await audit(tx, admin, 'schedule.availability_override', 'enrollment', enrollmentId, {
@@ -263,7 +289,7 @@ export async function commitSchedule(plan: SchedulePlan, input: ScheduleInput, a
         })
       }
       return created
-    })
+    }))
     // TODO(S7) hook, after commit; never throws into the request.
     await onSessionsScheduled({ enrollmentId, sessionIds: sessions.map((s) => s.id) }).catch((e) => console.error('onSessionsScheduled hook failed', e))
     return { sessions, plan }
@@ -321,7 +347,7 @@ export async function rescheduleSession(sessionId: string, input: RescheduleInpu
 
   const names = { instructor: instructor.name, student: `${session.enrollment.student.firstName} ${session.enrollment.student.lastName}`.trim() }
   try {
-    const created = await prisma.$transaction(async (tx) => {
+    const created = await withRetry(() => prisma.$transaction(async (tx) => {
       // Free the old slot first (compare-and-set), then book the new one; any failure rolls both back.
       const freed = await tx.classSession.updateMany({ where: { id: sessionId, status: 'scheduled' }, data: { status: 'rescheduled' } })
       if (freed.count !== 1) throw new SchedulingError(409, 'CHANGED', 'This class changed while you were editing. Refresh and try again')
@@ -340,7 +366,7 @@ export async function rescheduleSession(sessionId: string, input: RescheduleInpu
         await audit(tx, admin, 'schedule.availability_override', 'class_session', next.id, { reason: input.overrideReason!.trim(), instructorId, slots: [{ sequence: session.sequence, startsAt, endsAt }] })
       }
       return next
-    })
+    }))
     await onSessionRescheduled({ enrollmentId: session.enrollmentId, fromSessionId: session.id, toSessionId: created.id }).catch((e) => console.error('onSessionRescheduled hook failed', e))
     return created
   } catch (e) {
@@ -361,12 +387,12 @@ export async function setSessionStatus(sessionId: string, to: string, note: stri
   }
   const from = session.status as SessionStatus
   try {
-    const updated = await prisma.$transaction(async (tx) => {
+    const updated = await withRetry(() => prisma.$transaction(async (tx) => {
       const r = await tx.classSession.updateMany({ where: { id: sessionId, status: from }, data: { status: to, ...(note !== undefined ? { notes: note.trim() || null } : {}) } })
       if (r.count !== 1) throw new SchedulingError(409, 'CHANGED', 'This class changed while you were editing. Refresh and try again')
       await audit(tx, admin, 'session.status', 'class_session', sessionId, { enrollmentId: session.enrollmentId, sequence: session.sequence, from, to, note: note ?? null })
       return tx.classSession.findUniqueOrThrow({ where: { id: sessionId } })
-    })
+    }))
     await onSessionStatusChanged({ enrollmentId: session.enrollmentId, sessionId, from, to }).catch((e) => console.error('onSessionStatusChanged hook failed', e))
     return updated
   } catch (e) {

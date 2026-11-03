@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "PUT",
+    "path": "/api/admin/instructors/cmw0vnzar000907luf5gn7y3a/availability",
+    "body": {
+      "slots": [
+        {
+          "weekday": 1,
+          "start": "09:00",
+          "end": "12:00",
+          "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+          "mode": "CENTRE"
+        },
+        {
+          "weekday": 1,
+          "start": "11:00",
+          "end": "13:00",
+          "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+          "mode": "HOME"
+        }
+      ]
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Monday 09:00 to 12:00 overlaps Monday 11:00 to 13:00"
+  }
+}

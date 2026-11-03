@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10u000b07nptgbzly7v/status",
+    "body": {
+      "status": "cancelled",
+      "note": "Student travelling"
+    }
+  },
+  "status": 200,
+  "response": {
+    "session": {
+      "id": "cmw0vz10u000b07nptgbzly7v",
+      "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
+      "studentId": "cmw0vnzb1000i07luy8x29lau",
+      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+      "mode": "CENTRE",
+      "startsAt": "2026-11-16T09:00:00.000Z",
+      "durationMins": 45,
+      "endsAt": "2026-11-16T09:45:00.000Z",
+      "status": "cancelled",
+      "sequence": 2,
+      "rescheduledFromId": null,
+      "notes": "Student travelling",
+      "createdAt": "2026-11-03T16:12:27.247Z",
+      "updatedAt": "2026-11-03T16:12:27.693Z"
+    }
+  }
+}

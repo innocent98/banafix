@@ -14,13 +14,13 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
 })
 
 // POST /api/admin/enrollments/[id]/schedule - assign an instructor and generate the classes from the plan + preferences.
-// Body: { instructorId, startDate: 'YYYY-MM-DD', count?, mode?, dryRun?, allowPartial?, overrideAvailability?, overrideReason? }
+// Body: { instructorId, startDate: 'YYYY-MM-DD', count?, mode?, dryRun?, allowPartial?, allowPast? (backfill of classes already taught; audited), overrideAvailability?, overrideReason? }
 //   dryRun:true -> 200 { plan } and nothing is written. Otherwise 201 { sessions, plan }.
 //   409 INSTRUCTOR_BUSY / STUDENT_BUSY (never overridable) · 422 UNPLACEABLE / OUTSIDE_AVAILABILITY · 400 PLAN_MISSING, NOT_PLANNED, ...
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
-    const b = await req.json().catch(() => ({}))
+    const b = (await req.json().catch(() => null)) ?? {}
     if (typeof b.instructorId !== 'string' || !b.instructorId) throw new SchedulingError(400, 'INSTRUCTOR_REQUIRED', 'Choose an instructor')
     const input = {
       instructorId: b.instructorId,
@@ -28,6 +28,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       count: b.count === undefined || b.count === null || b.count === '' ? undefined : Number(b.count),
       mode: b.mode || undefined,
       allowPartial: b.allowPartial === true,
+      allowPast: b.allowPast === true,
       overrideAvailability: b.overrideAvailability === true,
       overrideReason: typeof b.overrideReason === 'string' ? b.overrideReason : undefined,
     }

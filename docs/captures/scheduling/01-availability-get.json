@@ -1,0 +1,47 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/instructors/cmw0vnzar000907luf5gn7y3a/availability"
+  },
+  "status": 200,
+  "response": {
+    "availability": [
+      {
+        "id": "cmw0vnzav000b07lue0j9y8or",
+        "weekday": 1,
+        "startMinute": 540,
+        "endMinute": 720,
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "mode": "CENTRE",
+        "location": {
+          "name": "Lagos",
+          "kind": "PHYSICAL"
+        }
+      },
+      {
+        "id": "cmw0vnzav000c07lusq54i9n7",
+        "weekday": 3,
+        "startMinute": 780,
+        "endMinute": 1020,
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "mode": "HOME",
+        "location": {
+          "name": "Lagos",
+          "kind": "PHYSICAL"
+        }
+      },
+      {
+        "id": "cmw0vnzav000d07lud26sf9zy",
+        "weekday": 5,
+        "startMinute": 1080,
+        "endMinute": 1260,
+        "locationId": "loc_7f46165474d11ee5836777d85df2cdab",
+        "mode": "ONLINE",
+        "location": {
+          "name": "Online",
+          "kind": "ONLINE"
+        }
+      }
+    ]
+  }
+}

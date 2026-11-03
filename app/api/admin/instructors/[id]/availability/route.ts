@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
-import { getAvailability, setAvailability } from '@/lib/scheduling/service'
+import { withAuth, createResponse } from '@/lib/middleware'
+import { getAvailability, setAvailability, SchedulingError } from '@/lib/scheduling/service'
 import { schedulingErrorResponse } from '@/lib/scheduling/http'
 import { validateAvailabilitySlots } from '@/lib/scheduling/availability-input'
 
@@ -19,9 +19,9 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
 export const PUT = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
-    const body = await req.json().catch(() => ({}))
+    const body = (await req.json().catch(() => null)) ?? {}
     const parsed = validateAvailabilitySlots(body.slots)
-    if (!parsed.ok) return createErrorResponse(parsed.error, 400)
+    if (!parsed.ok) throw new SchedulingError(400, 'INVALID_AVAILABILITY', parsed.error)
     const availability = await setAvailability(id, parsed.slots, admin)
     return createResponse({ availability })
   } catch (e) {

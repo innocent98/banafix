@@ -72,6 +72,25 @@ run('scheduling service against a real Postgres', () => {
     expect((await audits('schedule.availability_override'))).toHaveLength(0)
   })
 
+  it('refuses to book classes in the past unless explicitly backfilled (audited as backfill)', async () => {
+    const w = await world()
+    const e = await enrol(w, { planned: 1 })
+    await expect(svc.createSchedule(e.id, { instructorId: w.ada.id, startDate: '2024-01-01' }, ADMIN)).rejects.toMatchObject({ status: 422, code: 'UNPLACEABLE' })
+    expect(await prisma.classSession.count()).toBe(0)
+    const e2 = await enrol(w, { planned: 1 })
+    const { sessions } = await svc.createSchedule(e2.id, { instructorId: w.bob.id, startDate: '2024-01-01', allowPast: true }, ADMIN)
+    expect(sessions[0].startsAt.toISOString()).toBe('2024-01-01T08:00:00.000Z')
+    expect((await audits('schedule.generate')).some((a) => (a.metadata as { backfill?: boolean }).backfill === true)).toBe(true)
+  })
+
+  it('the guarantees exist in the catalog: 3 exclusion constraints, the partial unique index, the endsAt pin (guards against a future Prisma migration dropping them)', async () => {
+    const cons = (await prisma.$queryRawUnsafe<{ conname: string }[]>(`select conname from pg_constraint where conrelid in ('class_sessions'::regclass,'instructor_availability'::regclass)`)).map((c) => c.conname)
+    for (const name of ['class_sessions_instructor_no_overlap', 'class_sessions_student_no_overlap', 'instructor_availability_no_overlap', 'class_sessions_ends_chk', 'class_sessions_duration_chk']) expect(cons).toContain(name)
+    const idx = await prisma.$queryRawUnsafe<{ indexdef: string }[]>(`select indexdef from pg_indexes where indexname='class_sessions_slot_unique'`)
+    expect(idx).toHaveLength(1)
+    expect(idx[0].indexdef).toMatch(/WHERE/)
+  })
+
   it('RACE: ten simultaneous inserts of the same instructor slot -> exactly one succeeds (direct, constraint only)', async () => {
     const w = await world()
     const enrolments = await Promise.all(Array.from({ length: 10 }, () => enrol(w)))
@@ -242,7 +261,7 @@ run('scheduling service against a real Postgres', () => {
   it('missed keeps its slot: nothing to schedule once every number is scheduled/held/missed', async () => {
     const w = await world()
     const a = await enrol(w, { planned: 1 })
-    const { sessions: [s] } = await svc.createSchedule(a.id, { instructorId: w.ada.id, startDate: '2024-01-01' }, ADMIN) // a past Monday so it can be marked
+    const { sessions: [s] } = await svc.createSchedule(a.id, { instructorId: w.ada.id, startDate: '2024-01-01', allowPast: true }, ADMIN) // a past Monday so it can be marked
     await svc.setSessionStatus(s.id, 'missed', undefined, ADMIN)
     await expect(svc.createSchedule(a.id, { instructorId: w.ada.id, startDate: MON }, ADMIN)).rejects.toMatchObject({ code: 'NOTHING_TO_SCHEDULE' })
   })
@@ -261,9 +280,9 @@ run('scheduling service against a real Postgres', () => {
   it('a held class still blocks the instructor; reactivating a cancelled class onto a taken slot is a friendly conflict', async () => {
     const w = await world()
     const a = await enrol(w, { planned: 1 }), b = await enrol(w, { planned: 1 })
-    const { sessions: [x] } = await svc.createSchedule(a.id, { instructorId: w.ada.id, startDate: '2024-01-01' }, ADMIN) // past Monday 09:00
+    const { sessions: [x] } = await svc.createSchedule(a.id, { instructorId: w.ada.id, startDate: '2024-01-01', allowPast: true }, ADMIN) // past Monday 09:00
     await svc.setSessionStatus(x.id, 'held', undefined, ADMIN)
-    const input = { instructorId: w.ada.id, startDate: '2024-01-01' }
+    const input = { instructorId: w.ada.id, startDate: '2024-01-01', allowPast: true }
     const planB = await svc.planSchedule(b.id, input)
     expect(planB.placed[0].startsAt.getTime()).toBeGreaterThan(x.startsAt.getTime()) // planner skipped the held slot
     // cancel x? held cannot be cancelled; flip it to missed (no longer blocks time), book b into 09:00, then revive x

@@ -8,7 +8,7 @@ import { schedulingErrorResponse } from '@/lib/scheduling/http'
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
-    const b = await req.json().catch(() => ({}))
+    const b = (await req.json().catch(() => null)) ?? {}
     const session = await setSessionStatus(id, b.status, typeof b.note === 'string' ? b.note : undefined, admin)
     return createResponse({ session })
   } catch (e) {

@@ -1,0 +1,52 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0vnzb2000k07lu2jc04u0k/schedule",
+    "body": {
+      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "startDate": "2026-11-09",
+      "count": 3,
+      "dryRun": true
+    }
+  },
+  "status": 200,
+  "response": {
+    "plan": {
+      "enrollmentId": "cmw0vnzb2000k07lu2jc04u0k",
+      "instructor": {
+        "id": "cmw0vnzar000907luf5gn7y3a",
+        "name": "Ada Okafor"
+      },
+      "student": {
+        "id": "cmw0vnzb1000i07luy8x29lau",
+        "name": "Dayo Ade"
+      },
+      "mode": "CENTRE",
+      "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+      "durationMins": 45,
+      "classesPerWeek": 1,
+      "plannedClasses": 6,
+      "alreadyScheduled": 0,
+      "placed": [
+        {
+          "sequence": 1,
+          "startsAt": "2026-11-09T09:00:00.000Z",
+          "endsAt": "2026-11-09T09:45:00.000Z"
+        },
+        {
+          "sequence": 2,
+          "startsAt": "2026-11-16T09:00:00.000Z",
+          "endsAt": "2026-11-16T09:45:00.000Z"
+        },
+        {
+          "sequence": 3,
+          "startsAt": "2026-11-23T09:00:00.000Z",
+          "endsAt": "2026-11-23T09:45:00.000Z"
+        }
+      ],
+      "unplaced": [],
+      "outsideAvailability": [],
+      "overrideAvailability": false
+    }
+  }
+}

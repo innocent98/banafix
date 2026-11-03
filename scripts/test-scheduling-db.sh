@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PORT="${EPHEMERAL_PG_PORT:-5470}"
-export EPHEMERAL_PG_PORT="$PORT" EPHEMERAL_PG_DIR="${TMPDIR:-/tmp}/banafix-sched-test-pg"
+export EPHEMERAL_PG_PORT="$PORT" EPHEMERAL_PG_DIR="${EPHEMERAL_PG_DIR:-${TMPDIR:-/tmp}/banafix-sched-test-pg}"
 URL="$(scripts/dev/ephemeral-pg.sh reset)"
 case "$URL" in *127.0.0.1*) ;; *) echo "refusing: not a local database" >&2; exit 1;; esac
 trap 'scripts/dev/ephemeral-pg.sh stop' EXIT

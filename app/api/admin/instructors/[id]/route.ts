@@ -41,6 +41,9 @@ export const PATCH = withAuth(async (req: NextRequest, admin, context: { params:
 
     // Set the courses this instructor teaches, when provided. Adds/removes rows for THIS instructor only:
     // a course can have several instructors, so this never takes a course away from another teacher.
+    if (body.courseIds !== undefined && !(Array.isArray(body.courseIds) && body.courseIds.every((c: unknown) => typeof c === 'string'))) {
+      return createErrorResponse('courseIds must be a list of course ids', 400)
+    }
     if (Array.isArray(body.courseIds)) {
       await prisma.$transaction((tx) => setInstructorCourses(tx, id, body.courseIds as string[]))
     }
@@ -57,7 +60,8 @@ export const PATCH = withAuth(async (req: NextRequest, admin, context: { params:
     })
 
     return createResponse({ instructor, message: 'Instructor updated' })
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2003') return createErrorResponse('One or more selected courses were not found', 400)
     console.error('Update instructor error:', error)
     return createErrorResponse('Failed to update instructor', 500)
   }
@@ -88,7 +92,8 @@ export const DELETE = withAuth(async (req: NextRequest, admin, context: { params
     })
 
     return createResponse({ message: 'Instructor deleted' })
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2003') return createErrorResponse('This instructor has classes on record and cannot be removed', 409)
     console.error('Delete instructor error:', error)
     return createErrorResponse('Failed to delete instructor', 500)
   }

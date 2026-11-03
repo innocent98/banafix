@@ -114,6 +114,11 @@ describe('generateSessions', () => {
     expect(r.placed.map((s) => s.sequence)).toEqual([2, 5])
   })
 
+  it('never proposes a slot that starts before `earliest` (no booking in the past)', () => {
+    const r = generateSessions(base({ count: 2, earliest: fromLagos('2026-11-09', 9 * 60 + 1) }))
+    expect(r.placed.map((s) => local(s.startsAt))).toEqual(['2026-11-09 09:15', '2026-11-16 09:00'])
+  })
+
   it('is bounded by maxWeeks and reports the rest as unplaced instead of looping', () => {
     const r = generateSessions(base({ count: 10, maxWeeks: 3 }))
     expect(r.placed).toHaveLength(3)

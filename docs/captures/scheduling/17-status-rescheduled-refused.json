@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10u000b07nptgbzly7v/status",
+    "body": {
+      "status": "rescheduled"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "status must be scheduled, held, missed or cancelled",
+    "code": "BAD_STATUS"
+  }
+}

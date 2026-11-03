@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10t000907nppr278j6k/reschedule",
+    "body": {
+      "startsAt": "2026-11-10T08:00:00.000Z",
+      "overrideAvailability": true
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Say why the instructor is being booked outside their availability",
+    "code": "OVERRIDE_REASON_REQUIRED"
+  }
+}

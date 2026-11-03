@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0vxqp7000207npptvd2iu8/schedule",
+    "body": {
+      "instructorId": "cmw0vnzar000907luf5gn7y3a",
+      "startDate": "2026-11-09"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Classes can only be scheduled once the plan is agreed",
+    "code": "NOT_PLANNED"
+  }
+}

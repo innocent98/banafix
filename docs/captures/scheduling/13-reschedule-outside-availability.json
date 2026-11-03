@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10t000907nppr278j6k/reschedule",
+    "body": {
+      "startsAt": "2026-11-10T08:00:00.000Z"
+    }
+  },
+  "status": 422,
+  "response": {
+    "error": "Ada Okafor is not available then. Pick a time inside their availability or override with a reason",
+    "code": "OUTSIDE_AVAILABILITY",
+    "details": {
+      "startsAt": "2026-11-10T08:00:00.000Z",
+      "weekday": 2,
+      "minuteOfDay": 540
+    }
+  }
+}

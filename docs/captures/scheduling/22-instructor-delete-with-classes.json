@@ -1,0 +1,10 @@
+{
+  "request": {
+    "method": "DELETE",
+    "path": "/api/admin/instructors/cmw0vnzar000907luf5gn7y3a"
+  },
+  "status": 409,
+  "response": {
+    "error": "Ada Okafor has 10 classes on record and cannot be removed. Reassign or cancel their upcoming classes and keep them on the roster"
+  }
+}

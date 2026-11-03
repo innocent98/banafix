@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0vz10u000b07nptgbzly7v/status",
+    "body": {
+      "status": "held"
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "A class can only be marked held or missed once it has started",
+    "code": "NOT_STARTED"
+  }
+}
