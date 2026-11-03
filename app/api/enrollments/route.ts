@@ -161,12 +161,14 @@ export async function POST(req: NextRequest) {
         400,
       )
     }
-    // A stale unpaid application is CANCELLED, not deleted: deleting cascades its ApplicationPayment
-    // away, so a bank-transfer/USSD charge still in flight would settle later with no record.
-    // A late webhook for a cancelled enrollment is recorded + audited (never lost, never re-activated).
-    await prisma.enrollment.updateMany({
+    // Older unpaid applications for this course are superseded by this one, but only AFTER the new
+    // payment has been initialised (below): an unauthenticated request must not be able to cancel
+    // anyone's application if it then fails validation or Paystack init. They are cancelled, not
+    // deleted, so a bank-transfer/USSD payment still in flight keeps its record (a late webhook
+    // for a cancelled enrollment is recorded + audited, never lost and never re-activated).
+    const staleApplications = await prisma.enrollment.findMany({
       where: { studentId: student.id, courseId, status: 'pending' },
-      data: { status: 'cancelled' },
+      select: { id: true },
     })
 
     let assessmentFee: number
@@ -267,6 +269,14 @@ export async function POST(req: NextRequest) {
       await prisma.enrollment.delete({ where: { id: enrollment.id } })
 
       return createErrorResponse('Failed to initialize payment. Please try again.', 500)
+    }
+
+    // The new application is live: retire the superseded unpaid ones (compare-and-set on `pending`).
+    if (staleApplications.length > 0) {
+      await prisma.enrollment.updateMany({
+        where: { id: { in: staleApplications.map((e) => e.id) }, status: 'pending' },
+        data: { status: 'cancelled' },
+      })
     }
 
     // Update application payment with Paystack access code

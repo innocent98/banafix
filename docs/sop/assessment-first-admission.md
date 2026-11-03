@@ -150,7 +150,7 @@ One Opus pass over the webhook/settle path, migration, plan snapshot/tuition, pu
 |---|---|---|
 | Migration: two names slugifying identically (or with no ASCII) would violate `locations_slug_key`, fail `migrate deploy` in `postinstall` and wedge later deploys (P3009) | blocker | numbered slug suffixes, empty ⇒ `location`; verifier cases added. **Still run `select slug … having count>1`-style sanity on the prod snapshot** |
 | Legacy `application_paid` rows stranded outside the guard | should-fix | mapped to `enrolled` in the migration |
-| Deleting a stale `pending` cascaded its payment: an in-flight transfer settled with no record | should-fix (money) | cancel instead of delete (B14); unknown reference now audited |
+| Deleting a stale `pending` cascaded its payment: an in-flight transfer settled with no record | should-fix (money) | cancel instead of delete, and only after the replacement payment is initialised (B14); unknown reference now audited |
 | Charged amount/currency never compared | should-fix | `chargeMatches` before settle; mismatch audited, not settled |
 | Tuition on any paid row (pre-plan receipts with a meaningless balance); payment and admit not atomic | should-fix | status restricted, one transaction (B15) |
 | Re-sent receipts ignored the plan snapshot | should-fix | shared `expectedTuitionTotal` |
