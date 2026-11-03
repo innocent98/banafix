@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { CalendarDays, Handshake, TrendingUp } from "lucide-react"
 import {
   BarChart3,
   BookOpen,
@@ -99,6 +100,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     //   href: "/admin/testimonials",
     //   description: "Student feedback"
     // },
+    { id: "testimonials", label: "Testimonials", icon: MessageSquare, href: "/admin/testimonials", description: "Student and parent quotes" },
+    { id: "partners", label: "Trusted by", icon: Handshake, href: "/admin/partners", description: "Partner logos" },
+    { id: "site-events", label: "Events", icon: CalendarDays, href: "/admin/events", description: "Upcoming events" },
+    { id: "site-stats", label: "Site stats", icon: TrendingUp, href: "/admin/stats", description: "Real hero figures" },
     // {
     //   id: "faqs",
     //   label: "FAQs",
