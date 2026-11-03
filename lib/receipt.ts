@@ -179,7 +179,7 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   doc.setFontSize(10)
   doc.text('Assessment Fee (Non-refundable):', 25, 235)
   doc.setFontSize(14)
-  doc.text(`₦${data.payment.amount.toLocaleString()}`, 150, 235)
+  doc.text(pdfMoney(data.payment.amount), 150, 235)
 
   // Footer
   doc.setTextColor(primaryColor)
@@ -193,6 +193,9 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   return Buffer.from(doc.output('arraybuffer'))
 }
 
+/** jsPDF's built-in helvetica has no naira glyph (it prints as ':'), so PDFs write the ISO code. */
+const pdfMoney = (amount: number): string => `NGN ${amount.toLocaleString('en-US')}`
+
 /** Lowest y (mm) content may reach on an A4 page before a new page is added. */
 const PDF_CONTENT_LIMIT_Y = 270
 
@@ -204,10 +207,11 @@ function renderLedgerSection(
   doc: jsPDF,
   data: TuitionReceiptData,
   ledger: TuitionReceiptLedger,
-  colors: { primaryColor: string; accentColor: string; lightGray: string }
+  colors: { primaryColor: string; accentColor: string; lightGray: string },
+  startY: number,
 ): void {
   const { primaryColor, accentColor, lightGray } = colors
-  let y = 190
+  let y = startY
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PDF_CONTENT_LIMIT_Y) {
@@ -250,8 +254,8 @@ function renderLedgerSection(
     }
     doc.setTextColor(primaryColor)
     doc.text(descLines, 22, y)
-    doc.text(`${line.quantity} x ${formatCurrency(line.unitPrice)}`, 125, y)
-    doc.text(formatCurrency(line.amount), 188, y, { align: 'right' })
+    doc.text(`${line.quantity} x ${pdfMoney(line.unitPrice)}`, 125, y)
+    doc.text(pdfMoney(line.amount), 188, y, { align: 'right' })
     y += rowHeight
   }
 
@@ -260,12 +264,12 @@ function renderLedgerSection(
   const hasCredit = ledger.credit > 0
   const paymentTypeLabel = data.paymentType === 'completed' ? 'Paid in full' : 'Part payment'
   const rows: Array<[string, string, boolean]> = [
-    ['Total charged', formatCurrency(ledger.totalCharged), false],
-    ['Amount paid', formatCurrency(data.payment.amount), true],
-    ['Total paid to date', formatCurrency(data.totalPaid), false],
+    ['Total charged', pdfMoney(ledger.totalCharged), false],
+    ['Amount paid', pdfMoney(data.payment.amount), true],
+    ['Total paid to date', pdfMoney(data.totalPaid), false],
     hasCredit
-      ? ['Credit', formatCurrency(ledger.credit), false]
-      : ['Balance remaining', formatCurrency(balance), false],
+      ? ['Credit', pdfMoney(ledger.credit), false]
+      : ['Balance remaining', pdfMoney(balance), false],
     ['Classes covered', `${ledger.classesCovered} of ${ledger.classesPurchased}`, false],
   ]
   const blockHeight = 14 + (rows.length + (data.payment.description ? 1 : 0)) * 7 + 7 + 4
@@ -301,8 +305,12 @@ function renderLedgerSection(
   y += blockHeight
 
   // Footer
-  y += 8
-  ensureSpace(20)
+  y += 7
+  // The footer may use the bottom margin (the legacy receipt prints at y=264); only a full page pushes it on.
+  if (y + 14 > 286) {
+    doc.addPage()
+    y = 20
+  }
   doc.setTextColor(primaryColor)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
@@ -381,22 +389,25 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
     doc.text(`Phone: ${data.enrollment.phone}`, 20, 129)
   }
 
-  // Course Information
+  // Course Information. Ledger receipts sit it beside the student block so the charges, totals and
+  // footer fit on one page for a typical plan; legacy receipts keep the original stacked layout.
+  const courseX = data.ledger ? 110 : 20
+  const courseY = data.ledger ? 105 : 145
   doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
-  doc.text('COURSE INFORMATION', 20, 145)
+  doc.text('COURSE INFORMATION', courseX, courseY)
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Course: ${data.course.title}`, 20, 155)
-  doc.text(`Instrument: ${data.course.instrument}`, 20, 162)
-  doc.text(`Level: ${data.course.level}`, 20, 169)
+  doc.text(`Course: ${data.course.title}`, courseX, courseY + 10)
+  doc.text(`Instrument: ${data.course.instrument}`, courseX, courseY + 17)
+  doc.text(`Level: ${data.course.level}`, courseX, courseY + 24)
   if (data.course.instructor) {
-    doc.text(`Instructor: ${data.course.instructor}`, 20, 176)
+    doc.text(`Instructor: ${data.course.instructor}`, courseX, courseY + 31)
   }
 
   if (data.ledger) {
-    renderLedgerSection(doc, data, data.ledger, { primaryColor, accentColor, lightGray })
+    renderLedgerSection(doc, data, data.ledger, { primaryColor, accentColor, lightGray }, 150)
     return Buffer.from(doc.output('arraybuffer'))
   }
 
@@ -415,12 +426,12 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
   }
   doc.text('Amount Paid:', 25, 217)
   doc.setFontSize(14)
-  doc.text(`₦${data.payment.amount.toLocaleString()}`, 130, 217)
+  doc.text(pdfMoney(data.payment.amount), 130, 217)
 
   doc.setFontSize(10)
   doc.text('Total Paid to Date:', 25, 224)
   doc.setFontSize(12)
-  doc.text(`₦${data.totalPaid.toLocaleString()}`, 130, 224)
+  doc.text(pdfMoney(data.totalPaid), 130, 224)
 
   // Payment type (Full / Part) and remaining balance
   doc.setFontSize(10)
@@ -431,7 +442,7 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
   if (data.remainingBalance !== undefined) {
     doc.text('Balance Remaining:', 25, 238)
     doc.setFontSize(12)
-    doc.text(`₦${data.remainingBalance.toLocaleString()}`, 130, 238)
+    doc.text(pdfMoney(data.remainingBalance), 130, 238)
   }
 
   // Footer
