@@ -3,9 +3,9 @@
  *
  * Every word of data on these cards is real. The formats are the rows of the
  * `DeliveryMode` table (active, ordered), rendered under their canonical
- * names; the "from ₦X" is the minimum `course.pricing[mode]` across published
- * courses that list the mode in `availableModes`; the course count is how many
- * of those courses there are. `DeliveryMode` has no description field, so this
+ * names; the "from ₦X per class" is the minimum per-class rate across offerable
+ * offerings in that format; the course count is how many published courses have
+ * such an offering. `DeliveryMode` has no description field, so this
  * section asserts nothing else about a format.
  *
  * The previous version hardcoded three invented formats ("At the studio",
@@ -22,9 +22,9 @@ export interface HomeFormat {
   id: string
   /** The canonical `DeliveryMode.name`: On-site · One-on-One · Online · Home Training. */
   name: string
-  /** Minimum `course.pricing[name]` across published courses offering it, or null. */
+  /** Minimum per-class rate across offerable offerings in this format, or null. */
   from: number | null
-  /** How many published courses list this mode in `availableModes`. */
+  /** How many published courses have an offerable offering in this format. */
   courseCount: number
 }
 
@@ -107,7 +107,7 @@ export function HowYouLearn({ formats }: { formats: readonly HomeFormat[] }) {
                     {/* Omitted entirely when no published course offers this mode. */}
                     {format.from !== null ? (
                       <div className="text-[13.5px] font-bold whitespace-nowrap text-bfx-amber">
-                        from {formatNaira(format.from)}
+                        from {formatNaira(format.from)} per class
                       </div>
                     ) : null}
                   </div>

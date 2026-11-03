@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { OfferingsTab } from "@/components/admin/offerings-tab"
+import { MaterialsTab } from "@/components/admin/materials-tab"
 import { InstructorFormModal } from "@/components/admin/instructor-form-modal"
 import { InstructorPicker, type RosterInstructor } from "@/components/admin/instructor-picker"
 import {
@@ -472,7 +474,8 @@ export default function EditCoursePage() {
       case "basic":
         return !!(course.title && course.instrument && course.level && course.duration)
       case "delivery":
-        return (course.availableModes?.length || 0) > 0 && course.availableModes.every(mode => (course.pricing?.[mode] || 0) > 0)
+      case "materials":
+        return false // data lives in the tab's own tables (offerings/materials), not on `course`
       case "content":
         return (course.outcomes?.some(o => o.trim()) || false) && (course.equipment?.some(e => e.trim()) || false)
       case "instructor":
@@ -554,7 +557,7 @@ export default function EditCoursePage() {
 
           {/* Main Content */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full h-auto grid-cols-4 lg:grid-cols-8">
+            <TabsList className="grid w-full h-auto grid-cols-4 lg:grid-cols-9">
               <TabsTrigger value="basic" className="flex items-center gap-2">
                 {isTabComplete("basic") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BookOpen className="h-4 w-4" />}
                 <span className="hidden sm:inline">Basic Info</span>
@@ -562,8 +565,12 @@ export default function EditCoursePage() {
               </TabsTrigger>
               <TabsTrigger value="delivery" className="flex items-center gap-2">
                 {isTabComplete("delivery") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Settings className="h-4 w-4" />}
-                <span className="hidden sm:inline">Delivery & Pricing</span>
-                <span className="sm:hidden">Delivery</span>
+                <span className="hidden sm:inline">Offerings</span>
+                <span className="sm:hidden">Offers</span>
+              </TabsTrigger>
+              <TabsTrigger value="materials" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span>Materials</span>
               </TabsTrigger>
               <TabsTrigger value="content" className="flex items-center gap-2">
                 {isTabComplete("content") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BookOpen className="h-4 w-4" />}
@@ -721,6 +728,9 @@ export default function EditCoursePage() {
                         placeholder={course.unlimitedSeats ? "Unlimited seats" : undefined}
                         className="mt-2"
                       />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        No longer enforced (seat counting retired); kept for reference only.
+                      </p>
                     </div>
 
                   </div>
@@ -770,99 +780,14 @@ export default function EditCoursePage() {
               </Card>
             </TabsContent>
 
-            {/* Delivery & Pricing Tab */}
+            {/* Offerings Tab (location x format matrix with per-class rates) */}
             <TabsContent value="delivery" className="space-y-6 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Delivery Modes & Pricing</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label className="text-sm font-semibold mb-4 block">
-                      Available Delivery Modes *
-                    </Label>
-                    {deliveryModes.length === 0 ? (
-                      <div className="text-center py-8 border rounded-lg bg-muted/50">
-                        <p className="text-muted-foreground mb-4">No delivery modes found.</p>
-                        <Button 
-                          onClick={async () => {
-                            try {
-                              setIsSaving(true)
-                              const token = localStorage.getItem("admin_token")
-                              const res = await fetch("/api/admin/delivery-modes/seed", {
-                                method: "POST",
-                                headers: { Authorization: `Bearer ${token}` }
-                              })
-                              if (res.ok) {
-                                await loadDeliveryModes()
-                                setSuccess("Delivery modes seeded successfully")
-                              } else {
-                                setError("Failed to seed delivery modes")
-                              }
-                            } catch (err) {
-                              setError("An error occurred")
-                            } finally {
-                              setIsSaving(false)
-                            }
-                          }}
-                          variant="outline"
-                          disabled={isSaving}
-                        >
-                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
-                          Seed Default Modes
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {deliveryModes.map((mode) => (
-                        <div key={mode.id} className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id={mode.id}
-                              checked={course.availableModes?.includes(mode.name) || false}
-                              onCheckedChange={(checked) =>
-                                handleModeChange(mode.name, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={mode.id} className="font-medium">
-                              {mode.name}
-                            </Label>
-                          </div>
-                          {course.availableModes?.includes(mode.name) && (
-                            <div className="ml-6">
-                              <Label className="text-sm text-slate-600">
-                                Price (₦)
-                              </Label>
-                              <Input
-                                type="number"
-                                value={course.pricing?.[mode.name] || ""}
-                                onChange={(e) =>
-                                  handlePricingChange(mode.name, parseInt(e.target.value) || 0)
-                                }
-                                placeholder="25000"
-                                min="0"
-                                className="mt-1"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  </div>
+              <OfferingsTab courseId={courseId} />
+            </TabsContent>
 
-                  <Button
-                    onClick={() => updateCourse({
-                      availableModes: course.availableModes,
-                      pricing: course.pricing,
-                    })}
-                    disabled={isSaving}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Delivery & Pricing
-                  </Button>
-                </CardContent>
-              </Card>
+            {/* Materials Tab */}
+            <TabsContent value="materials" className="space-y-6 mt-6">
+              <MaterialsTab courseId={courseId} />
             </TabsContent>
 
             {/* Course Content Tab */}
@@ -1484,14 +1409,15 @@ export default function EditCoursePage() {
           {/* Navigation Buttons */}
           <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-200">
             <div className="text-sm text-slate-600">
-              {activeTab === "basic" && "1 of 8 - Basic Information"}
-              {activeTab === "delivery" && "2 of 8 - Delivery & Pricing"}
-              {activeTab === "content" && "3 of 8 - Course Content"}
-              {activeTab === "instructor" && "4 of 8 - Instructor"}
-              {activeTab === "curriculum" && "5 of 8 - Curriculum"}
-              {activeTab === "faqs" && "6 of 8 - FAQs"}
-              {activeTab === "schedule" && "7 of 8 - Schedule"}
-              {activeTab === "settings" && "8 of 8 - Settings"}
+              {activeTab === "basic" && "1 of 9 - Basic Information"}
+              {activeTab === "delivery" && "2 of 9 - Offerings"}
+              {activeTab === "materials" && "3 of 9 - Materials"}
+              {activeTab === "content" && "4 of 9 - Course Content"}
+              {activeTab === "instructor" && "5 of 9 - Instructor"}
+              {activeTab === "curriculum" && "6 of 9 - Curriculum"}
+              {activeTab === "faqs" && "7 of 9 - FAQs"}
+              {activeTab === "schedule" && "8 of 9 - Schedule"}
+              {activeTab === "settings" && "9 of 9 - Settings"}
             </div>
 
             <div className="flex gap-3">
@@ -1499,7 +1425,7 @@ export default function EditCoursePage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const tabs = ["basic", "delivery", "content", "instructor", "curriculum", "faqs", "schedule", "settings"]
+                    const tabs = ["basic", "delivery", "materials", "content", "instructor", "curriculum", "faqs", "schedule", "settings"]
                     const currentIndex = tabs.indexOf(activeTab)
                     setActiveTab(tabs[currentIndex - 1])
                   }}
@@ -1511,7 +1437,7 @@ export default function EditCoursePage() {
               {activeTab !== "settings" && (
                 <Button
                   onClick={() => {
-                    const tabs = ["basic", "delivery", "content", "instructor", "curriculum", "faqs", "schedule", "settings"]
+                    const tabs = ["basic", "delivery", "materials", "content", "instructor", "curriculum", "faqs", "schedule", "settings"]
                     const currentIndex = tabs.indexOf(activeTab)
                     setActiveTab(tabs[currentIndex + 1])
                   }}

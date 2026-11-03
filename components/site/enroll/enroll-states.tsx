@@ -145,9 +145,9 @@ export function EnrollLoadError({ message, onRetry }: { message: string; onRetry
  * The course loaded, but `POST /api/enrollments` would reject it on one of its
  * own preconditions:
  *
- *   expired      — `isCourseExpired(sessionStartDate)`  (route.ts:84)
- *   fully booked — `!unlimitedSeats && seatsLeft <= 0`  (route.ts:89)
- *   no modes     — `availableModes` empty, so no `selectedMode` can ever validate
+ *   expired       — `isCourseExpired(sessionStartDate)`
+ *   not open yet  — no offerable offering (active offering, active location, at least one rate),
+ *                   so no `offeringId` can ever validate. Shown as "Enrolment opening soon".
  *
  * Before this state existed the student filled all three steps and only met the
  * refusal on the Pay button, with a raw server string and no way forward.

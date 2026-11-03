@@ -121,7 +121,8 @@ export interface PaystackTransaction {
 /**
  * Paystack API configuration
  */
-const PAYSTACK_BASE_URL = 'https://api.paystack.co'
+// Overridable only so a local mock (scripts/mock-paystack.mjs) can exercise the real webhook/enrol code.
+const PAYSTACK_BASE_URL = process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co'
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
 const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY
 

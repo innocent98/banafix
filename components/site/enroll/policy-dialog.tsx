@@ -3,10 +3,13 @@
 /**
  * Full policy text, kept reachable from the two consent rows on step 2.
  *
- * The copy is transcribed verbatim from the outgoing
- * `components/enrollment/policies-form.tsx` so the wording a student agrees to is
- * unchanged by the redesign. Section 3 (Attendance) is intentionally absent: it is
- * commented out in that file, so it is not currently live policy text.
+ * Rewritten for the assessment-first flow: the amount paid at this step is a
+ * non-refundable assessment fee, not enrolment, and tuition is agreed per class
+ * after the assessment. Where the academy has made no business decision (tuition
+ * refunds, cancelling or rescheduling lessons, a missed assessment, late arrival,
+ * materials) the wording is deliberately neutral ("case by case"). Those points
+ * are listed for John in docs/john-review/policy-changes.md. Do not add numbers
+ * or fee amounts here until he decides.
  *
  * Radix Dialog gives the focus trap, Escape-to-close and scroll lock.
  */
@@ -23,40 +26,54 @@ import Link from "next/link"
 const SECTIONS = [
   {
     number: "1",
-    title: "Enrollment Terms",
-    intro: "By enrolling in Banafix courses, you agree to:",
+    title: "Applying and Enrolment",
+    intro: "By applying for an assessment, you agree to:",
     points: [
-      "Attend all scheduled sessions punctually",
-      "Complete assigned practice tasks and homework",
+      "Provide accurate information in your application",
+      "Attend your assessment at the time we agree with you, at home, at the centre or online",
+      "For a home assessment, give a correct address and landmark. We confirm that we cover your area and we confirm the time with you",
       "Respect course materials and intellectual property",
-      "Provide accurate information during enrollment",
     ],
     footnote:
-      "Course materials and platform access are provided for the duration of your enrollment and remain property of Banafix.",
+      "Paying the assessment fee does not enrol you. Enrolment follows your assessment and a plan you agree with Banafix. Course materials and content remain the property of Banafix.",
   },
   {
     number: "2",
     title: "Payment Policy",
     intro: "Payment terms:",
     points: [
-      "Full payment required before course commencement",
-      "Installment plans available for courses above ₦50,000",
-      "Late payment fee of ₦2,000 applies for overdue installments",
-      "Payment methods: Card, Bank Transfer, USSD, PayPal",
+      "The assessment fee is paid when you apply. The amount depends on the location and is shown at checkout",
+      "The assessment fee is charged once per student. If you have paid it before, you are not charged it again for a later application",
+      "Tuition is not charged until after your assessment, once a plan is agreed. It is charged per class. The rate depends on the location, the format and the class length (45 or 60 minutes)",
+      "Your plan sets the classes per week and the number of planned classes. The per-class rate is fixed when the plan is agreed",
+      "You can pay online through Paystack (card, bank, USSD or bank transfer). The academy can also record payments made in cash, by bank transfer or by POS, including part payments",
     ],
-    footnote: "All fees are in Nigerian Naira (₦) unless otherwise stated.",
+    footnote:
+      "All amounts are in Nigerian Naira (₦). Applicants abroad pay the Naira fee shown at checkout. When tuition payments are due is confirmed with you when your plan is agreed.",
+  },
+  {
+    number: "3",
+    title: "Refund Policy",
+    intro: "Refunds:",
+    points: [
+      "The assessment fee is non-refundable. It covers your assessment, and paying it does not enrol you",
+      "Tuition refund requests are considered case by case, taking into account how much of your plan has been delivered",
+      "If you miss or cancel your assessment, contact us and we will handle it case by case",
+      "If a refund is approved, we will tell you how and when it will be paid",
+    ],
+    footnote: "To ask about a refund, contact us through the contact page.",
   },
   {
     number: "4",
-    title: "Refund Policy",
-    intro: "Refund schedule:",
+    title: "Attendance",
+    intro: "Once you are enrolled, we ask that you:",
     points: [
-      "100% refund: within 7 days of enrollment with no sessions attended",
-      "75% refund: within the first 2 weeks with 2 or fewer sessions attended",
-      "50% refund: within the first month with 25% or less of the course completed",
-      "No refund: after 25% course completion or 1 month, whichever comes first",
+      "Attend your lessons punctually",
+      "Tell us as early as you can if you cannot make a lesson",
+      "Complete assigned practice tasks and homework",
     ],
-    footnote: "Refunds are processed within 7 to 14 business days to the original payment method.",
+    footnote:
+      "Cancelling or rescheduling a lesson, and arriving late, are handled case by case. Please contact us.",
   },
   {
     number: "5",
@@ -64,20 +81,21 @@ const SECTIONS = [
     intro: "Expected behaviour:",
     points: [
       "Maintain respectful behaviour towards instructors and fellow students",
-      "Use appropriate language during sessions",
+      "Use appropriate language during assessments and lessons",
       "Respect others' learning environment",
       "Follow safety guidelines for instruments and equipment",
     ],
     footnote:
-      "Disruptive behaviour may result in warnings, suspension, or course termination without refund.",
+      "Disruptive behaviour may result in warnings, suspension, or the end of your lessons.",
   },
   {
     number: "6",
     title: "Privacy Policy",
     intro: "Data collection:",
     points: [
-      "Personal information used for course administration only",
-      "Payment data processed securely through certified providers",
+      "Personal information is used to handle your application, assessment, lessons and payments",
+      "Assessment details such as your preferred date, home address and landmark are used to arrange your assessment",
+      "Payment data is processed securely through certified providers",
       "Session recordings may be used for quality improvement",
       "Marketing communications only with explicit consent",
     ],

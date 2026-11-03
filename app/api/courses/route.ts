@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { getCourseExpirationCutoff } from '@/lib/course-utils'
+import { courseFromRate, getOfferingsByCourse, offerableOfferingWhere } from '@/lib/offerings'
 
 // GET /api/courses - Public endpoint to list published courses
 export async function GET(req: NextRequest) {
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get('search') || ''
     const instrument = url.searchParams.get('instrument') || ''
     const level = url.searchParams.get('level') || ''
-    const location = url.searchParams.get('location') || ''
+    const locationSlug = url.searchParams.get('location') || ''
 
     const skip = (page - 1) * limit
 
@@ -45,7 +46,24 @@ export async function GET(req: NextRequest) {
 
     if (instrument && instrument !== 'all') where.instrument = instrument
     if (level && level !== 'all') where.level = level
-    if (location && location !== 'all') where.location = location
+
+    // Location-first browse: only courses with an offerable offering at that location. An unknown
+    // slug matches nothing rather than silently falling back to every course.
+    let locationId: string | undefined
+    if (locationSlug && locationSlug !== 'all') {
+      const location = await prisma.location.findUnique({
+        where: { slug: locationSlug },
+        select: { id: true },
+      })
+      if (!location) {
+        return createResponse({
+          courses: [],
+          pagination: { page, limit, total: 0, pages: 0 },
+        })
+      }
+      locationId = location.id
+      where.AND.push({ offerings: { some: offerableOfferingWhere(locationId) } })
+    }
 
     const [courses, total] = await Promise.all([
       prisma.course.findMany({
@@ -75,6 +93,11 @@ export async function GET(req: NextRequest) {
       prisma.course.count({ where }),
     ])
 
+    const offeringsByCourse = await getOfferingsByCourse(
+      courses.map((course: any) => course.id),
+      locationId,
+    )
+
     // Transform courses to match frontend expectations
     const transformedCourses = courses.map((course: any) => ({
       id: course.id,
@@ -83,15 +106,10 @@ export async function GET(req: NextRequest) {
       instrument: course.instrument,
       level: course.level,
       duration: course.duration,
-      location: course.location,
       session: course.session,
       sessionStartDate: course.sessionStartDate,
-      modes: course.availableModes,
-      pricing: course.pricing,
-      price: course.pricing ? Math.min(...Object.values(course.pricing as Record<string, number>)) : 0,
-      totalSeats: course.totalSeats,
-      seatsLeft: course.seatsLeft,
-      unlimitedSeats: course.unlimitedSeats,
+      // Per-class rate from offerable offerings (scoped to ?location when given); null => not open yet.
+      fromRatePerClass: courseFromRate(offeringsByCourse.get(course.id) ?? []),
       outcomes: course.outcomes,
       equipment: course.equipment,
       image: course.image,

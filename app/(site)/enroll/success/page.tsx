@@ -10,14 +10,14 @@
  */
 
 import type * as React from "react"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { Display, PillLink } from "@/components/site/primitives"
 import { formatNaira } from "@/lib/site"
 
 interface VerifyResult {
-  status: "completed" | "pending" | "failed"
+  status: "completed" | "pending" | "failed" | "received"
   amount: number
   receiptNumber: string
   enrollment: {
@@ -29,19 +29,6 @@ interface VerifyResult {
       sessionStartDate: string | null
     }
   }
-}
-
-function formatDate(dateInput: string | null) {
-  if (!dateInput) return null
-  const date = new Date(dateInput)
-  return Number.isNaN(date.getTime())
-    ? null
-    : date.toLocaleDateString("en-NG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -140,17 +127,21 @@ function SuccessSkeleton() {
 function SuccessContent() {
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") || searchParams.get("trxref")
+  // `?application=<id>`: the generic "received" page an applicant is sent to when no card payment is
+  // needed from this form. It deliberately says nothing about why, and looks nothing up.
+  const application = searchParams.get("application")
 
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [error, setError] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
+  const quietRecheck = useRef(false) // background re-checks must not flash the loading skeleton
 
   const retry = useCallback(() => setReloadToken((token) => token + 1), [])
 
   useEffect(() => {
     if (!reference) {
-      setError("No payment reference found.")
+      if (!application) setError("No payment reference found.")
       setLoading(false)
       return
     }
@@ -158,7 +149,8 @@ function SuccessContent() {
     let cancelled = false
 
     const verify = async () => {
-      setLoading(true)
+      if (!quietRecheck.current) setLoading(true)
+      quietRecheck.current = false
       setError("")
       try {
         const response = await fetch(
@@ -186,7 +178,48 @@ function SuccessContent() {
     }
   }, [reference, reloadToken])
 
+  // The webhook settles the payment, so right after Paystack redirects back the DB may still say
+  // pending for a few seconds. Re-check quietly (8 times, 3s apart) before asking the user to.
+  const [autoChecks, setAutoChecks] = useState(0)
+  useEffect(() => {
+    if (!reference || result?.status !== "pending" || autoChecks >= 8) return
+    const timer = setTimeout(() => {
+      quietRecheck.current = true
+      setAutoChecks((count) => count + 1)
+      setReloadToken((token) => token + 1)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [reference, result, autoChecks])
+
   /* ------------------------------------------------------------- loading */
+
+  if (!reference && application) {
+    return (
+      <Shell>
+        <Panel
+          glyph="✓"
+          tone="ok"
+          title="Application received"
+          actions={
+            <>
+              <PillLink href="/courses" variant="amber" size="md">
+                Browse courses
+              </PillLink>
+              <PillLink href="/contact" variant="outlineSoft" size="md">
+                Contact us
+              </PillLink>
+            </>
+          }
+        >
+          <p>
+            Thank you. Our team will confirm your application with you before anything else
+            happens, and we will contact you to arrange your assessment. If you have paid the
+            assessment fee before, you will not be charged for it again.
+          </p>
+        </Panel>
+      </Shell>
+    )
+  }
 
   if (loading) return <SuccessSkeleton />
 
@@ -215,8 +248,8 @@ function SuccessContent() {
           }
         >
           <p>
-            {error || "Your payment is being processed."} If you completed payment, your enrolment
-            will be confirmed shortly.
+            {error || "Your payment is being processed."} If you completed payment, we will confirm it
+            shortly.
           </p>
           {reference ? (
             <p className="mt-3 text-[14px] text-bfx-muted">
@@ -228,8 +261,6 @@ function SuccessContent() {
       </Shell>
     )
   }
-
-  const startDate = formatDate(result.enrollment.course.sessionStartDate)
 
   /* -------------------------------------------------------------- failed */
 
@@ -252,9 +283,9 @@ function SuccessContent() {
           }
         >
           <p>
-            Your registration payment for{" "}
+            Your assessment fee payment for{" "}
             <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong>{" "}
-            didn't go through, and no charge was made. You can start the enrolment again from the
+            didn't go through, and no charge was made. You can book the assessment again from the
             course page.
           </p>
         </Panel>
@@ -263,6 +294,43 @@ function SuccessContent() {
   }
 
   /* ------------------------------------------------------------- pending */
+
+  /* ------------------------------------------------------------ received */
+
+  // Money arrived but the payment was recorded for follow-up (for example a second payment of an
+  // already paid fee). Honest wording: we have it, a person will sort out the rest.
+  if (result.status === "received") {
+    return (
+      <Shell>
+        <Panel
+          glyph="✓"
+          tone="note"
+          title="We have received your payment"
+          actions={
+            <>
+              <PillLink href="/contact" variant="amber" size="md">
+                Contact us
+              </PillLink>
+              <PillLink href="/courses" variant="outlineSoft" size="md">
+                Browse courses
+              </PillLink>
+            </>
+          }
+        >
+          <p>
+            Thank you, {result.enrollment.firstName}. Your payment has reached us and our team will
+            confirm your application and be in touch. If you were charged more than once, we will
+            refund the extra payment.
+          </p>
+          {reference ? (
+            <p className="mt-3 text-[14px] text-bfx-muted">
+              Quote reference <span className="font-mono text-bfx-ink">{reference}</span> if you contact us.
+            </p>
+          ) : null}
+        </Panel>
+      </Shell>
+    )
+  }
 
   if (result.status === "pending") {
     return (
@@ -287,9 +355,9 @@ function SuccessContent() {
           }
         >
           <p>
-            We've received your payment and are confirming it. You'll get an email once your spot in{" "}
+            We've received your payment and are confirming it. You'll get an email once your assessment fee for{" "}
             <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong> is
-            secured.
+            confirmed.
           </p>
           <p className="mt-3 text-[14px] text-bfx-muted">
             Receipt <span className="font-mono text-bfx-ink">{result.receiptNumber}</span>
@@ -311,12 +379,13 @@ function SuccessContent() {
           ✓
         </span>
         <Display as="h1" className="mb-3 text-[clamp(30px,4.4vw,42px)] leading-[1.06] text-bfx-ink">
-          You're enrolled
+          Assessment fee received
         </Display>
         <p className="text-[15.5px] leading-[1.65] text-bfx-body">
-          Thanks, {result.enrollment.firstName}. Your registration for{" "}
+          Thanks, {result.enrollment.firstName}. Your assessment fee for{" "}
           <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong> is
-          confirmed, and a receipt is on its way to {result.enrollment.email}.
+          paid, and a receipt is on its way to {result.enrollment.email}. We will contact you to
+          arrange your assessment. Tuition is agreed with you after it.
         </p>
 
         <dl className="mt-8 flex flex-col gap-4 rounded-[18px] border border-bfx-border-5 bg-bfx-field p-6 text-left">
@@ -324,9 +393,8 @@ function SuccessContent() {
           {result.enrollment.course.instructor ? (
             <ReceiptRow label="Tutor" value={result.enrollment.course.instructor} />
           ) : null}
-          <ReceiptRow label="Registration fee paid" value={formatNaira(result.amount)} />
+          <ReceiptRow label="Assessment fee paid" value={formatNaira(result.amount)} />
           <ReceiptRow label="Receipt no." value={result.receiptNumber} mono />
-          {startDate ? <ReceiptRow label="Starts" value={startDate} divider /> : null}
         </dl>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

@@ -1,7 +1,11 @@
 "use client"
 
 /**
- * Step 3, "Pay the registration fee" (handoff.html:519-535).
+ * Step 3, "Agree and pay the assessment fee" (handoff.html:519-535).
+ *
+ * Both consent rows live here, not on the assessment step: `POST /api/enrollments` rejects the
+ * request unless BOTH `agreeToTerms` and `agreeToRefundPolicy` are true, so collapsing them would
+ * either break the submit or record a consent the student never gave.
  *
  * The handoff renders Card / Bank transfer / USSD as selectable rows. They are
  * rendered here as an informational list instead. `lib/paystack.ts:280` asks for
@@ -14,10 +18,11 @@
  * brands are Paystack account configuration this app never reads.
  */
 
+import type * as React from "react"
 import Link from "next/link"
 
 import { ENROL_HREF, formatNaira } from "@/lib/site"
-import { InfoRow, NoteBlock, StepHeading, SubHeading, TextField } from "./fields"
+import { ConsentRow, InfoRow, NoteBlock, StepHeading, SubHeading, TextField } from "./fields"
 import { PAYSTACK_CHANNELS, type EnrollFormData } from "./types"
 
 export function StepPayment({
@@ -27,6 +32,7 @@ export function StepPayment({
   paymentRetryable,
   onChange,
   onRetry,
+  onOpenPolicies,
 }: {
   form: EnrollFormData
   applicationFee: number
@@ -35,13 +41,67 @@ export function StepPayment({
   paymentRetryable: boolean
   onChange: <K extends keyof EnrollFormData>(field: K, value: EnrollFormData[K]) => void
   onRetry: () => void
+  onOpenPolicies: () => void
 }) {
+  const openPolicies = (event: React.MouseEvent) => {
+    // Inside a <label>; without this the click would also toggle the checkbox.
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenPolicies()
+  }
+
   return (
     <div>
       <StepHeading
-        title="Pay the registration fee"
-        sub={`${formatNaira(applicationFee)} today. This is the only amount charged on this page.`}
+        title="Agree and pay the assessment fee"
+        sub={`${formatNaira(applicationFee)} today. This is the only amount charged on this page, and it is non-refundable.`}
       />
+      <p className="-mt-3 mb-6 text-[14px] leading-[1.6] text-bfx-muted">
+        If you have paid the assessment fee before, you will not be charged again.
+      </p>
+
+      <div className="mb-6 flex flex-col gap-[11px]">
+        <ConsentRow
+          id="agreeToTerms"
+          checked={form.agreeToTerms}
+          onChange={(next) => onChange("agreeToTerms", next)}
+        >
+          I agree to the{" "}
+          <button
+            type="button"
+            onClick={openPolicies}
+            className="font-semibold text-bfx-bronze underline underline-offset-2 hover:text-bfx-ink"
+          >
+            Terms &amp; Conditions, Privacy Policy and Code of Conduct
+          </button>
+          . I understand my rights and responsibilities as a student.
+        </ConsentRow>
+
+        <ConsentRow
+          id="agreeToRefundPolicy"
+          checked={form.agreeToRefundPolicy}
+          onChange={(next) => onChange("agreeToRefundPolicy", next)}
+        >
+          I understand the{" "}
+          <button
+            type="button"
+            onClick={openPolicies}
+            className="font-semibold text-bfx-bronze underline underline-offset-2 hover:text-bfx-ink"
+          >
+            refund schedule
+          </button>{" "}
+          and the attendance requirements for course completion.
+        </ConsentRow>
+
+        <ConsentRow
+          id="consentToEmails"
+          checked={form.consentToEmails}
+          onChange={(next) => onChange("consentToEmails", next)}
+        >
+          <span className="font-semibold text-bfx-muted">Optional. </span>
+          Send me course updates, practice tips and offers from Banafix.
+        </ConsentRow>
+      </div>
 
       <div className="mb-6">
         <SubHeading
@@ -65,7 +125,7 @@ export function StepPayment({
           onChange={(event) => onChange("couponCode", event.target.value)}
         />
         <p className="mt-[6px] text-[12.5px] text-bfx-muted">
-          Codes are recorded against your enrolment. They do not change today's registration fee.
+          Codes are recorded against your enrolment. They do not change today's assessment fee.
         </p>
       </div>
 
@@ -79,7 +139,7 @@ export function StepPayment({
           className="mt-4 rounded-[14px] border border-red-200 bg-red-50 px-5 py-[18px]"
         >
           <p className="text-[15px] font-bold text-red-900">
-            {paymentRetryable ? "We couldn't start your payment" : "We couldn't complete your enrolment"}
+            {paymentRetryable ? "We couldn't start your payment" : "We couldn't book your assessment"}
           </p>
           <p className="mt-1 text-[14.5px] leading-[1.6] text-red-700">{paymentError}</p>
           <div className="mt-3 flex flex-wrap gap-2">

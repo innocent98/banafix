@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
+import { getPublicOfferings } from '@/lib/offerings'
 
 // GET /api/courses/[id] - Public endpoint to get course details
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
+    const locationSlug = new URL(req.url).searchParams.get('location') || undefined
 
     const course = await prisma.course.findUnique({
       where: {
@@ -33,6 +35,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return createErrorResponse('Course not found', 404)
     }
 
+    const offerings = await getPublicOfferings(course.id, locationSlug)
+
     // Transform course to match frontend expectations
     const transformedCourse = {
       id: course.id,
@@ -41,15 +45,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       instrument: course.instrument,
       level: course.level,
       duration: course.duration,
-      location: course.location,
       session: course.session,
       sessionStartDate: course.sessionStartDate,
-      modes: course.availableModes,
-      pricing: course.pricing,
-      price: course.pricing ? Math.min(...Object.values(course.pricing as Record<string, number>)) : 0,
-      totalSeats: course.totalSeats,
-      seatsLeft: course.seatsLeft,
-      unlimitedSeats: course.unlimitedSeats,
+      // Offerable formats with per-duration per-class rates (at ?location=<slug> when given).
+      offerings,
       outcomes: course.outcomes,
       equipment: course.equipment,
       image: course.image,

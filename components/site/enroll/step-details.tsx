@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Step 1, "Who's learning?" (handoff.html:465-495).
+ * Step 2, "Who's learning?" (handoff.html:465-495).
  *
  * The handoff shows five fields. The server and the admin UI need more, so this
  * step also carries the guardian block that the outgoing
@@ -33,7 +33,7 @@ export function StepDetails({
     <div>
       <StepHeading
         title="Who's learning?"
-        sub="We'll only ask for what we need to schedule your first lesson."
+        sub="We'll only ask for what we need to arrange your assessment and first lessons."
       />
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

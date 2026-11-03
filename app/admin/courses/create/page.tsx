@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { ImageUpload } from "@/components/admin/image-upload"
-import { LOCATIONS } from "@/lib/locations"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -46,23 +45,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 
-interface DeliveryMode {
-  id: string
-  name: string
-  order: number
-}
-
 interface CourseFormData {
   title: string
   description: string
   instrument: string
   level: string
   duration: string
-  location: string
   session: string
   sessionStartDate: string
-  availableModes: string[]
-  pricing: Record<string, number>
   totalSeats: number
   unlimitedSeats: boolean
   outcomes: string[]
@@ -100,7 +90,6 @@ const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'All Levels']
 export default function CreateCoursePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
-  const [deliveryModes, setDeliveryModes] = useState<DeliveryMode[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -111,11 +100,8 @@ export default function CreateCoursePage() {
     instrument: "",
     level: "",
     duration: "",
-    location: "",
     session: "",
     sessionStartDate: "",
-    availableModes: [],
-    pricing: {},
     totalSeats: 20,
     unlimitedSeats: false,
     outcomes: [""],
@@ -131,28 +117,12 @@ export default function CreateCoursePage() {
 
   useEffect(() => {
     checkAuth()
-    loadDeliveryModes()
   }, [])
 
   const checkAuth = () => {
     const token = localStorage.getItem("admin_token")
     if (!token) {
       router.push("/admin/login")
-    }
-  }
-
-  const loadDeliveryModes = async () => {
-    try {
-      const token = localStorage.getItem("admin_token")
-      const response = await fetch("/api/admin/delivery-modes", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setDeliveryModes(data.deliveryModes.filter((mode: DeliveryMode) => mode.name))
-      }
-    } catch (error) {
-      console.error("Failed to load delivery modes:", error)
     }
   }
 
@@ -306,50 +276,10 @@ export default function CreateCoursePage() {
     }))
   }
 
-  const handleModeChange = (modeName: string, checked: boolean) => {
-    setFormData(prev => {
-      const newModes = checked
-        ? [...prev.availableModes, modeName]
-        : prev.availableModes.filter(mode => mode !== modeName)
-
-      // Update pricing - remove pricing for unchecked modes
-      const newPricing = { ...prev.pricing }
-      if (!checked) {
-        delete newPricing[modeName]
-      }
-
-      return {
-        ...prev,
-        availableModes: newModes,
-        pricing: newPricing
-      }
-    })
-  }
-
-  const handlePricingChange = (modeName: string, price: number) => {
-    setFormData(prev => ({
-      ...prev,
-      pricing: { ...prev.pricing, [modeName]: price }
-    }))
-  }
-
   const validateForm = () => {
     if (!formData.title || !formData.instrument || !formData.level || !formData.duration) {
       setError("Please fill in all required fields (Title, Instrument, Level, Duration)")
       return false
-    }
-
-    if (formData.availableModes.length === 0) {
-      setError("Please select at least one delivery mode")
-      return false
-    }
-
-    // Check if all selected modes have pricing
-    for (const mode of formData.availableModes) {
-      if (!formData.pricing[mode] || formData.pricing[mode] <= 0) {
-        setError(`Please set a price for ${mode} delivery mode`)
-        return false
-      }
     }
 
     // Optional validation for instructor
@@ -434,7 +364,7 @@ export default function CreateCoursePage() {
       case "basic":
         return !!(formData.title && formData.instrument && formData.level && formData.duration)
       case "delivery":
-        return formData.availableModes.length > 0 && formData.availableModes.every(mode => formData.pricing[mode] > 0)
+        return false // offerings are configured after the course is saved
       case "content":
         return formData.outcomes.some(o => o.trim()) && formData.equipment.some(e => e.trim())
       case "instructor":
@@ -514,8 +444,8 @@ export default function CreateCoursePage() {
             </TabsTrigger>
             <TabsTrigger value="delivery" className="flex items-center gap-2">
               {isTabComplete("delivery") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Settings className="h-4 w-4" />}
-              <span className="hidden sm:inline">Delivery & Pricing</span>
-              <span className="sm:hidden">Delivery</span>
+              <span className="hidden sm:inline">Offerings</span>
+              <span className="sm:hidden">Offers</span>
             </TabsTrigger>
             <TabsTrigger value="content" className="flex items-center gap-2">
               {isTabComplete("content") ? <CheckCircle className="h-4 w-4 text-green-600" /> : <BookOpen className="h-4 w-4" />}
@@ -621,27 +551,6 @@ export default function CreateCoursePage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="location" className="text-sm font-semibold">
-                      Location
-                    </Label>
-                    <Select
-                      value={formData.location}
-                      onValueChange={(value) => handleInputChange("location", value)}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LOCATIONS.map((location) => (
-                          <SelectItem key={location} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="totalSeats" className="text-sm font-semibold">
                         Total Seats
@@ -668,6 +577,9 @@ export default function CreateCoursePage() {
                       placeholder={formData.unlimitedSeats ? "Unlimited seats" : undefined}
                       className="mt-2"
                     />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      No longer enforced (seat counting retired); kept for reference only.
+                    </p>
                   </div>
                 </div>
 
@@ -698,87 +610,18 @@ export default function CreateCoursePage() {
             </Card>
           </TabsContent>
 
-          {/* Delivery & Pricing Tab */}
+          {/* Offerings note: locations, formats and per-class rates are set on the edit page */}
           <TabsContent value="delivery" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Delivery Modes & Pricing</CardTitle>
+                <CardTitle>Offerings</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-sm font-semibold mb-4 block">
-                    Available Delivery Modes *
-                  </Label>
-                  {deliveryModes.length === 0 ? (
-                    <div className="text-center py-8 border rounded-lg bg-muted/50">
-                      <p className="text-muted-foreground mb-4">No delivery modes found.</p>
-                      <Button 
-                        onClick={async () => {
-                          try {
-                            setIsLoading(true)
-                            const token = localStorage.getItem("admin_token")
-                            const res = await fetch("/api/admin/delivery-modes/seed", {
-                              method: "POST",
-                              headers: { Authorization: `Bearer ${token}` }
-                            })
-                            if (res.ok) {
-                              await loadDeliveryModes()
-                              setSuccess("Delivery modes seeded successfully")
-                            } else {
-                              setError("Failed to seed delivery modes")
-                            }
-                          } catch (err) {
-                            setError("An error occurred")
-                          } finally {
-                            setIsLoading(false)
-                          }
-                        }}
-                        variant="outline"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
-                        Seed Default Modes
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {deliveryModes.map((mode) => (
-                      <div key={mode.id} className="space-y-3">
-                        <div className="flex items-center space-x-3">
-                          <Checkbox
-                            id={mode.id}
-                            checked={formData.availableModes.includes(mode.name)}
-                            onCheckedChange={(checked) =>
-                              handleModeChange(mode.name, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={mode.id} className="font-medium">
-                            {mode.name}
-                          </Label>
-                        </div>
-
-                        {formData.availableModes.includes(mode.name) && (
-                          <div className="ml-6">
-                            <Label className="text-sm text-slate-600">
-                              Price (₦)
-                            </Label>
-                            <Input
-                              type="number"
-                              value={formData.pricing[mode.name] || ""}
-                              onChange={(e) =>
-                                handlePricingChange(mode.name, parseInt(e.target.value) || 0)
-                              }
-                              placeholder="25000"
-                              min="0"
-                              className="mt-1"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    </div>
-                  )}
-                </div>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Configure offerings after saving: choose where this course is taught, in which formats, and set the
+                  per-class rate for each lesson length. Students only see the course once at least one offering is
+                  active.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1316,7 +1159,7 @@ export default function CreateCoursePage() {
         <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-200">
           <div className="text-sm text-slate-600">
             {activeTab === "basic" && "1 of 7 - Basic Information"}
-            {activeTab === "delivery" && "2 of 7 - Delivery & Pricing"}
+            {activeTab === "delivery" && "2 of 7 - Offerings"}
             {activeTab === "content" && "3 of 7 - Course Content"}
             {activeTab === "instructor" && "4 of 7 - Instructor"}
             {activeTab === "curriculum" && "5 of 7 - Curriculum"}

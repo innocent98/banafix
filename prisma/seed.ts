@@ -38,6 +38,33 @@ async function main() {
     })
   }
 
+  // Locations (D11: admin-editable data). Seed only: the app never reads this list at runtime.
+  // Fee tiers are those formerly hardcoded in lib/application-fee.ts. Online + Diaspora are ONLINE-kind.
+  const seedLocations = [
+    { name: 'Lagos', kind: 'PHYSICAL', assessmentFee: 5000 },
+    { name: 'Abuja', kind: 'PHYSICAL', assessmentFee: 5000 },
+    { name: 'Akure', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Ondo', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Port Harcourt', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Ibadan', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Online', kind: 'ONLINE', assessmentFee: 5000 },
+    { name: 'Diaspora', kind: 'ONLINE', assessmentFee: 8000 },
+  ] as const
+
+  for (const [order, loc] of seedLocations.entries()) {
+    await prisma.location.upsert({
+      where: { name: loc.name },
+      update: {},
+      create: {
+        name: loc.name,
+        slug: loc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        kind: loc.kind,
+        assessmentFee: loc.assessmentFee,
+        order,
+      },
+    })
+  }
+
   console.log('✅ Created delivery modes')
 
   // Create sample course data based on existing frontend structure
@@ -190,6 +217,32 @@ async function main() {
   }
 
   console.log('✅ Created sample course with instructor, curriculum, and FAQs')
+
+  // Sample offerings for local development ONLY (illustrative per-class rates, not business data).
+  // Production gets its offerings and rates from /admin (D11); the migration creates them inactive.
+  const sampleOfferings = [
+    { location: 'Lagos', mode: 'On-site', rates: { 45: 4000, 60: 5000 } },
+    { location: 'Lagos', mode: 'One-on-One', rates: { 45: 5500, 60: 7000 } },
+    { location: 'Online', mode: 'Online', rates: { 60: 4000 } },
+  ]
+  for (const o of sampleOfferings) {
+    const location = await prisma.location.findUnique({ where: { name: o.location } })
+    const deliveryMode = await prisma.deliveryMode.findUnique({ where: { name: o.mode } })
+    if (!location || !deliveryMode) continue
+    const offering = await prisma.courseOffering.upsert({
+      where: { courseId_locationId_deliveryModeId: { courseId: sampleCourse.id, locationId: location.id, deliveryModeId: deliveryMode.id } },
+      update: {},
+      create: { courseId: sampleCourse.id, locationId: location.id, deliveryModeId: deliveryMode.id, isActive: true },
+    })
+    for (const [mins, price] of Object.entries(o.rates)) {
+      await prisma.offeringRate.upsert({
+        where: { offeringId_durationMins: { offeringId: offering.id, durationMins: Number(mins) } },
+        update: {},
+        create: { offeringId: offering.id, durationMins: Number(mins), pricePerClass: price },
+      })
+    }
+  }
+  console.log('✅ Created sample offerings with rates')
 
   // Create system settings
   const systemSettings = [

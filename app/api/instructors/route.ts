@@ -18,13 +18,8 @@ export async function GET() {
             instrument: true,
             level: true,
             duration: true,
-            location: true,
             image: true,
             sessionStartDate: true,
-            availableModes: true,
-            pricing: true,
-            totalSeats: true,
-            seatsLeft: true,
           },
         },
       },
@@ -37,13 +32,6 @@ export async function GET() {
       const courses = instructor.courses as any[]
       const primary = courses[0] ?? null
       const specialties = Array.from(new Set(courses.map((c) => c.instrument).filter(Boolean)))
-      const students = courses.reduce(
-        (sum, c) => sum + (c.totalSeats ? c.totalSeats - c.seatsLeft : 0),
-        0,
-      )
-      const prices = courses.flatMap((c) =>
-        c.pricing ? Object.values(c.pricing as Record<string, number>) : [],
-      )
       return {
         id: instructor.id,
         name: instructor.name,
@@ -61,21 +49,13 @@ export async function GET() {
               instrument: primary.instrument,
               level: primary.level,
               duration: primary.duration,
-              location: primary.location,
               image: primary.image,
               sessionStartDate: primary.sessionStartDate,
-              modes: primary.availableModes,
-              pricing: primary.pricing,
-              totalSeats: primary.totalSeats,
-              seatsLeft: primary.seatsLeft,
             }
           : null,
         specialties,
-        students,
-        location: primary?.location || 'Online',
         courses: courses.length,
         languages: ['English'],
-        hourlyRate: prices.length ? Math.min(...prices) : 5000,
       }
     })
 

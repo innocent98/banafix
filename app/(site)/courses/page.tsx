@@ -12,14 +12,16 @@
 import type { Metadata } from "next"
 
 import { CourseCard, type CourseCardData } from "@/components/site/courses/course-card"
-import { CourseFilterBar } from "@/components/site/courses/course-filter-bar"
-import {
-  fromPrice,
-  publicCourseWhere,
-  sortLevels,
-  toPricing,
-} from "@/components/site/courses/course-data"
+import { CourseFilterBar, coursesHref } from "@/components/site/courses/course-filter-bar"
+import { publicCourseWhere, sortLevels } from "@/components/site/courses/course-data"
+import { LocationChooser } from "@/components/site/location-chooser"
 import { Display, Eyebrow, PillLink } from "@/components/site/primitives"
+import {
+  courseFromRate,
+  getActiveLocations,
+  getOfferingsByCourse,
+  offerableOfferingWhere,
+} from "@/lib/offerings"
 import { prisma } from "@/lib/prisma"
 import { SITE_WHATSAPP } from "@/lib/site"
 
@@ -30,18 +32,31 @@ export const metadata: Metadata = {
 }
 
 interface CoursesPageProps {
-  searchParams: Promise<{ level?: string; instrument?: string }>
+  searchParams: Promise<{ level?: string; instrument?: string; location?: string }>
 }
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
-  const { level: levelParam, instrument: instrumentParam } = await searchParams
+  const {
+    level: levelParam,
+    instrument: instrumentParam,
+    location: locationParam,
+  } = await searchParams
   const instrument = instrumentParam?.trim() || null
   const requestedLevel = levelParam?.trim() || null
+
+  // The chosen location comes from `?location=<slug>`. A slug that is not an active location is
+  // treated as "no location" so a stale link still shows the whole catalogue.
+  const locations = await getActiveLocations()
+  const activeLocation = locations.find((l) => l.slug === locationParam?.trim()) ?? null
 
   const rows = await prisma.course.findMany({
     where: {
       ...publicCourseWhere(),
       ...(instrument ? { instrument } : {}),
+      // With a location: only courses that have an offerable offering there.
+      ...(activeLocation
+        ? { offerings: { some: offerableOfferingWhere(activeLocation.id) } }
+        : {}),
     },
     select: {
       id: true,
@@ -51,11 +66,16 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       level: true,
       duration: true,
       image: true,
-      availableModes: true,
-      pricing: true,
     },
     orderBy: [{ sessionStartDate: "asc" }, { updatedAt: "desc" }],
   })
+
+  // Card captions come from offerable offerings only (scoped to the location when chosen), never
+  // from the deprecated `Course.pricing`.
+  const offeringsByCourse = await getOfferingsByCourse(
+    rows.map((course) => course.id),
+    activeLocation?.id,
+  )
 
   // Chip set = the distinct levels actually present, not a hardcoded trio. It
   // is derived after the instrument filter so no chip can lead to nothing.
@@ -69,7 +89,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     : rows
 
   const cards: CourseCardData[] = visible.map((course) => {
-    const pricing = toPricing(course.pricing)
+    const offerings = offeringsByCourse.get(course.id) ?? []
     return {
       id: course.id,
       title: course.title,
@@ -78,12 +98,13 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       duration: course.duration,
       image: course.image,
       instrument: course.instrument,
-      formatCount: course.availableModes.length,
-      fromPrice: fromPrice(pricing),
+      formatCount: new Set(offerings.map((offering) => offering.format)).size,
+      fromRatePerClass: courseFromRate(offerings),
+      locationSlug: activeLocation?.slug ?? null,
     }
   })
 
-  const isFiltered = Boolean(requestedLevel || instrument)
+  const isFiltered = Boolean(requestedLevel || instrument || activeLocation)
 
   return (
     <div className="bfx-rise">
@@ -103,10 +124,20 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         </div>
       </section>
 
+      <section className="bfx-shell pb-6">
+        <LocationChooser
+          locations={locations}
+          activeSlug={activeLocation?.slug ?? null}
+          allLabel="All locations"
+          hrefFor={(slug) => coursesHref({ location: slug, instrument, level: activeLevel })}
+        />
+      </section>
+
       <CourseFilterBar
         levels={levels}
         activeLevel={activeLevel}
         instrument={instrument}
+        location={activeLocation?.slug ?? null}
         count={cards.length}
       />
 
@@ -121,9 +152,11 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
           <EmptyPanel
             heading="Nothing matches that filter"
             body={
-              instrument
-                ? `We have no published ${instrument.toLowerCase()} course${requestedLevel ? ` at ${requestedLevel.toLowerCase()} level` : ""} right now. Clear the filter to see everything currently running.`
-                : "No course is running at that level right now. Clear the filter to see everything currently running."
+              activeLocation
+                ? `No course matches that filter at ${activeLocation.name} right now. Try another location or clear the filter to see everything.`
+                : instrument
+                  ? `We have no published ${instrument.toLowerCase()} course${requestedLevel ? ` at ${requestedLevel.toLowerCase()} level` : ""} right now. Clear the filter to see everything currently running.`
+                  : "No course is running at that level right now. Clear the filter to see everything currently running."
             }
             action={
               <PillLink href="/courses" variant="ink" size="md">

@@ -1,98 +1,83 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  Users,
   DollarSign,
   TrendingUp,
-  FileText,
-  Search,
-  Filter,
-  Download,
-  Eye,
-  CreditCard,
-  Receipt,
-  Mail,
-  Pencil,
-  UserPlus,
+  CalendarClock,
+  ClipboardCheck,
+  FileCheck,
   BadgeCheck,
+  Download,
+  UserPlus,
+  AlertTriangle,
 } from "lucide-react"
 import { TuitionPaymentModal } from "@/components/admin/tuition-payment-modal"
 import { StudentEditModal } from "@/components/admin/student-edit-modal"
 import { StudentRegistrationModal } from "@/components/admin/student-registration-modal"
-
-interface Enrollment {
-  id: string
-  student: {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    phone?: string
-    dateOfBirth?: string
-    address?: string
-  }
-  selectedMode: string
-  status: string
-  applicationPaid: boolean
-  createdAt: string
-  course: {
-    title: string
-    instrument: string
-    level: string
-    location?: string
-    sessionStartDate?: string
-    pricing?: Record<string, number> | null
-    instructor?: {
-      name: string
-    }
-  }
-  applicationPayments: Array<{
-    id: string
-    amount: number
-    status: string
-    receiptNumber: string
-    paidAt?: string
-  }>
-  tuitionPayments: Array<{
-    id: string
-    amount: number
-    status: string
-    receiptNumber: string
-    paidAt?: string
-    description?: string
-  }>
-}
+import { EnrollmentFilters } from "@/components/admin/enrollments/enrollment-filters"
+import { EnrollmentTable } from "@/components/admin/enrollments/enrollment-table"
+import { AssessmentPlanPanel } from "@/components/admin/enrollments/assessment-plan-panel"
+import { StatusBadge, PaymentStatusBadge } from "@/components/admin/enrollments/status-badge"
+import { RefundDialog } from "@/components/admin/enrollments/refund-dialog"
+import {
+  enrollmentLocationName,
+  formatCurrency,
+  needsRefund,
+  type ApplicationPayment,
+  type Enrollment,
+} from "@/components/admin/enrollments/types"
 
 interface EnrollmentStats {
-  totalEnrollments: number
-  applicationPaidEnrollments: number
-  pendingApplications: number
+  awaitingAssessment: number // assessment_paid + assessment_scheduled
+  awaitingPlan: number // assessed
+  planAgreed: number
+  enrolled: number
   totalApplicationFees: number
   totalTuitionPaid: number
-  averageCompletionRate: number
+}
+
+const EMPTY_STATS: EnrollmentStats = {
+  awaitingAssessment: 0,
+  awaitingPlan: 0,
+  planAgreed: 0,
+  enrolled: 0,
+  totalApplicationFees: 0,
+  totalTuitionPaid: 0,
+}
+
+function StatCard({ label, value, sub, icon, tone }: { label: string; value: string | number; sub: string; icon: React.ReactNode; tone: string }) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-3xl font-bold">{value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+          </div>
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${tone}`}>{icon}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function EnrollmentsPage() {
   const router = useRouter()
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
-  const [filteredEnrollments, setFilteredEnrollments] = useState<Enrollment[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -103,22 +88,13 @@ export default function EnrollmentsPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editStudentId, setEditStudentId] = useState<string | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [stats, setStats] = useState<EnrollmentStats>({
-    totalEnrollments: 0,
-    applicationPaidEnrollments: 0,
-    pendingApplications: 0,
-    totalApplicationFees: 0,
-    totalTuitionPaid: 0,
-    averageCompletionRate: 0
-  })
+  const [panelEnrollmentId, setPanelEnrollmentId] = useState<string | null>(null)
+  const [stats, setStats] = useState<EnrollmentStats>(EMPTY_STATS)
+  const [refundPayment, setRefundPayment] = useState<ApplicationPayment | null>(null)
 
   useEffect(() => {
     loadEnrollments()
   }, [])
-
-  useEffect(() => {
-    filterEnrollments()
-  }, [enrollments, searchTerm, statusFilter, paymentFilter, locationFilter])
 
   const loadEnrollments = async () => {
     try {
@@ -148,115 +124,65 @@ export default function EnrollmentsPage() {
     }
   }
 
-  const calculateStats = (enrollmentsData: Enrollment[]) => {
-    const applicationPaidCount = enrollmentsData.filter(e => e.applicationPaid).length
-    const pendingCount = enrollmentsData.filter(e => e.status === 'pending').length
-    const totalAppFees = enrollmentsData.reduce((sum, e) =>
+  const calculateStats = (rows: Enrollment[]) => {
+    const count = (...statuses: string[]) => rows.filter((e) => statuses.includes(e.status)).length
+    const totalAppFees = rows.reduce((sum, e) =>
       sum + e.applicationPayments.filter(p => p.status === 'completed').reduce((pSum, p) => pSum + p.amount, 0), 0
     )
-    const totalTuition = enrollmentsData.reduce((sum, e) =>
+    const totalTuition = rows.reduce((sum, e) =>
       sum + e.tuitionPayments.filter(p => p.status === 'completed' || p.status === 'partial').reduce((pSum, p) => pSum + p.amount, 0), 0
     )
-
     setStats({
-      totalEnrollments: enrollmentsData.length,
-      applicationPaidEnrollments: applicationPaidCount,
-      pendingApplications: pendingCount,
+      awaitingAssessment: count('assessment_paid', 'assessment_scheduled'),
+      awaitingPlan: count('assessed'),
+      planAgreed: count('plan_agreed'),
+      enrolled: count('enrolled'),
       totalApplicationFees: totalAppFees,
       totalTuitionPaid: totalTuition,
-      averageCompletionRate: enrollmentsData.length > 0 ? Math.round((applicationPaidCount / enrollmentsData.length) * 100) : 0
     })
   }
 
-  const filterEnrollments = () => {
-    let filtered = enrollments
+  const locationOptions = useMemo(
+    () => Array.from(new Set(enrollments.map(enrollmentLocationName).filter(Boolean))).sort(),
+    [enrollments],
+  )
 
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(enrollment =>
-        enrollment.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enrollment.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enrollment.student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        enrollment.course.title.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
+  const refundCount = useMemo(() => enrollments.filter(needsRefund).length, [enrollments])
 
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(enrollment => enrollment.status === statusFilter)
-    }
+  const filteredEnrollments = useMemo(() => {
+    const term = searchTerm.toLowerCase()
+    return enrollments.filter((enrollment) => {
+      if (
+        term &&
+        !(
+          enrollment.student.firstName.toLowerCase().includes(term) ||
+          enrollment.student.lastName.toLowerCase().includes(term) ||
+          enrollment.student.email.toLowerCase().includes(term) ||
+          enrollment.course.title.toLowerCase().includes(term)
+        )
+      ) return false
 
-    // Location filter (by the enrollment's course location)
-    if (locationFilter !== "all") {
-      filtered = filtered.filter(enrollment => enrollment.course.location === locationFilter)
-    }
+      if (statusFilter !== "all" && enrollment.status !== statusFilter) return false
 
-    // Payment filter
-    if (paymentFilter !== "all") {
-      filtered = filtered.filter(enrollment => {
-        switch (paymentFilter) {
-          case "application_paid":
-            return enrollment.applicationPaid
-          case "application_pending":
-            return !enrollment.applicationPaid
-          case "tuition_paid":
-            return enrollment.tuitionPayments.some(p => p.status === 'completed')
-          case "tuition_pending":
-            return enrollment.applicationPaid && !enrollment.tuitionPayments.some(p => p.status === 'completed')
-          default:
-            return true
-        }
-      })
-    }
+      // Location: the enrollment's own location, falling back to the course's legacy text.
+      if (locationFilter !== "all" && enrollmentLocationName(enrollment) !== locationFilter) return false
 
-    setFilteredEnrollments(filtered)
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-  }
-
-  const getStatusBadge = (enrollment: Enrollment) => {
-    if (enrollment.status === 'enrolled' || enrollment.applicationPaid) {
-      if (enrollment.tuitionPayments?.some(p => p.status === 'completed')) {
-        return <Badge variant="default">Tuition Paid</Badge>
+      switch (paymentFilter) {
+        case "application_paid":
+          return enrollment.applicationPaid
+        case "application_pending":
+          return !enrollment.applicationPaid
+        case "tuition_paid":
+          return enrollment.tuitionPayments.some(p => p.status === 'completed')
+        case "tuition_pending":
+          return enrollment.applicationPaid && !enrollment.tuitionPayments.some(p => p.status === 'completed')
+        case "refund_needed":
+          return needsRefund(enrollment)
+        default:
+          return true
       }
-      return <Badge variant="default">Enrolled</Badge>
-    }
-    if (enrollment.status === 'pending') {
-      return <Badge variant="destructive">Payment Pending</Badge>
-    }
-    return <Badge variant="outline">{enrollment.status}</Badge>
-  }
-
-  const getTotalTuitionPaid = (enrollment: Enrollment) => {
-    return enrollment.tuitionPayments
-      .filter(p => p.status === 'completed' || p.status === 'partial')
-      .reduce((sum, p) => sum + p.amount, 0)
-  }
-
-  // Remaining tuition balance for an enrollment, if the course has a price for
-  // the student's selected mode; otherwise undefined (not tracked).
-  const getTuitionBalance = (enrollment: Enrollment): number | undefined => {
-    const expected = enrollment.course.pricing?.[enrollment.selectedMode]
-    if (typeof expected !== 'number') return undefined
-    return Math.max(0, expected - getTotalTuitionPaid(enrollment))
-  }
-
-  const handleViewEnrollment = (enrollment: Enrollment) => {
-    setSelectedEnrollment(enrollment)
-  }
+    })
+  }, [enrollments, searchTerm, statusFilter, paymentFilter, locationFilter])
 
   const handleAddPayment = (enrollment: Enrollment) => {
     setSelectedEnrollment(enrollment)
@@ -264,7 +190,11 @@ export default function EnrollmentsPage() {
   }
 
   const handleMarkPaid = async (enrollment: Enrollment) => {
-    if (!confirm(`Mark the application fee as paid (cash) for ${enrollment.student.firstName} ${enrollment.student.lastName}? This enrolls the student.`)) return
+    const covered = Boolean(enrollment.feeCoveredByPaymentId)
+    const who = `${enrollment.student.firstName} ${enrollment.student.lastName}`
+    if (!confirm(covered
+      ? `${who} has already paid the assessment fee. Confirm this application? No second fee is recorded and the student moves to "Assessment paid". Only confirm if you recognise this application.`
+      : `Mark the assessment fee as paid (cash) for ${who}? This moves the student to "Assessment paid".`)) return
     try {
       const token = localStorage.getItem("admin_token")
       const res = await fetch(`/api/admin/enrollments/${enrollment.id}/mark-paid`, {
@@ -272,10 +202,13 @@ export default function EnrollmentsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ paymentMethod: "cash" }),
       })
-      if (res.ok) loadEnrollments()
-      else {
-        const d = await res.json().catch(() => ({}))
-        alert(d.message || "Failed to mark fee paid")
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        // A student who had already paid is covered, never charged twice: say so plainly.
+        if (d.feeCovered) alert(d.message)
+        loadEnrollments()
+      } else {
+        alert(d.error || d.message || "Failed to mark fee paid")
       }
     } catch {
       alert("Failed to mark fee paid")
@@ -297,7 +230,7 @@ export default function EnrollmentsPage() {
       })
 
       if (response.ok) {
-        alert(`${type === 'application' ? 'Application fee' : 'Tuition'} receipt sent successfully!`)
+        alert(`${type === 'application' ? 'Assessment fee' : 'Tuition'} receipt sent successfully!`)
       } else {
         alert('Failed to send receipt')
       }
@@ -319,13 +252,14 @@ export default function EnrollmentsPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      {/* inline-size containment: the wide table scrolls inside its card instead of stretching the layout */}
+      <div className="space-y-6 [contain:inline-size]">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-heading font-bold">Enrollment Management</h1>
             <p className="text-muted-foreground mt-1">
-              Manage student enrollments, track payments, and send receipts
+              Move students from assessment to enrolment, track payments, and send receipts
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -341,286 +275,94 @@ export default function EnrollmentsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Enrollments</p>
-                  <p className="text-3xl font-bold">{stats.totalEnrollments}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stats.applicationPaidEnrollments} application paid
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Application Fees</p>
-                  <p className="text-3xl font-bold">₦{(stats.totalApplicationFees / 1000).toFixed(0)}K</p>
-                  <p className="text-xs text-green-600 mt-1">Non-refundable fees</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tuition Collected</p>
-                  <p className="text-3xl font-bold">₦{(stats.totalTuitionPaid / 1000000).toFixed(1)}M</p>
-                  <p className="text-xs text-muted-foreground mt-1">From enrolled students</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Completion Rate</p>
-                  <p className="text-3xl font-bold">{stats.averageCompletionRate}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">Application to payment</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <StatCard
+            label="Awaiting assessment"
+            value={stats.awaitingAssessment}
+            sub="Fee paid; to schedule or scheduled"
+            icon={<CalendarClock className="h-6 w-6 text-amber-600 dark:text-amber-400" />}
+            tone="bg-amber-100 dark:bg-amber-900/20"
+          />
+          <StatCard
+            label="Assessed"
+            value={stats.awaitingPlan}
+            sub="Result recorded; plan to agree"
+            icon={<ClipboardCheck className="h-6 w-6 text-violet-600 dark:text-violet-400" />}
+            tone="bg-violet-100 dark:bg-violet-900/20"
+          />
+          <StatCard
+            label="Plan agreed"
+            value={stats.planAgreed}
+            sub="Awaiting enrolment"
+            icon={<FileCheck className="h-6 w-6 text-teal-600 dark:text-teal-400" />}
+            tone="bg-teal-100 dark:bg-teal-900/20"
+          />
+          <StatCard
+            label="Enrolled"
+            value={stats.enrolled}
+            sub="Plan confirmed or legacy enrolment"
+            icon={<BadgeCheck className="h-6 w-6 text-green-600 dark:text-green-400" />}
+            tone="bg-green-100 dark:bg-green-900/20"
+          />
+          <StatCard
+            label="Assessment fees"
+            value={`₦${(stats.totalApplicationFees / 1000).toFixed(0)}K`}
+            sub="Non-refundable fees"
+            icon={<DollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />}
+            tone="bg-emerald-100 dark:bg-emerald-900/20"
+          />
+          <StatCard
+            label="Tuition collected"
+            value={`₦${(stats.totalTuitionPaid / 1000000).toFixed(1)}M`}
+            sub="From enrolled students"
+            icon={<TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />}
+            tone="bg-purple-100 dark:bg-purple-900/20"
+          />
         </div>
 
-        {/* Filters and Search */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search students, courses, or emails..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="enrolled">Enrolled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {Array.from(new Set(enrollments.map(e => e.course.location).filter(Boolean))).map((loc) => (
-                    <SelectItem key={loc as string} value={loc as string}>{loc as string}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by payment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Payments</SelectItem>
-                  <SelectItem value="application_paid">Application Paid</SelectItem>
-                  <SelectItem value="application_pending">Application Pending</SelectItem>
-                  <SelectItem value="tuition_paid">Tuition Paid</SelectItem>
-                  <SelectItem value="tuition_pending">Tuition Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        {refundCount > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">
+            <p className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {refundCount} {refundCount === 1 ? "application has" : "applications have"} a duplicate assessment-fee payment awaiting a refund.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaymentFilter(paymentFilter === "refund_needed" ? "all" : "refund_needed")}
+            >
+              {paymentFilter === "refund_needed" ? "Show all" : "Show refund needed"}
+            </Button>
+          </div>
+        )}
 
-        {/* Enrollments Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Enrollments ({filteredEnrollments.length})</span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  More Filters
-                </Button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredEnrollments.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No enrollments found</h3>
-                <p className="text-muted-foreground">
-                  {enrollments.length === 0
-                    ? "No student enrollments yet"
-                    : "Try adjusting your search or filter criteria"
-                  }
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Course</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Application Fee</TableHead>
-                      <TableHead>Tuition Paid</TableHead>
-                      <TableHead>Enrolled</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEnrollments.map((enrollment) => (
-                      <TableRow key={enrollment.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{enrollment.student.firstName} {enrollment.student.lastName}</p>
-                            <p className="text-sm text-muted-foreground">{enrollment.student.email}</p>
-                            {enrollment.student.phone && (
-                              <p className="text-xs text-muted-foreground">{enrollment.student.phone}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{enrollment.course.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {enrollment.course.instrument} • {enrollment.course.level}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {enrollment.selectedMode}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(enrollment)}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {enrollment.applicationPaid ? (
-                              <div>
-                                <p className="text-sm font-medium text-green-600">
-                                  ₦{(enrollment.applicationPayments[0]?.amount || 0).toLocaleString()} Paid
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {enrollment.applicationPayments[0]?.paidAt &&
-                                    formatDate(enrollment.applicationPayments[0].paidAt)
-                                  }
-                                </p>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-orange-600">Pending</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="text-sm font-medium">
-                              {formatCurrency(getTotalTuitionPaid(enrollment))}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {enrollment.tuitionPayments.length} payment(s)
-                            </p>
-                            {(() => {
-                              const balance = getTuitionBalance(enrollment)
-                              return balance !== undefined && balance > 0 ? (
-                                <p className="text-xs text-orange-600">
-                                  {formatCurrency(balance)} balance
-                                </p>
-                              ) : null
-                            })()}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(enrollment.createdAt)}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewEnrollment(enrollment)}
-                              title="View details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditStudentId(enrollment.student.id)
-                                setShowEditModal(true)
-                              }}
-                              title="Edit student"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {!enrollment.applicationPaid && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleMarkPaid(enrollment)}
-                                title="Mark application fee paid (cash)"
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <BadgeCheck className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAddPayment(enrollment)}
-                              title="Manage payments"
-                              disabled={!enrollment.applicationPaid}
-                            >
-                              <CreditCard className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => sendReceipt(enrollment.id, 'application')}
-                              title="Send receipt"
-                              disabled={!enrollment.applicationPaid}
-                            >
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <EnrollmentFilters
+          searchTerm={searchTerm}
+          statusFilter={statusFilter}
+          paymentFilter={paymentFilter}
+          locationFilter={locationFilter}
+          locations={locationOptions}
+          refundCount={refundCount}
+          onSearchChange={setSearchTerm}
+          onStatusChange={setStatusFilter}
+          onPaymentChange={setPaymentFilter}
+          onLocationChange={setLocationFilter}
+        />
+
+        <EnrollmentTable
+          enrollments={enrollments}
+          filtered={filteredEnrollments}
+          onView={setSelectedEnrollment}
+          onEditStudent={(studentId) => {
+            setEditStudentId(studentId)
+            setShowEditModal(true)
+          }}
+          onMarkPaid={handleMarkPaid}
+          onAssessment={(e) => setPanelEnrollmentId(e.id)}
+          onPayments={handleAddPayment}
+          onSendReceipt={sendReceipt}
+          onRefund={setRefundPayment}
+        />
       </div>
 
       {/* Enrollment Details Modal */}
@@ -653,8 +395,16 @@ export default function EnrollmentsPage() {
                     </div>
                   )}
                   <div>
+                    <span className="text-muted-foreground">Stage:</span>
+                    <p><StatusBadge status={selectedEnrollment.status} /></p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Location:</span>
+                    <p>{enrollmentLocationName(selectedEnrollment) || "-"}</p>
+                  </div>
+                  <div>
                     <span className="text-muted-foreground">Delivery Mode:</span>
-                    <p>{selectedEnrollment.selectedMode}</p>
+                    <p>{selectedEnrollment.offering?.deliveryMode.name || selectedEnrollment.selectedMode || "-"}</p>
                   </div>
                 </div>
               </div>
@@ -666,16 +416,21 @@ export default function EnrollmentsPage() {
                   {selectedEnrollment.applicationPayments.map((payment) => (
                     <div key={payment.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                       <div>
-                        <p className="font-medium">Application Fee</p>
+                        <p className="font-medium">Assessment Fee</p>
                         <p className="text-sm text-muted-foreground">
                           Receipt: {payment.receiptNumber}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                        <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
-                          {payment.status}
-                        </Badge>
+                        <PaymentStatusBadge status={payment.status} />
+                        {payment.status === 'duplicate' && (
+                          <div className="mt-1">
+                            <Button variant="outline" size="sm" className="!h-7" onClick={() => setRefundPayment(payment)}>
+                              Mark refunded
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -704,6 +459,22 @@ export default function EnrollmentsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <RefundDialog
+        payment={refundPayment}
+        onClose={() => setRefundPayment(null)}
+        onDone={() => {
+          setSelectedEnrollment(null)
+          loadEnrollments()
+        }}
+      />
+
+      {/* Assessment & plan panel */}
+      <AssessmentPlanPanel
+        enrollmentId={panelEnrollmentId}
+        onClose={() => setPanelEnrollmentId(null)}
+        onChanged={() => loadEnrollments()}
+      />
 
       {/* Tuition Payment Modal */}
       <TuitionPaymentModal

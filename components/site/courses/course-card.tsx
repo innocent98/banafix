@@ -27,14 +27,22 @@ export interface CourseCardData {
   image: string | null
   /** Keys the fallback photograph when `image` is null. */
   instrument: string
+  /** Distinct offerable formats (at the chosen location, when one is chosen). */
   formatCount: number
-  fromPrice: number | null
+  /** Cheapest per-class rate from offerable offerings; null => enrolment not open yet. */
+  fromRatePerClass: number | null
+  /** Carried into the detail link so the chosen location sticks. */
+  locationSlug?: string | null
 }
 
 export function CourseCard({ course }: { course: CourseCardData }) {
   return (
     <Link
-      href={`/courses/${course.id}`}
+      href={
+        course.locationSlug
+          ? `/courses/${course.id}?location=${encodeURIComponent(course.locationSlug)}`
+          : `/courses/${course.id}`
+      }
       className="group flex flex-col overflow-hidden rounded-[22px] border border-bfx-border bg-bfx-surface transition-shadow duration-200 hover:shadow-[0_22px_44px_-24px_rgba(16,26,40,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bfx-amber focus-visible:ring-offset-2 focus-visible:ring-offset-bfx-cream"
     >
       <div className="relative h-[196px]">
@@ -57,18 +65,19 @@ export function CourseCard({ course }: { course: CourseCardData }) {
 
         <div className="mb-[22px] flex flex-wrap gap-2">
           <MetaChip>{course.duration}</MetaChip>
-          <MetaChip>{plural(course.formatCount, "format")}</MetaChip>
+          {course.formatCount > 0 ? <MetaChip>{plural(course.formatCount, "format")}</MetaChip> : null}
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3.5 border-t border-dashed border-bfx-border-7 pt-[18px]">
           <div>
-            {course.fromPrice === null ? (
-              <div className="text-[15px] font-bold text-bfx-ink">Price on request</div>
+            {course.fromRatePerClass === null ? (
+              <div className="text-[15px] font-bold text-bfx-ink">Enrolment opening soon</div>
             ) : (
               <>
-                <div className="text-xs font-semibold text-bfx-muted-2">from</div>
+                <div className="text-xs font-semibold text-bfx-muted-2">From</div>
                 <div className="text-[21px] font-extrabold tracking-[-0.01em] text-bfx-ink">
-                  {formatNaira(course.fromPrice)}
+                  {formatNaira(course.fromRatePerClass)}
+                  <span className="ml-1 text-[13px] font-semibold text-bfx-muted"> per class</span>
                 </div>
               </>
             )}

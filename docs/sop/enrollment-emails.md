@@ -1,5 +1,12 @@
 # SOP — Enrollment payment emails (student receipt + admin notification)
 
+> **Superseded in part (2026-11-03) — see `docs/sop/assessment-first-admission.md`.** The email flow is unchanged in shape, but the wording and some mechanics below are stale:
+> - The fee is now the **assessment fee**, not an "application"/"registration" fee, and paying it no longer enrols the student (D6). Copy changed in `lib/email.ts` and `lib/receipt.ts` only: ack subject `Assessment Application Received - <course>`, admin notice `New paid assessment application: <course> (<name>)`, PDF title `ASSESSMENT FEE RECEIPT`. Function and type names (`sendApplicationFeeReceipt`, `ApplicationFeeReceiptData`, `sendAdminEnrollmentNotification`) were kept.
+> - The webhook now flips the enrollment to `assessment_paid` (never `application_paid`/`enrolled`), in one transaction with the payment claim. Idempotency comes from that atomic claim (`updateMany ... status != completed`, count 0 = already processed), not only the early `status === 'completed'` check. No receipt email is sent when the late payment lands on a `cancelled` enrollment.
+> - The ack email's fee amount is `Location.assessmentFee` (via the offering's location), not `calculateApplicationFee(course.location)` (that file is deleted).
+> - Email failures are still never rethrown, but a **database** error inside the webhook is now rethrown (HTTP 500) so Paystack retries.
+> - Email delivery is still blocked on a real `RESEND_API_KEY`; unchanged.
+
 ## What shipped
 On a successful registration-fee payment, the Paystack webhook now automatically
 (1) emails the student their paid application-fee receipt with the PDF attached, and

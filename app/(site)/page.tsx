@@ -10,8 +10,6 @@
  *
  * Header and footer come from `app/(site)/layout.tsx` — not rendered here.
  */
-import type { Prisma } from "@prisma/client"
-
 import { CtaBand } from "@/components/site/home/cta-band"
 import { FeaturedCourses, type FeaturedCourse } from "@/components/site/home/featured-courses"
 import { HomeHero } from "@/components/site/home/home-hero"
@@ -20,6 +18,8 @@ import { Testimonials } from "@/components/site/home/testimonials"
 import { TrustedBy } from "@/components/site/home/trusted-by"
 import { WhyBanafix } from "@/components/site/home/why-banafix"
 import { getCourseExpirationCutoff } from "@/lib/course-utils"
+import { fromRate } from "@/lib/offering-rates"
+import { offerableOfferingWhere } from "@/lib/offerings"
 import { prisma } from "@/lib/prisma"
 import {
   getPublishedPartners,
@@ -43,40 +43,32 @@ type CourseRow = {
   level: string
   image: string | null
   instrument: string
-  availableModes: string[]
-  pricing: Prisma.JsonValue
 }
 
 type ModeRow = { id: string; name: string }
 
+/** One offerable offering, reduced to what the formats section needs. */
+type OfferingRow = {
+  courseId: string
+  deliveryModeId: string
+  rates: { durationMins: number; pricePerClass: number }[]
+}
+
 /**
  * Turns the active `DeliveryMode` rows into the figures the ink section
  * renders, using only what the database actually holds: the canonical name,
- * how many publicly visible courses offer the mode, and the lowest real price
- * among them.
+ * how many publicly visible courses are offered in the format, and the lowest
+ * per-class rate among those offerings.
  *
- * `availableModes` is the authoritative "offers this" list —
- * `app/api/enrollments/route.ts:104` validates against it — so a stale key
- * left behind in the `pricing` JSON is ignored, and a mode no course offers
- * keeps a null price rather than borrowing one.
+ * Only offerable offerings count (active offering, active location, at least
+ * one rate), so a format nobody can enrol in keeps a null price and a zero
+ * count rather than borrowing a number from somewhere else.
  */
-function buildFormats(modes: readonly ModeRow[], courses: readonly CourseRow[]): HomeFormat[] {
+function buildFormats(modes: readonly ModeRow[], offerings: readonly OfferingRow[]): HomeFormat[] {
   return modes.map((mode) => {
-    let from: number | null = null
-    let courseCount = 0
-
-    for (const course of courses) {
-      if (!course.availableModes.includes(mode.name)) continue
-      courseCount += 1
-
-      const pricing = course.pricing
-      if (typeof pricing !== "object" || pricing === null || Array.isArray(pricing)) continue
-
-      const value = (pricing as Record<string, unknown>)[mode.name]
-      if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue
-      if (from === null || value < from) from = value
-    }
-
+    const mine = offerings.filter((offering) => offering.deliveryModeId === mode.id)
+    const from = fromRate(mine.flatMap((offering) => offering.rates))
+    const courseCount = new Set(mine.map((offering) => offering.courseId)).size
     return { id: mode.id, name: mode.name, from, courseCount }
   })
 }
@@ -100,9 +92,25 @@ async function getPublishedCourses(): Promise<CourseRow[]> {
       level: true,
       image: true,
       instrument: true,
-      availableModes: true,
-      pricing: true,
     },
+  })
+}
+
+/** Offerable offerings of publicly visible courses. */
+async function getOfferableOfferings(): Promise<OfferingRow[]> {
+  return prisma.courseOffering.findMany({
+    where: {
+      ...offerableOfferingWhere(),
+      course: {
+        isPublished: true,
+        isActive: true,
+        OR: [
+          { sessionStartDate: null },
+          { sessionStartDate: { gte: getCourseExpirationCutoff() } },
+        ],
+      },
+    },
+    select: { courseId: true, deliveryModeId: true, rates: { select: { durationMins: true, pricePerClass: true } } },
   })
 }
 
@@ -117,9 +125,10 @@ async function getActiveDeliveryModes(): Promise<ModeRow[]> {
 
 export default async function HomePage() {
   // Independent queries, so they run together rather than in a waterfall.
-  const [courses, modes, stats, partners, testimonials] = await Promise.all([
+  const [courses, modes, offerings, stats, partners, testimonials] = await Promise.all([
     getPublishedCourses(),
     getActiveDeliveryModes(),
+    getOfferableOfferings(),
     getPublishedStats(),
     getPublishedPartners(),
     getPublishedTestimonials(),
@@ -139,7 +148,7 @@ export default async function HomePage() {
       <TrustedBy partners={partners} />
       <FeaturedCourses courses={featured} total={courses.length} />
       <WhyBanafix />
-      <HowYouLearn formats={buildFormats(modes, courses)} />
+      <HowYouLearn formats={buildFormats(modes, offerings)} />
       <Testimonials testimonials={testimonials} />
       <CtaBand />
     </>

@@ -1,10 +1,15 @@
 import { NextRequest } from 'next/server'
-import { createResponse, createErrorResponse } from '@/lib/middleware'
+import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
-import { calculateApplicationFee } from '@/lib/application-fee'
-import { sendEnrollmentConfirmation } from '@/lib/email'
+import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
+import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+import { offerableOfferingWhere } from '@/lib/offerings'
+import { sendEnrollmentConfirmation, sendApplicationFeeCovered } from '@/lib/email'
+import { isThrottled } from '@/lib/throttle'
+import { findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
+import type { Prisma } from '@prisma/client'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
 export async function POST(req: NextRequest) {
@@ -24,13 +29,18 @@ export async function POST(req: NextRequest) {
       guardianPhone,
       guardianEmail,
 
-      // Address Information (for home training)
+      // Address Information (also the home-assessment address when arrangement is HOME)
       address,
       landmark,
 
-      // Course Selection
+      // Course + offering (location and format) selection
       courseId,
-      selectedMode,
+      offeringId,
+
+      // Assessment arrangement
+      arrangement,
+      preferredDate,
+      preferredTimeBand,
 
       // Course Preferences
       priorLevel,
@@ -56,8 +66,22 @@ export async function POST(req: NextRequest) {
     } = data
 
     // Validation
-    if (!firstName || !lastName || !email || !courseId || !selectedMode) {
-      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, selectedMode', 400)
+    if (!firstName || !lastName || !email || !courseId || !offeringId) {
+      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, offeringId', 400)
+    }
+
+    if (!isArrangement(arrangement)) {
+      return createErrorResponse('Invalid assessment arrangement', 400)
+    }
+    if (arrangement === 'HOME' && !String(address ?? '').trim()) {
+      return createErrorResponse('Home assessments need an address', 400)
+    }
+    if (preferredTimeBand != null && preferredTimeBand !== '' && !isTimeBand(preferredTimeBand)) {
+      return createErrorResponse('Invalid preferred time', 400)
+    }
+    const preferredDateValue = preferredDate ? new Date(preferredDate) : null
+    if (preferredDateValue && Number.isNaN(preferredDateValue.getTime())) {
+      return createErrorResponse('Invalid preferred date', 400)
     }
 
     if (!agreeToTerms || !agreeToRefundPolicy) {
@@ -68,6 +92,14 @@ export async function POST(req: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return createErrorResponse('Invalid email format', 400)
+    }
+
+    // Unauthenticated and it can email an address and create applications: throttle per IP and per
+    // email (best-effort, per instance), after validation so a typo does not burn the allowance.
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const emailKey = String(email).trim().toLowerCase()
+    if (isThrottled(`enrol:ip:${ip}`, 10, 10 * 60 * 1000) || isThrottled(`enrol:email:${emailKey}`, 5, 10 * 60 * 1000)) {
+      return createErrorResponse('Too many applications. Please wait a few minutes and try again.', 429)
     }
 
     // Check if course exists and is available
@@ -95,14 +127,16 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Course enrollment has expired', 400)
     }
 
-    // Check if course has available seats (skipped for unlimited-capacity courses)
-    if (!course.unlimitedSeats && course.seatsLeft <= 0) {
-      return createErrorResponse('Course is fully booked', 400)
-    }
+    // Seat counting is retired (D9): capacity is never enforced.
 
-    // Check if selected mode is available for the course
-    if (!course.availableModes.includes(selectedMode)) {
-      return createErrorResponse('Selected delivery mode is not available for this course', 400)
+    // The offering must belong to this course and be offerable (B6): active offering, active
+    // location, at least one per-class rate. Location and format both come from it.
+    const offering = await prisma.courseOffering.findFirst({
+      where: { id: String(offeringId), courseId, ...offerableOfferingWhere() },
+      select: { id: true, locationId: true, deliveryMode: { select: { name: true } } },
+    })
+    if (!offering) {
+      return createErrorResponse('This format is not currently open for enrolment at that location', 400)
     }
 
     const normalizedEmail = String(email).trim().toLowerCase()
@@ -124,40 +158,150 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Block only if this student is already enrolled in THIS course. A stale
-    // `pending` must not block a retry.
-    const paidEnrollment = await prisma.enrollment.findFirst({
-      where: { studentId: student.id, courseId, status: 'enrolled' },
+    // Block if this student already has a live application for THIS course (any paid stage or
+    // enrolled). A stale `pending` or a `cancelled` one must not block a retry (B9).
+    const liveEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+      select: { status: true },
     })
-    if (paidEnrollment) {
-      return createErrorResponse('You are already enrolled in this course', 400)
+    if (liveEnrollment) {
+      return createErrorResponse(
+        liveEnrollment.status === 'enrolled'
+          ? 'You are already enrolled in this course'
+          : 'You already have an application for this course in progress',
+        400,
+      )
     }
-    await prisma.enrollment.deleteMany({
+    // Older unpaid applications for this course are superseded by this one, but only AFTER the new
+    // payment has been initialised (below): an unauthenticated request must not be able to cancel
+    // anyone's application if it then fails validation or Paystack init. They are cancelled, not
+    // deleted, so a bank-transfer/USSD payment still in flight keeps its record (a late webhook
+    // for a cancelled enrollment is recorded + audited, never lost and never re-activated).
+    const staleApplications = await prisma.enrollment.findMany({
       where: { studentId: student.id, courseId, status: 'pending' },
+      select: { id: true },
     })
 
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        studentId: student.id,
-        courseId,
-        selectedMode,
-        priorLevel,
-        schedulePreference,
-        preferredDays: preferredDays || [],
-        musicExperience,
-        goals,
-        specialRequests,
-        agreeToTerms,
-        agreeToRefundPolicy,
-        consentToEmails,
-        couponCode,
-        waitlistNotes,
-        status: 'pending',
+    // Everything an application row needs, shared by the fee-due and fee-covered paths.
+    const enrollmentData: Prisma.EnrollmentUncheckedCreateInput = {
+      studentId: student.id,
+      courseId,
+      locationId: offering.locationId,
+      offeringId: offering.id,
+      selectedMode: offering.deliveryMode.name,
+      priorLevel,
+      schedulePreference,
+      preferredDays: preferredDays || [],
+      musicExperience,
+      goals,
+      specialRequests,
+      agreeToTerms,
+      agreeToRefundPolicy,
+      consentToEmails,
+      couponCode,
+      waitlistNotes,
+      status: 'pending',
+      // The assessment request is created with the enrollment (B4); the stale-pending cleanup
+      // above cascades it, and so does the cleanup below if payment initialisation fails.
+      assessments: {
+        create: {
+          status: 'requested',
+          arrangement,
+          preferredDate: preferredDateValue,
+          preferredTimeBand: preferredTimeBand || null,
+          address: arrangement === 'HOME' ? String(address).trim() : null,
+          landmark: arrangement === 'HOME' && landmark ? String(landmark).trim() : null,
+        },
       },
-    })
+    }
 
-    // Calculate application fee based on course location
-    const applicationFeeData = calculateApplicationFee(course.location)
+    let assessmentFee: number
+    try {
+      assessmentFee = await getAssessmentFee(prisma, offering.locationId)
+    } catch (e) {
+      if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
+      throw e
+    }
+
+    if (assessmentFee <= 0) {
+      return createErrorResponse('The assessment fee for this location is not set. Please contact us to apply.', 400)
+    }
+
+    // The assessment fee is charged ONCE PER STUDENT. A student with a completed fee payment (an
+    // earlier application, or a legacy student who paid under the old flow) is never charged again.
+    // This route is unauthenticated, so a "covered" application is created PENDING with the
+    // coverage link set and an admin confirms it (Mark fee paid, which covers it without a second
+    // fee); it never reaches assessment_paid on an email address alone. The response has the same
+    // shape and the same redirect behaviour as the pay path, so the body does not say whether the
+    // email belongs to a paid student (the only difference is where the redirect goes).
+    if (await findCoveringFeePayment(prisma, student.id)) {
+      const covered = await prisma.$transaction(async (tx) => {
+        await lockStudent(tx, student.id)
+        const covering = await findCoveringFeePayment(tx, student.id)
+        if (!covering) return null
+        // Re-check under the student lock: two simultaneous submits must not both create a live
+        // application for one course.
+        const live = await tx.enrollment.findFirst({
+          where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+          select: { id: true },
+        })
+        if (live) return 'live' as const
+        // Repeat submits for the same course reuse the one waiting application (no spam rows).
+        const waiting = await tx.enrollment.findFirst({
+          where: { studentId: student.id, courseId, status: 'pending', feeCoveredByPaymentId: { not: null } },
+          select: { id: true },
+        })
+        if (waiting) return { id: waiting.id, created: false as const }
+        // From an unauthenticated request it neither stores the request's home address (admin
+        // confirms the address when scheduling) nor cancels the student's other applications.
+        const created = await tx.enrollment.create({
+          data: {
+            ...enrollmentData,
+            applicationFeeAmount: 0,
+            feeCoveredByPaymentId: covering.id,
+            assessments: {
+              create: {
+                status: 'requested',
+                arrangement,
+                preferredDate: preferredDateValue,
+                preferredTimeBand: preferredTimeBand || null,
+              },
+            },
+          },
+          select: { id: true },
+        })
+        return { id: created.id, created: true as const }
+      })
+      if (covered === 'live') {
+        return createErrorResponse('You already have an application for this course in progress', 400)
+      }
+      if (covered) {
+        if (covered.created) {
+          try {
+            // Greet by the STORED name, never the request body: this email goes to whatever address was typed in.
+            await sendApplicationFeeCovered({ firstName: student.firstName, email: normalizedEmail, courseName: course.title })
+          } catch (emailError) {
+            console.error('Failed to send application-received email:', emailError)
+          }
+        }
+        return createResponse(
+          {
+            enrollment: {
+              id: covered.id,
+              status: 'pending',
+              course: { title: course.title, instructor: course.instructor?.name, sessionStartDate: course.sessionStartDate },
+              applicationFee: { amount: assessmentFee, receiptNumber: null },
+            },
+            payment: { authorization_url: `/enroll/success?application=${covered.id}`, access_code: null, reference: null },
+          },
+          201,
+        )
+      }
+    }
+
+    const enrollment = await prisma.enrollment.create({ data: enrollmentData })
+
+    const applicationFeeData = { amount: assessmentFee, currency: ASSESSMENT_FEE_CURRENCY }
 
     // Generate unique receipt number for application payment
     const receiptNumber = `APP-${Date.now()}-${enrollment.id.slice(-6)}`
@@ -201,14 +345,28 @@ export async function POST(req: NextRequest) {
     // Override the reference to use the one we created
     paymentData.reference = applicationPayment.paystackReference!
 
-    const paystackResponse = await initializePayment(paymentData)
+    // initializePayment THROWS on a non-2xx from Paystack (lib/paystack.ts), so the failure path is a
+    // catch, not a falsy `status`. Either way, remove the records of this attempt (the payment never
+    // reached Paystack, so deleting it loses nothing) and leave the student's other applications alone.
+    let paystackResponse: Awaited<ReturnType<typeof initializePayment>> | null = null
+    try {
+      paystackResponse = await initializePayment(paymentData)
+    } catch (error) {
+      console.error('Paystack initialise failed:', error)
+    }
 
-    if (!paystackResponse.status) {
-      // If payment initialization fails, clean up the records
-      await prisma.applicationPayment.delete({ where: { id: applicationPayment.id } })
-      await prisma.enrollment.delete({ where: { id: enrollment.id } })
+    if (!paystackResponse?.status) {
+      await prisma.applicationPayment.deleteMany({ where: { id: applicationPayment.id } })
+      await prisma.enrollment.deleteMany({ where: { id: enrollment.id } })
+      return createErrorResponse('Failed to initialize payment. Please try again.', 502)
+    }
 
-      return createErrorResponse('Failed to initialize payment. Please try again.', 500)
+    // The new application is live: retire the superseded unpaid ones (compare-and-set on `pending`).
+    if (staleApplications.length > 0) {
+      await prisma.enrollment.updateMany({
+        where: { id: { in: staleApplications.map((e) => e.id) }, status: 'pending' },
+        data: { status: 'cancelled' },
+      })
     }
 
     // Update application payment with Paystack access code
@@ -264,12 +422,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/enrollments - Get enrollments (with optional filters)
-export async function GET(req: NextRequest) {
+// GET /api/enrollments - admin list of enrollments (with optional filters). Admin-only: it returns
+// student PII and assessment results (D5 partly closed here; this used to be unauthenticated).
+export const GET = withAuth(async (req: NextRequest) => {
   try {
     const url = new URL(req.url)
     const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '10')
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '10') || 10, 1), 200)
     const status = url.searchParams.get('status')
     const courseId = url.searchParams.get('courseId')
     const email = url.searchParams.get('email')
@@ -286,6 +445,13 @@ export async function GET(req: NextRequest) {
       prisma.enrollment.findMany({
         where,
         include: {
+          location: { select: { id: true, name: true } },
+          offering: { select: { id: true, deliveryMode: { select: { name: true } } } },
+          assessments: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true, status: true, arrangement: true, preferredDate: true, preferredTimeBand: true, scheduledAt: true, resultLevel: true },
+          },
           student: {
             select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
           },
@@ -306,6 +472,8 @@ export async function GET(req: NextRequest) {
           },
           applicationPayments: {
             select: {
+              id: true,
+              refundedAt: true,
               amount: true,
               status: true,
               receiptNumber: true,
@@ -342,4 +510,4 @@ export async function GET(req: NextRequest) {
     console.error('Get enrollments error:', error)
     return createErrorResponse('Failed to fetch enrollments', 500)
   }
-}
+})

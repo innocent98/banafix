@@ -17,7 +17,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || SUPPORT_EMAIL
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
 /**
- * Send application fee receipt email
+ * Send assessment fee receipt email
  */
 export async function sendApplicationFeeReceipt(
   data: ApplicationFeeReceiptData,
@@ -29,11 +29,11 @@ export async function sendApplicationFeeReceipt(
     const emailResult = await resend.emails.send({
       from: FROM_EMAIL,
       to: enrollment.email,
-      subject: `Application Fee Receipt - ${course.title}`,
+      subject: `Assessment Fee Receipt - ${course.title}`,
       html: generateApplicationFeeEmailHTML(data),
       attachments: [
         {
-          filename: `application-fee-receipt-${data.receiptNumber}.pdf`,
+          filename: `assessment-fee-receipt-${data.receiptNumber}.pdf`,
           content: receiptPDF,
           contentType: 'application/pdf',
         },
@@ -41,15 +41,15 @@ export async function sendApplicationFeeReceipt(
     })
 
     if (emailResult.error) {
-      console.error('Failed to send application fee receipt email:', emailResult.error)
+      console.error('Failed to send assessment fee receipt email:', emailResult.error)
       return false
     }
 
-    console.log('Application fee receipt email sent successfully:', emailResult.data?.id)
+    console.log('Assessment fee receipt email sent successfully:', emailResult.data?.id)
     return true
 
   } catch (error) {
-    console.error('Error sending application fee receipt email:', error)
+    console.error('Error sending assessment fee receipt email:', error)
     return false
   }
 }
@@ -118,7 +118,7 @@ export async function sendTuitionReceipt(
 }
 
 /**
- * Generate HTML email template for application fee receipt
+ * Generate HTML email template for assessment fee receipt
  */
 function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): string {
   const { enrollment, course, payment } = data
@@ -129,7 +129,7 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Application Fee Receipt</title>
+        <title>Assessment Fee Receipt</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f9fafb; }
             .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
@@ -156,9 +156,9 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
             </div>
 
             <div class="content">
-                <h2>Application Fee Receipt</h2>
+                <h2>Assessment Fee Receipt</h2>
                 <p>Dear ${enrollment.firstName} ${enrollment.lastName},</p>
-                <p>Thank you for your application fee payment! Your enrollment application has been successfully processed.</p>
+                <p>Thank you for paying your assessment fee! Your application has been received.</p>
 
                 <div class="receipt-info">
                     <h3>Receipt Details</h3>
@@ -207,19 +207,13 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
                 </div>
 
                 <div class="amount-box">
-                    <h3>Application Fee Paid</h3>
+                    <h3>Assessment Fee Paid</h3>
                     <div class="amount">₦${payment.amount.toLocaleString()}</div>
-                    <p style="margin: 10px 0 0; opacity: 0.9;">Non-refundable enrollment fee</p>
+                    <p style="margin: 10px 0 0; opacity: 0.9;">Non-refundable assessment fee</p>
                 </div>
 
                 <h3>What's Next?</h3>
-                <p>Your application has been confirmed! Our admissions team will contact you within 24-48 hours with:</p>
-                <ul>
-                    <li>Course schedule and session details</li>
-                    <li>Tuition payment information</li>
-                    <li>Pre-course preparation materials</li>
-                    <li>Contact information for your instructor</li>
-                </ul>
+                <p>Your assessment fee is confirmed. Our admissions team will contact you within 24-48 hours to arrange your assessment. After the assessment we will agree your plan and tuition with you, and confirm your enrolment.</p>
 
                 <p>Please keep this receipt for your records. A PDF copy is attached to this email.</p>
 
@@ -355,13 +349,13 @@ export async function sendEnrollmentConfirmation(
     const emailResult = await resend.emails.send({
       from: FROM_EMAIL,
       to: enrollmentData.email,
-      subject: `Enrollment Application Received - ${enrollmentData.courseName}`,
+      subject: `Assessment Application Received - ${enrollmentData.courseName}`,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Enrollment Application Received</title>
+            <title>Assessment Application Received</title>
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -377,13 +371,13 @@ export async function sendEnrollmentConfirmation(
                     <p>Music Academy & Training Center</p>
                 </div>
                 <div class="content">
-                    <h2>Enrollment Application Received</h2>
+                    <h2>Assessment Application Received</h2>
                     <p>Dear ${enrollmentData.firstName} ${enrollmentData.lastName},</p>
                     <p>Thank you for applying to <strong>${enrollmentData.courseName}</strong>!</p>
                     <p>Your application has been received. ${enrollmentData.applicationFee
-                        ? `To secure your place, please complete the registration fee payment of <strong>₦${enrollmentData.applicationFee.toLocaleString()}</strong> on the secure payment page that opened when you submitted your application.`
-                        : 'To secure your place, please complete the registration fee payment on the secure payment page that opened when you submitted your application.'}</p>
-                    <p>Once your payment is confirmed we'll email you a receipt and our admissions team will follow up with your schedule details.</p>
+                        ? `To book your assessment, please complete the assessment fee payment of <strong>₦${enrollmentData.applicationFee.toLocaleString()}</strong> on the secure payment page that opened when you submitted your application.`
+                        : 'To book your assessment, please complete the assessment fee payment on the secure payment page that opened when you submitted your application.'}</p>
+                    <p>Once your payment is confirmed we'll email you a receipt and our admissions team will contact you to arrange your assessment.</p>
                     <p>Enrollment ID: <strong>${enrollmentData.enrollmentId}</strong></p>
                     <p>If you didn't finish the payment or have any questions, just reply to this email or contact us at ${SUPPORT_EMAIL}.</p>
                 </div>
@@ -402,8 +396,8 @@ export async function sendEnrollmentConfirmation(
 }
 
 /**
- * Notify the admin/support inbox that a student has paid the registration fee
- * and enrolled. Sent from the Paystack webhook alongside the student receipt.
+ * Notify the admin/support inbox that a student has paid the assessment fee
+ * (a new paid assessment application). Sent from the Paystack webhook alongside the student receipt.
  */
 export async function sendAdminEnrollmentNotification(
   data: {
@@ -435,13 +429,13 @@ export async function sendAdminEnrollmentNotification(
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
       replyTo: enrollment.email,
-      subject: `New paid enrollment: ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
+      subject: `New paid assessment application: ${course.title} (${enrollment.firstName} ${enrollment.lastName})`,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
-            <title>New Paid Enrollment</title>
+            <title>New Paid Assessment Application</title>
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -457,10 +451,10 @@ export async function sendAdminEnrollmentNotification(
             <div class="container">
                 <div class="header">
                     <h1>BANAFIX</h1>
-                    <p>New Paid Enrollment</p>
+                    <p>New Paid Assessment Application</p>
                 </div>
                 <div class="content">
-                    <p>A student has completed their registration payment and is now enrolled.</p>
+                    <p>A student has paid the assessment fee. Arrange their assessment from the admin dashboard.</p>
                     <div class="info-row"><span class="info-label">Student:</span><span>${enrollment.firstName} ${enrollment.lastName}</span></div>
                     <div class="info-row"><span class="info-label">Email:</span><span>${enrollment.email}</span></div>
                     ${enrollment.phone ? `<div class="info-row"><span class="info-label">Phone:</span><span>${enrollment.phone}</span></div>` : ''}
@@ -559,6 +553,143 @@ export async function sendBirthdayEmail(recipient: {
     return true
   } catch (error) {
     console.error('Error sending birthday email:', error)
+    return false
+  }
+}
+/**
+ * Best-effort notice to the admin inbox: money arrived for an assessment fee the student had already
+ * paid (or that a cash payment superseded). The refund is done by hand in the Paystack dashboard,
+ * then recorded in admin ("Mark refunded").
+ */
+// Escape interpolated values: the covered-fee email goes to an address typed into a public form.
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+export async function sendAdminDuplicatePaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  reference: string | null
+  enrollmentId: string
+  reason: 'already_covered' | 'superseded'
+}): Promise<boolean> {
+  try {
+    const why =
+      data.reason === 'superseded'
+        ? 'a cash/offline fee was recorded for this application first'
+        : 'the student had already paid the assessment fee'
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Refund needed: duplicate assessment fee (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A duplicate assessment fee payment needs a refund.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()} (Paystack reference ${escapeHtml(data.reference ?? 'n/a')}), but ${why}. The application was not changed.</p>
+        <p>Refund it by hand in the Paystack dashboard, then open the enrollment in admin and choose Mark refunded.</p>
+        <p>Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send duplicate-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending duplicate-payment notice:', error)
+    return false
+  }
+}
+
+/**
+ * "Application received": sent instead of a payment receipt when a student who has already paid the
+ * (once per student, non-refundable) assessment fee applies again. The wording is deliberately
+ * neutral and confirms nothing beyond receipt, because it goes to whatever address was typed in.
+ */
+export async function sendApplicationFeeCovered(data: {
+  firstName: string
+  email: string
+  courseName: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: `Application received: ${data.courseName.replace(/[\r\n]+/g, ' ')}`,
+      html: `
+        <p>Hi ${escapeHtml(data.firstName)},</p>
+        <p>We have received an application for <strong>${escapeHtml(data.courseName)}</strong> using this email address.</p>
+        <p>Our team will confirm it with you before anything else happens. If you have paid the assessment fee before, you will not be charged for it again. If this was not you, please contact us at ${SUPPORT_EMAIL}.</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send fee-covered email:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending fee-covered email:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a fee was paid on an application that had already been cancelled. */
+export async function sendAdminCancelledPaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  enrollmentId: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee paid on a cancelled application (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>An assessment fee arrived for a cancelled application.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()}. The payment is recorded and covers this student's fee, but the application stays cancelled and no receipt was sent.</p>
+        <p>Open the student in admin to decide what to do (for example, register them again; the fee will not be charged twice). Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send cancelled-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending cancelled-payment notice:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a successful Paystack charge did not match the fee we asked for. */
+export async function sendAdminAmountMismatchNotice(data: {
+  studentName: string
+  studentEmail: string
+  reference: string
+  enrollmentId: string
+  expectedNaira: number
+  paidKobo: number | null | undefined
+  requestedKobo: number | null | undefined
+  currency: string | null | undefined
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee charge did not match (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A Paystack charge succeeded but did not match the assessment fee, so the application was NOT updated.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}), reference ${escapeHtml(data.reference)}. We asked for ₦${data.expectedNaira.toLocaleString()}; Paystack reports amount ${data.paidKobo ?? 'n/a'} kobo, requested amount ${data.requestedKobo ?? 'n/a'} kobo, currency ${escapeHtml(data.currency ?? 'n/a')}.</p>
+        <p>Check the transaction in the Paystack dashboard, then use Mark fee paid on the enrollment if the fee was correctly paid, or refund it. Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send amount-mismatch notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending amount-mismatch notice:', error)
     return false
   }
 }

@@ -4,13 +4,15 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { generateTuitionReceiptPDF, TuitionReceiptData } from '@/lib/receipt'
 import { sendTuitionReceipt } from '@/lib/email'
+import { expectedTuitionTotal } from '@/lib/offering-rates'
 
 // Build receipt data from a stored tuition payment, computing the remaining
-// balance from the course price for the student's mode (omitted if no price).
+// balance from the agreed plan, or the legacy per-mode price (omitted if neither exists).
 function buildTuitionReceiptData(payment: any, totalPaid: number): TuitionReceiptData {
   const pricing = (payment.enrollment.course.pricing ?? null) as Record<string, number> | null
-  const expectedTotal =
-    pricing && payment.enrollment.selectedMode ? pricing[payment.enrollment.selectedMode] : undefined
+  // Same rule as the tuition route: an agreed plan (snapshot rate x planned classes) wins, so a
+  // re-sent receipt never contradicts the original; legacy rows use the per-mode price.
+  const expectedTotal = expectedTuitionTotal(payment.enrollment, pricing)
   const remainingBalance =
     typeof expectedTotal === 'number' ? Math.max(0, expectedTotal - totalPaid) : undefined
   return {

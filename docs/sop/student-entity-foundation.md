@@ -1,5 +1,14 @@
 # SOP — Student entity foundation (D1 + D2)
 
+> **Superseded in part (2026-11-03) — see `docs/sop/assessment-first-admission.md`.** The history below is kept as shipped, but these statements are no longer true:
+> - **D1 / "paying the registration fee is enrollment"** is superseded by D6. The webhook no longer writes `status='enrolled'`: a verified `charge.success` moves `pending -> assessment_paid`; `enrolled` is reached only after assessment + plan (tuition recorded or an audited confirm). Existing `enrolled` rows were grandfathered (the new migration changes no statuses).
+> - The webhook audit action `enrollment.enrolled` is now `enrollment.assessment_paid` (or `enrollment.fee_paid_unexpected_state`); the webhook also no longer decrements seats.
+> - The status vocabulary `pending`/`enrolled`/`cancelled` (and the admin badge/filter built on it) is now seven statuses: `pending`, `assessment_paid`, `assessment_scheduled`, `assessed`, `plan_agreed`, `enrolled`, `cancelled` (guard: `lib/enrollment-status.ts`).
+> - The duplicate-enrollment guard "blocks only on `status: 'enrolled'`" now blocks on any status except `pending` and `cancelled` (B9).
+> - "Refresh-on-reenroll (O4)" was already reversed by `docs/sop/student-edit.md`: public re-enrolment does not overwrite an existing student's fields.
+> - "Known limitation: not exercised against a live Paystack charge" still holds for real Paystack, but the new `assessment_paid` path is now proven against a local Paystack mock.
+> - The retired `application_paid` value stays retired (the guard treats it as an unknown status). The `Student` entity and the dormant-column Migration 2 are unaffected.
+
 ## What shipped
 A canonical `Student` (person) entity, keyed by a unique, immutable, lowercased email, now
 sits behind every `Enrollment`. Enrolling links to (or creates) a `Student` instead of

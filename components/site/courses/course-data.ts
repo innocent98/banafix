@@ -22,36 +22,6 @@ export function publicCourseWhere() {
   }
 }
 
-/**
- * `Course.pricing` is `Json`, so Prisma types it as `JsonValue`. Narrow it to
- * the delivery-mode → naira map the app actually stores, dropping anything
- * non-numeric rather than trusting the column.
- */
-export function toPricing(value: unknown): Record<string, number> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
-  const out: Record<string, number> = {}
-  for (const [mode, amount] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof amount === "number" && Number.isFinite(amount)) out[mode] = amount
-  }
-  return out
-}
-
-/** The "from" price — the cheapest mode. `null` when the course has no prices. */
-export function fromPrice(pricing: Record<string, number>): number | null {
-  const amounts = Object.values(pricing)
-  return amounts.length ? Math.min(...amounts) : null
-}
-
-/** Only the modes that are both offered and priced can be selected or quoted. */
-export function pricedModes(
-  availableModes: string[],
-  pricing: Record<string, number>,
-): Array<{ mode: string; price: number }> {
-  return availableModes
-    .filter((mode) => typeof pricing[mode] === "number")
-    .map((mode) => ({ mode, price: pricing[mode] as number }))
-}
-
 /** "1 course" / "6 courses", "1 format" / "4 formats". */
 export function plural(count: number, singular: string, pluralWord = `${singular}s`) {
   return `${count} ${count === 1 ? singular : pluralWord}`
