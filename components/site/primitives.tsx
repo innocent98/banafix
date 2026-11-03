@@ -158,7 +158,7 @@ export function Display({
 /*  Bits                                                                       */
 /* -------------------------------------------------------------------------- */
 
-/** Metadata chip on course cards — "12 weeks", "4 formats". */
+/** Metadata chip on course cards — "4 formats", "12 modules". */
 export function MetaChip({ children }: { children: React.ReactNode }) {
   return (
     <span className="rounded-lg bg-bfx-tint px-[11px] py-1.5 text-[12.5px] font-semibold text-bfx-body">
