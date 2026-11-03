@@ -3,9 +3,10 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
-import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
+import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification, sendAdminCancelledPaymentNotice } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
 import { settleAssessmentFee, chargeMatches } from '@/lib/assessment-payment'
+import { reportDuplicateFeePayment } from '@/lib/duplicate-fee'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -134,6 +135,20 @@ async function handleChargeSuccess(data: any) {
 
     console.log('Payment processed successfully for enrollment:', applicationPayment.enrollmentId)
 
+    // The fee was already covered (or a cash fee superseded this payment): the money is recorded as
+    // `duplicate` for a manual refund; no enrollment change, no student receipt.
+    if (outcome.kind === 'duplicate') {
+      await reportDuplicateFeePayment({
+        paymentId: applicationPayment.id,
+        enrollmentId: applicationPayment.enrollmentId,
+        amount: applicationPayment.amount,
+        reference,
+        reason: outcome.reason,
+        student: applicationPayment.enrollment.student,
+      })
+      return
+    }
+
     await logAdminAction({
       adminId: null,
       action: outcome.kind === 'moved' ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
@@ -149,6 +164,16 @@ async function handleChargeSuccess(data: any) {
     // A cancelled enrollment got paid: surface it, but don't email a "you're in" receipt for it.
     if (outcome.kind === 'unexpected_state' && outcome.status === 'cancelled') {
       console.warn('Fee paid on a cancelled enrollment; needs admin attention:', applicationPayment.enrollmentId)
+      try {
+        await sendAdminCancelledPaymentNotice({
+          studentName: `${applicationPayment.enrollment.student.firstName} ${applicationPayment.enrollment.student.lastName}`,
+          studentEmail: applicationPayment.enrollment.student.email,
+          amount: applicationPayment.amount,
+          enrollmentId: applicationPayment.enrollmentId,
+        })
+      } catch (error) {
+        console.error('Cancelled-payment admin notice failed:', error)
+      }
       return
     }
 

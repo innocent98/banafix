@@ -5,7 +5,7 @@
 #   scripts/dev/ephemeral-pg.sh reset   -> stop, wipe, start fresh
 set -euo pipefail
 PORT="${EPHEMERAL_PG_PORT:-5466}"
-DIR="${EPHEMERAL_PG_DIR:-${TMPDIR:-/tmp}/banafix-ephemeral-pg}"
+DIR="${EPHEMERAL_PG_DIR:-${TMPDIR:-/tmp}/banafix-ephemeral-pg-${PORT}}" # per-port: two sessions must never share (and wipe) one data dir
 URL="postgresql://postgres@127.0.0.1:${PORT}/postgres"
 
 start() {
