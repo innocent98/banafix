@@ -15,6 +15,13 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
         course: { select: { id: true, title: true } },
         location: { select: { id: true, name: true } },
         offering: { select: { id: true, deliveryMode: { select: { name: true } } } },
+        // Fee facts: what was paid (or flagged duplicate) on this application, and the payment that
+        // covers it when the student had already paid (once per student).
+        applicationPayments: {
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, amount: true, status: true, receiptNumber: true, paidAt: true, paystackReference: true, refundedAt: true },
+        },
+        feeCoveredBy: { select: { id: true, amount: true, receiptNumber: true, paidAt: true } },
         assessments: {
           orderBy: { createdAt: 'desc' },
           include: { assessor: { select: { id: true, name: true } } },
@@ -36,8 +43,21 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
       orderBy: [{ location: { name: 'asc' } }, { deliveryMode: { name: 'asc' } }],
     })
 
+    // The student's latest completed assessment (any application), offered for "reuse" on an
+    // application that is awaiting its assessment.
+    const reusable = await prisma.assessment.findFirst({
+      where: { status: 'completed', resultLevel: { not: null }, enrollment: { studentId: enrollment.studentId } },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        resultLevel: true,
+        completedAt: true,
+        enrollment: { select: { id: true, course: { select: { title: true } } } },
+      },
+    })
+
     const { assessments, ...rest } = enrollment
-    return createResponse({ enrollment: rest, assessments, offerings })
+    return createResponse({ enrollment: rest, assessments, offerings, reusableAssessment: reusable })
   } catch (error) {
     console.error('Get admin enrollment error:', error)
     return createErrorResponse('Failed to fetch enrollment', 500)

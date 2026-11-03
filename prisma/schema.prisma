@@ -261,6 +261,10 @@ model Enrollment {
   locationId   String?
   offeringId   String?
 
+  // The completed fee payment that covers this application when the student had already paid the
+  // assessment fee (charged ONCE PER STUDENT). Null for the application that paid it.
+  feeCoveredByPaymentId String?
+
   // Plan fields — set when the plan is agreed after assessment. ratePerClass is a SNAPSHOT:
   // later OfferingRate edits never move an existing student's price.
   durationMins   Int?
@@ -279,6 +283,7 @@ model Enrollment {
   // Relations
   course              Course              @relation(fields: [courseId], references: [id])
   student             Student             @relation(fields: [studentId], references: [id])
+  feeCoveredBy        ApplicationPayment? @relation("FeeCoverage", fields: [feeCoveredByPaymentId], references: [id], onDelete: SetNull)
   location            Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   offering            CourseOffering?     @relation("EnrollmentOffering", fields: [offeringId], references: [id], onDelete: SetNull)
   applicationPayments ApplicationPayment[]
@@ -288,6 +293,7 @@ model Enrollment {
   @@index([studentId])
   @@index([locationId])
   @@index([offeringId])
+  @@index([feeCoveredByPaymentId])
   @@map("enrollments")
 }
 
@@ -307,8 +313,12 @@ model ApplicationPayment {
   authorizationCode String?
 
   // Payment Status
-  status            String   @default("pending") // pending, completed, failed, refunded
+  // pending, completed, failed; superseded = a cash/offline fee covered the application first;
+  // duplicate = money received on top of an already-paid fee (needs a manual refund); refunded.
+  status            String   @default("pending")
   paidAt            DateTime?
+  refundedAt        DateTime? // set when an admin records the duplicate as refunded (refund done by hand in Paystack)
+  refundedBy        String?   // Admin id
 
   // Receipt Information
   receiptNumber     String   @unique
@@ -328,6 +338,7 @@ model ApplicationPayment {
 
   // Relations
   enrollment        Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  coveredEnrollments Enrollment[] @relation("FeeCoverage")
 
   @@map("application_payments")
 }

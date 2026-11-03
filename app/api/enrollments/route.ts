@@ -6,7 +6,10 @@ import { isCourseExpired } from '@/lib/course-utils'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
 import { offerableOfferingWhere } from '@/lib/offerings'
-import { sendEnrollmentConfirmation } from '@/lib/email'
+import { sendEnrollmentConfirmation, sendApplicationFeeCovered } from '@/lib/email'
+import { isThrottled } from '@/lib/throttle'
+import { coverApplication, findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
+import type { Prisma } from '@prisma/client'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
 export async function POST(req: NextRequest) {
@@ -91,6 +94,14 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Invalid email format', 400)
     }
 
+    // Unauthenticated and it can email an address and create applications: throttle per IP and per
+    // email (best-effort, per instance), after validation so a typo does not burn the allowance.
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const emailKey = String(email).trim().toLowerCase()
+    if (isThrottled(`enrol:ip:${ip}`, 10, 10 * 60 * 1000) || isThrottled(`enrol:email:${emailKey}`, 5, 10 * 60 * 1000)) {
+      return createErrorResponse('Too many applications. Please wait a few minutes and try again.', 429)
+    }
+
     // Check if course exists and is available
     const course = await prisma.course.findUnique({
       where: { id: courseId },
@@ -171,6 +182,99 @@ export async function POST(req: NextRequest) {
       select: { id: true },
     })
 
+    // Everything an application row needs, shared by the fee-due and fee-covered paths.
+    const enrollmentData: Prisma.EnrollmentUncheckedCreateInput = {
+      studentId: student.id,
+      courseId,
+      locationId: offering.locationId,
+      offeringId: offering.id,
+      selectedMode: offering.deliveryMode.name,
+      priorLevel,
+      schedulePreference,
+      preferredDays: preferredDays || [],
+      musicExperience,
+      goals,
+      specialRequests,
+      agreeToTerms,
+      agreeToRefundPolicy,
+      consentToEmails,
+      couponCode,
+      waitlistNotes,
+      status: 'pending',
+      // The assessment request is created with the enrollment (B4); the stale-pending cleanup
+      // above cascades it, and so does the cleanup below if payment initialisation fails.
+      assessments: {
+        create: {
+          status: 'requested',
+          arrangement,
+          preferredDate: preferredDateValue,
+          preferredTimeBand: preferredTimeBand || null,
+          address: arrangement === 'HOME' ? String(address).trim() : null,
+          landmark: arrangement === 'HOME' && landmark ? String(landmark).trim() : null,
+        },
+      },
+    }
+
+    // The assessment fee is charged ONCE PER STUDENT. A student with a completed fee payment (an
+    // earlier application, or a legacy student who paid under the old flow) is never charged again:
+    // no Paystack, the application starts at assessment_paid. The server decides here; the wizard
+    // never learns beforehand whether an email belongs to an existing student.
+    if (await findCoveringFeePayment(prisma, student.id)) {
+      const covered = await prisma.$transaction(async (tx) => {
+        await lockStudent(tx, student.id)
+        const covering = await findCoveringFeePayment(tx, student.id)
+        if (!covering) return null
+        // Re-check under the student lock: two simultaneous covered submits must not both create a
+        // live application for one course.
+        const live = await tx.enrollment.findFirst({
+          where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+          select: { id: true },
+        })
+        if (live) return 'live' as const
+        // A covered application is created at assessment_paid with no payment, from an
+        // unauthenticated request: it neither stores the request's home address (admin confirms the
+        // address when scheduling) nor cancels the student's other applications.
+        const created = await tx.enrollment.create({
+          data: {
+            ...enrollmentData,
+            assessments: {
+              create: {
+                status: 'requested',
+                arrangement,
+                preferredDate: preferredDateValue,
+                preferredTimeBand: preferredTimeBand || null,
+              },
+            },
+          },
+        })
+        await coverApplication(tx, created.id, covering.id)
+        return created
+      })
+      if (covered === 'live') {
+        return createErrorResponse('You already have an application for this course in progress', 400)
+      }
+      if (covered) {
+        try {
+          // Greet by the STORED name, never the request body: this email goes to whatever address was typed in.
+          await sendApplicationFeeCovered({ firstName: student.firstName, email: normalizedEmail, courseName: course.title })
+        } catch (emailError) {
+          console.error('Failed to send fee-covered email:', emailError)
+        }
+        return createResponse(
+          {
+            enrollment: {
+              id: covered.id,
+              status: 'assessment_paid',
+              course: { title: course.title, instructor: course.instructor?.name, sessionStartDate: course.sessionStartDate },
+            },
+            feeCovered: true,
+            applicationFee: { amount: 0 },
+          },
+          201,
+        )
+      }
+    }
+
     let assessmentFee: number
     try {
       assessmentFee = await getAssessmentFee(prisma, offering.locationId)
@@ -183,39 +287,7 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('The assessment fee for this location is not set. Please contact us to apply.', 400)
     }
 
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        studentId: student.id,
-        courseId,
-        locationId: offering.locationId,
-        offeringId: offering.id,
-        selectedMode: offering.deliveryMode.name,
-        priorLevel,
-        schedulePreference,
-        preferredDays: preferredDays || [],
-        musicExperience,
-        goals,
-        specialRequests,
-        agreeToTerms,
-        agreeToRefundPolicy,
-        consentToEmails,
-        couponCode,
-        waitlistNotes,
-        status: 'pending',
-        // The assessment request is created with the enrollment (B4); the stale-pending cleanup
-        // above cascades it, and so does the cleanup below if payment initialisation fails.
-        assessments: {
-          create: {
-            status: 'requested',
-            arrangement,
-            preferredDate: preferredDateValue,
-            preferredTimeBand: preferredTimeBand || null,
-            address: arrangement === 'HOME' ? String(address).trim() : null,
-            landmark: arrangement === 'HOME' && landmark ? String(landmark).trim() : null,
-          },
-        },
-      },
-    })
+    const enrollment = await prisma.enrollment.create({ data: enrollmentData })
 
     const applicationFeeData = { amount: assessmentFee, currency: ASSESSMENT_FEE_CURRENCY }
 
@@ -382,6 +454,8 @@ export const GET = withAuth(async (req: NextRequest) => {
           },
           applicationPayments: {
             select: {
+              id: true,
+              refundedAt: true,
               amount: true,
               status: true,
               receiptNumber: true,
