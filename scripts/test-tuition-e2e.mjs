@@ -199,7 +199,7 @@ psql(`update offering_rates set "pricePerClass"=5000 where "offeringId"='${ids.o
 r = await api('POST', `/api/admin/enrollments/${E1}/tuition/charges`, { kind: 'CLASSES', quantity: 1 })
 const topUp2 = r.json.charge
 check('later top-up uses TODAY\'s rate 5000; the earlier 4000 charge is untouched', r.status === 201 && topUp2.unitPrice === 5000 && num(`select count(*) from tuition_charges where "enrollmentId"='${E1}' and "unitPrice"=4000 and description like '%top-up%'`) === 1)
-check('the plan snapshot on the enrollment is untouched', num(`select "ratePerClass" from enrollments where id='${E1}'`) === 5000 === false || true)
+check('the plan snapshot on the enrollment is untouched by the rate edit (still 4000)', num(`select "ratePerClass" from enrollments where id='${E1}'`) === 4000)
 r = await api('POST', `/api/admin/enrollments/${E1}/tuition/charges`, { kind: 'MATERIAL', materialId: ids.matOpt })
 check('material already charged -> 409', r.status === 409, r)
 r = await api('POST', `/api/admin/enrollments/${E1}/tuition/charges`, { kind: 'MATERIAL', materialId: ids.matOff })

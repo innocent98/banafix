@@ -8,7 +8,7 @@
  *  POST /transaction/initialize      -> {status:true, data:{authorization_url, access_code, reference}}
  *  GET  /transaction/verify/:ref     -> success, unless the reference contains "FAIL" (then failed)
  *                                       reports the amount and metadata given at initialize
- *  POST /__override/:ref {amount?, status?, metadata?}  -> test hook: make verify report something else
+ *  POST /__override/:ref {amount?, currency?, status?, metadata?}  -> test hook: make verify report something else
  *                                       (a different kobo amount, a wrong metadata echo, a failed status)
  *
  * This proves OUR handling of Paystack responses. It does NOT prove Paystack itself: a real
@@ -19,7 +19,7 @@ import http from 'node:http'
 const port = Number(process.env.MOCK_PAYSTACK_PORT || 4010)
 const amounts = new Map() // reference -> kobo, remembered from initialize so verify reports what was asked for
 const metadatas = new Map() // reference -> metadata echoed back by verify, as real Paystack does
-const overrides = new Map() // reference -> {amount?, status?, metadata?} set through /__override/:ref
+const overrides = new Map() // reference -> {amount?, currency?, status?, metadata?} set through /__override/:ref
 
 const server = http.createServer((req, res) => {
   const send = (code, body) => {
@@ -70,7 +70,7 @@ const server = http.createServer((req, res) => {
           paid_at: ok ? new Date().toISOString() : null,
           created_at: new Date().toISOString(),
           channel: 'card',
-          currency: 'NGN',
+          currency: override.currency ?? 'NGN',
           authorization: { authorization_code: 'AUTH_mock' },
         },
       })
