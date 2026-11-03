@@ -65,11 +65,11 @@ async function main() {
       },
     })
 
-  // ── A. application_received: student + guardian, once ─────────────────────────
+  // ── A. application_received: applicant only, once ─────────────────────────
   const ada = await mkStudent('ada')
   const e1 = await mkEnrollment(ada.id, 'ada', { guardianName: 'Mrs Ada', guardianEmail: 'mum@s7.test', guardianPhone: '+2348099999999' })
   let n = await emitEnrollmentEvent(prisma, e1.id, 'application_received')
-  ok('application_received enqueues student + guardian email (2 rows)', n === 2, n)
+  ok('application_received goes to the applicant only, never the unverified guardian address (1 row)', n === 1, n)
   n = await emitEnrollmentEvent(prisma, e1.id, 'application_received')
   ok('replay enqueues nothing (idempotent)', n === 0, n)
 
