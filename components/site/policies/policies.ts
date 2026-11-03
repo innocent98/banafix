@@ -1,15 +1,17 @@
 /**
  * Policy copy for /policies.
  *
- * STATIC LEGAL COPY — carried over verbatim from the previous page. There is
- * no CMS or Prisma model behind it, and the `lastUpdated` strings are the ones
- * the page already claimed.
+ * STATIC LEGAL COPY. There is no CMS or Prisma model behind it. Rewritten for the
+ * assessment-first flow (apply, pay a non-refundable assessment fee, be assessed,
+ * agree a plan, then enrol). Where the academy has made no business decision
+ * (tuition refunds, cancelling or rescheduling lessons, a missed assessment, late
+ * arrival, materials) the wording is deliberately neutral ("case by case"); those
+ * points are listed for John in docs/john-review/policy-changes.md. Do not add
+ * numbers or fee amounts until he decides.
  *
  * `id` is load-bearing: components/site/site-footer.tsx links to
  * `/policies#privacy` and `/policies#terms`, so those two ids must exist as
- * anchors on the rendered page. The old page rendered one tab at a time from
- * `useState` and emitted no ids at all, so both footer links landed at the top
- * of the page with nothing highlighted.
+ * anchors on the rendered page.
  */
 
 export interface PolicyBlock {
@@ -31,19 +33,19 @@ export const POLICIES: Policy[] = [
     id: "privacy",
     title: "Privacy Policy",
     navLabel: "Privacy Policy",
-    lastUpdated: "December 15, 2024",
+    lastUpdated: "November 3, 2026",
     blocks: [
       {
         heading: "Information We Collect",
-        text: "We collect information you provide directly to us, such as when you create an account, enroll in courses, or contact us for support. This includes your name, email address, phone number, payment information, and learning preferences.",
+        text: "We collect information you give us when you apply, book an assessment, enrol, pay, or contact us. This includes your name, email address, phone number, payment records and learning preferences. For an assessment we also collect your preferred date and time of day. For a home assessment or home lessons we collect your home address and a nearby landmark. Banafix students do not have accounts, so there is no student login or password.",
       },
       {
         heading: "How We Use Your Information",
-        text: "We use the information we collect to provide, maintain, and improve our services, process transactions, send you technical notices and support messages, and communicate with you about courses, instructors, and promotional offers.",
+        text: "We use the information we collect to provide, maintain, and improve our services, arrange and carry out your assessment, agree your plan, process payments, send you support messages, and communicate with you about courses and instructors. With your consent, we also send promotional offers.",
       },
       {
         heading: "Information Sharing",
-        text: "We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy. We may share information with instructors for course delivery and with service providers who assist us in operating our platform.",
+        text: "We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy. We may share information with the instructors who assess and teach you, and with service providers, such as our payment provider, who assist us in operating our services.",
       },
       {
         heading: "Data Security",
@@ -55,23 +57,35 @@ export const POLICIES: Policy[] = [
     id: "terms",
     title: "Terms & Conditions",
     navLabel: "Terms & Conditions",
-    lastUpdated: "December 15, 2024",
+    lastUpdated: "November 3, 2026",
     blocks: [
       {
         heading: "Acceptance of Terms",
-        text: "By accessing and using Banafix services, you accept and agree to be bound by the terms and provision of this agreement. These terms apply to all users of the platform, including students, instructors, and visitors.",
+        text: "By using Banafix services, including applying for an assessment, you accept and agree to be bound by the terms of this agreement. These terms apply to all users of our services, including students, instructors, and visitors.",
       },
       {
-        heading: "Course Enrollment",
-        text: "Course enrollment is subject to availability and instructor approval. Payment must be completed before course access is granted. Course materials and content are for personal use only and may not be shared or redistributed.",
+        heading: "Applying and Assessment",
+        text: "To join Banafix you apply and pay a non-refundable assessment fee. The amount depends on the location and is shown at checkout. The fee is charged once per student: a student who has paid it before is not charged again for a later application. You are then assessed at home, at the centre or online. Paying the fee does not enrol you.",
+      },
+      {
+        heading: "Home Assessments and Home Lessons",
+        text: "Home assessments and home lessons need your address and a landmark. We confirm that we cover your area, and we confirm the time with you.",
+      },
+      {
+        heading: "Plan, Tuition and Enrolment",
+        text: "Enrolment follows your assessment and a plan you agree with Banafix. The plan sets the classes per week and the number of planned classes. Tuition is charged per class. The rate depends on the location, the format and the class length (45 or 60 minutes), and it is fixed when the plan is agreed. The rates on a course page are the rates that apply at that location and format.",
+      },
+      {
+        heading: "Payment",
+        text: "You can pay online through Paystack by card, bank, USSD or bank transfer. The academy can also record payments made in cash, by bank transfer or by POS, including part payments. All amounts are in Nigerian Naira. Applicants abroad pay the Naira assessment fee shown at checkout. When tuition payments are due is confirmed with you when your plan is agreed.",
       },
       {
         heading: "User Responsibilities",
-        text: "Users are responsible for maintaining the confidentiality of their account information, attending scheduled sessions, and following our community guidelines. Inappropriate behavior may result in account suspension or termination.",
+        text: "Students are responsible for giving accurate information, attending their assessment and lessons, and following our Code of Conduct. Inappropriate behavior may result in suspension or the end of your lessons.",
       },
       {
         heading: "Intellectual Property",
-        text: "All course content, materials, and platform features are the intellectual property of Banafix or our instructors. Users may not reproduce, distribute, or create derivative works without explicit permission.",
+        text: "All course content and materials, and the content of our website, are the intellectual property of Banafix or our instructors. Course materials and content are for personal use only and may not be shared or redistributed. Users may not reproduce, distribute, or create derivative works without explicit permission.",
       },
     ],
   },
@@ -79,23 +93,27 @@ export const POLICIES: Policy[] = [
     id: "refunds",
     title: "Refund Policy",
     navLabel: "Refund Policy",
-    lastUpdated: "December 15, 2024",
+    lastUpdated: "November 3, 2026",
     blocks: [
       {
-        heading: "14-Day Money-Back Guarantee",
-        text: "We offer a full refund within 14 days of course enrollment if you are not completely satisfied. To be eligible, you must have attended fewer than 25% of scheduled sessions and request the refund through your student dashboard or by contacting support.",
+        heading: "The Assessment Fee Is Non-Refundable",
+        text: "The assessment fee is non-refundable. It covers your assessment. Paying it does not enrol you.",
       },
       {
-        heading: "Partial Refunds",
-        text: "After the 14-day period, partial refunds may be available for unused sessions due to exceptional circumstances such as medical emergencies or relocation. Each case is reviewed individually by our support team.",
+        heading: "Missed or Cancelled Assessments",
+        text: "If you miss or cancel your assessment, please contact us. We handle each case individually.",
       },
       {
-        heading: "Processing Time",
-        text: "Approved refunds are processed within 5-7 business days. Refunds are issued to the original payment method used for enrollment. Bank transfer refunds may take additional time depending on your financial institution.",
+        heading: "Tuition Refunds",
+        text: "Tuition is agreed after your assessment, as part of your plan. Requests for a tuition refund are considered case by case, taking into account how much of your plan has been delivered. To ask, contact us through the contact page.",
       },
       {
-        heading: "Non-Refundable Items",
-        text: "Course materials, digital downloads, and completed sessions are non-refundable. Promotional discounts and gift certificates cannot be refunded for cash value.",
+        heading: "Course Materials",
+        text: "If you have a question about a refund for course materials, please contact us. We handle each case individually.",
+      },
+      {
+        heading: "If a Refund Is Approved",
+        text: "If we approve a refund, we will tell you how and when it will be paid.",
       },
     ],
   },
@@ -103,23 +121,23 @@ export const POLICIES: Policy[] = [
     id: "conduct",
     title: "Code of Conduct",
     navLabel: "Code of Conduct",
-    lastUpdated: "December 15, 2024",
+    lastUpdated: "November 3, 2026",
     blocks: [
       {
         heading: "Respectful Communication",
-        text: "All interactions between students, instructors, and staff must be respectful and professional. Harassment, discrimination, or inappropriate behavior of any kind will not be tolerated and may result in immediate account termination.",
+        text: "All interactions between students, instructors, and staff must be respectful and professional. Harassment, discrimination, or inappropriate behavior of any kind will not be tolerated and may result in immediate suspension or the end of your lessons.",
       },
       {
         heading: "Session Etiquette",
-        text: "Students are expected to arrive on time for sessions, come prepared with necessary materials, and maintain a distraction-free learning environment. For online sessions, ensure stable internet connection and appropriate lighting.",
+        text: "Students are expected to arrive on time for assessments and lessons, come prepared with necessary materials, and maintain a distraction-free learning environment. For online assessments and lessons, ensure a stable internet connection and appropriate lighting. For home assessments and lessons, please be ready at the address you gave us.",
       },
       {
         heading: "Academic Integrity",
-        text: "Students must complete assignments and assessments honestly and independently unless collaboration is explicitly permitted. Plagiarism or cheating will result in course failure and potential account suspension.",
+        text: "Students must be honest about their experience at assessment, and complete assigned work honestly and independently unless collaboration is explicitly permitted. Serious or repeated dishonesty may affect your place with us.",
       },
       {
-        heading: "Platform Usage",
-        text: "Users must not attempt to hack, disrupt, or misuse the platform in any way. Sharing account credentials or accessing unauthorized areas is strictly prohibited and may result in legal action.",
+        heading: "Website Usage",
+        text: "Users must not attempt to hack, disrupt, or misuse our website or systems in any way. Accessing unauthorized areas or other people's personal information is strictly prohibited and may result in legal action.",
       },
     ],
   },
@@ -127,7 +145,7 @@ export const POLICIES: Policy[] = [
     id: "legal",
     title: "Legal Information",
     navLabel: "Legal Information",
-    lastUpdated: "December 15, 2024",
+    lastUpdated: "November 3, 2026",
     blocks: [
       {
         heading: "Governing Law",
@@ -143,7 +161,7 @@ export const POLICIES: Policy[] = [
       },
       {
         heading: "Modifications",
-        text: "We reserve the right to modify these terms at any time. Users will be notified of significant changes via email or platform notifications. Continued use of our services after modifications constitutes acceptance of the updated terms.",
+        text: "We reserve the right to modify these terms at any time. Users will be notified of significant changes via email or a notice on our website. Continued use of our services after modifications constitutes acceptance of the updated terms.",
       },
     ],
   },
