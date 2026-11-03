@@ -123,6 +123,10 @@ r = await api('POST', `/api/admin/enrollments/${E1}/tuition/payment-link`, {})
 check('second click reuses the same pending link', r.status === 200 && r.json.reused === true && r.json.payment.id === link1.id, r)
 r = await api('POST', `/api/admin/enrollments/${E1}/tuition/payment-link`, { amount: 24501 }, { name: '07-payment-link-over-balance' })
 check('link above the balance rejected (400)', r.status === 400, r)
+r = await api('POST', `/api/admin/enrollments/${E1}/tuition/payment-link`, { amount: 10000 }, { name: '07b-second-link-while-one-is-open' })
+check('a second link while the first covers the whole balance is refused (409)', r.status === 409 && /already cover/.test(r.json.error), r)
+r = await api('POST', `/api/admin/tuition-payments/${link1.id}/cancel`, {})
+check('cancel the first link (200)', r.status === 200, r)
 r = await api('POST', `/api/admin/enrollments/${E1}/tuition/payment-link`, { amount: 10000 })
 check('link for a chosen amount 10000 (201)', r.status === 201 && r.json.payment.amount === 10000, r)
 const link2 = r.json.payment
@@ -151,12 +155,12 @@ check('receipt PDF downloads (application/pdf, %PDF)', pdf.status === 200 && pdf
 // ───────────── 5. webhook hardening on a second enrollment ─────────────
 const E2 = enrollment({ status: 'plan_agreed' })
 psql(`insert into tuition_charges (id,"enrollmentId",kind,origin,quantity,"unitPrice",description) values ('t5_c2_${t}','${E2}','CLASSES','PLAN',4,5000,'4 x 60-minute classes')`)
-r = await api('POST', `/api/admin/enrollments/${E2}/tuition/payment-link`, {}, { name: '10-payment-link-e2' })
+r = await api('POST', `/api/admin/enrollments/${E2}/tuition/payment-link`, { amount: 15000 }, { name: '10-payment-link-e2' })
 const l2 = r.json.payment
-await override(l2.reference, { amount: 1000000 }) // Paystack says ₦10,000 was charged; we asked for ₦20,000
+await override(l2.reference, { amount: 1000000 }) // Paystack says ₦10,000 was charged; we asked for ₦15,000
 check('amount MISMATCH answered 200', (await webhook('charge.success', { reference: l2.reference })) === 200)
-check('amount MISMATCH: not settled (pending), enrollment still plan_agreed, audit row', psql(`select status from tuition_payments where id='${l2.id}'`) === 'pending' && psql(`select status from enrollments where id='${E2}'`) === 'plan_agreed' && audits(l2.id, 'tuition.amount_mismatch') === 1)
-await override(l2.reference, { amount: 2000000, currency: 'USD' })
+check('amount MISMATCH: not settled (pending), enrollment still plan_agreed, audit row', psql(`select status from tuition_payments where id='${l2.id}'`) === 'pending' && psql(`select status from enrollments where id='${E2}'`) === 'plan_agreed' && audits(l2.id, 'tuition.amount_mismatch') === 1, { pay: psql(`select status from tuition_payments where id='${l2.id}'`), enr: psql(`select status from enrollments where id='${E2}'`), audit: audits(l2.id, 'tuition.amount_mismatch'), l2 })
+await override(l2.reference, { amount: 1500000, currency: 'USD' })
 await webhook('charge.success', { reference: l2.reference })
 check('foreign currency not settled either', psql(`select status from tuition_payments where id='${l2.id}'`) === 'pending')
 
@@ -166,7 +170,7 @@ await override(l3.reference, { metadata: { enrollment_id: 'some-other-enrollment
 await webhook('charge.success', { reference: l3.reference })
 check('METADATA mismatch: not settled + audit row', psql(`select status from tuition_payments where id='${l3.id}'`) === 'pending' && audits(l3.id, 'tuition.metadata_mismatch') === 1)
 
-await override(l2.reference, { amount: 2000000 }) // now Paystack reports what we asked for
+await override(l2.reference, { amount: 1500000 }) // now Paystack reports what we asked for
 await webhook('charge.success', { reference: l2.reference })
 check('correct charge settles: plan_agreed -> enrolled, one audit row', psql(`select status from tuition_payments where id='${l2.id}'`) === 'completed' && psql(`select status from enrollments where id='${E2}'`) === 'enrolled' && audits(l2.id, 'tuition.online_paid') === 1)
 await webhook('charge.failed', { reference: l2.reference })
@@ -302,6 +306,59 @@ const l10 = r.json.payment
 await api('POST', `/api/admin/enrollments/${E10}/tuition`, { amount: 10000, paymentMethod: 'cash', sendReceipt: false })
 await webhook('charge.success', { reference: l10.reference })
 check('link paid after cash filled the balance: credit audited from the CURRENT ledger', audits(E10, 'tuition.overpayment') === 1)
+
+// ───────────── 10. independent-review fixes (open links, credit, refund event) ─────────────
+const addCharge = (eid, qty, price, cid) => psql(`insert into tuition_charges (id,"enrollmentId",kind,origin,quantity,"unitPrice",description) values ('${cid}_${t}','${eid}','CLASSES','PLAN',${qty},${price},'${qty} classes')`)
+// 10a. the 40,000 + 40,000 case: a second full link while one is open is refused, even after the 10-minute reuse window
+const E11 = enrollment({ status: 'plan_agreed' })
+addCharge(E11, 8, 5000, 't5_c11')
+r = await api('POST', `/api/admin/enrollments/${E11}/tuition/payment-link`, {})
+const lA = r.json.payment
+check('two links: first full-balance link created (201)', r.status === 201 && lA.amount === 40000, r)
+psql(`update tuition_payments set "createdAt"=(now() at time zone 'utc') - interval '11 minutes' where id='${lA.id}'`)
+r = await api('POST', `/api/admin/enrollments/${E11}/tuition/payment-link`, { amount: 40000 }, { name: '20-second-link-refused' })
+check('two links: a second 40,000 link 11 minutes later is REFUSED (409), not created', r.status === 409 && /already cover/.test(r.json.error) && num(`select count(*) from tuition_payments where "enrollmentId"='${E11}'`) === 1, r)
+r = await api('POST', `/api/admin/enrollments/${E11}/tuition/payment-link`, {})
+check('two links: a default-amount request with nothing left is 409 too (not a confusing 400)', r.status === 409, r)
+// 10b. partial headroom
+const E12 = enrollment({ status: 'plan_agreed' })
+addCharge(E12, 8, 5000, 't5_c12')
+r = await api('POST', `/api/admin/enrollments/${E12}/tuition/payment-link`, { amount: 25000 })
+check('headroom: first link 25,000 of 40,000 (201)', r.status === 201, r)
+r = await api('POST', `/api/admin/enrollments/${E12}/tuition/payment-link`, { amount: 16000 })
+check('headroom: 16,000 refused (only 15,000 left)', r.status === 409 && /at most ₦15,000/.test(r.json.error), r)
+r = await api('POST', `/api/admin/enrollments/${E12}/tuition/payment-link`, {})
+check('headroom: the default amount is what the open links leave (15,000)', r.status === 201 && r.json.payment.amount === 15000, r)
+// 10c. cancelling frees the headroom; a cancelled link paid anyway is still recorded, flagged, and the overpayment surfaces
+r = await api('POST', `/api/admin/tuition-payments/${lA.id}/cancel`, {})
+check('cancel the first full link (200)', r.status === 200, r)
+r = await api('POST', `/api/admin/enrollments/${E11}/tuition/payment-link`, {})
+const lB = r.json.payment
+check('after cancelling, a new full link is allowed (201)', r.status === 201 && lB.amount === 40000, r)
+await webhook('charge.success', { reference: lA.reference })
+check('the CANCELLED link is paid anyway: money recorded + audit tuition.paid_on_cancelled_link', psql(`select status from tuition_payments where id='${lA.id}'`) === 'completed' && audits(lA.id, 'tuition.paid_on_cancelled_link') === 1)
+await webhook('charge.success', { reference: lB.reference })
+check('the second link is paid too: credit 40,000, overpayment audited', audits(E11, 'tuition.overpayment') === 1)
+r = await api('GET', `/api/admin/payments?locationId=${ids.loc}`, undefined, { name: '21-dashboard-credits' })
+const credit11 = r.json.credits.find((c) => c.enrollmentId === E11)
+check('dashboard lists the credit (refund or apply)', credit11 && credit11.credit === 40000 && credit11.reason === 'overpaid' && r.json.totals.credit >= 40000, r.json.credits)
+check('dashboard lists tuition paid on a CANCELLED enrollment as refund-needed', r.json.credits.some((c) => c.enrollmentId === E3 && c.reason === 'cancelled' && c.credit === 5000))
+check('truncation flags are booleans and the scan is not truncated here', typeof r.json.truncated.outstanding === 'boolean' && r.json.truncated.outstandingScan === false)
+// 10d. a link row that never got its URL
+const E13 = enrollment({ status: 'plan_agreed' })
+addCharge(E13, 2, 5000, 't5_c13')
+psql(`insert into tuition_payments (id,"enrollmentId",amount,"paymentMethod",status,"receiptNumber","paystackReference","updatedAt") values ('t5_p13a_${t}','${E13}',10000,'paystack','pending','TUI-t5-13a-${t}','t5_ref13a_${t}',now())`)
+r = await api('POST', `/api/admin/enrollments/${E13}/tuition/payment-link`, { amount: 10000 })
+check('a FRESH url-less pending row means the link is being created: 409, nothing duplicated', r.status === 409 && /being created|already cover/.test(r.json.error) && num(`select count(*) from tuition_payments where "enrollmentId"='${E13}'`) === 1, r)
+psql(`update tuition_payments set "createdAt"=(now() at time zone 'utc') - interval '5 minutes' where id='t5_p13a_${t}'`)
+r = await api('POST', `/api/admin/enrollments/${E13}/tuition/payment-link`, { amount: 10000 })
+check('a STALE url-less pending row is swept to failed and no longer blocks (201)', r.status === 201 && psql(`select status from tuition_payments where id='t5_p13a_${t}'`) === 'failed', r)
+// 10e. refund.processed is flagged, never silently ignored, and does not move the ledger
+const before = (await api('GET', `/api/admin/enrollments/${E1}/tuition`)).json.summary
+check('refund.processed answered 200', (await webhook('refund.processed', { transaction_reference: link1.reference, refund_reference: 'rf_test', amount: 2450000, currency: 'NGN' })) === 200)
+check('refund.processed: audit row tuition.refund_processed, balance NOT changed', audits(link1.id, 'tuition.refund_processed') === 1 && (await api('GET', `/api/admin/enrollments/${E1}/tuition`)).json.summary.paid === before.paid)
+check('refund.processed for an unknown reference is a quiet 200', (await webhook('refund.processed', { transaction_reference: `t5_nope_${t}` })) === 200 && audits(`t5_nope_${t}`, 'tuition.refund_processed') === 0)
+check('charge.dispute.create on a tuition payment is audited', (await webhook('charge.dispute.create', { id: 'dsp_1', reason: 'fraud', amount: 100, transaction: { reference: link1.reference } })) === 200 && audits(link1.id, 'tuition.dispute') === 1)
 
 for (const [name, c] of Object.entries(captures)) writeFileSync(`${captureDir}/${name}.json`, JSON.stringify(c, null, 2) + '\n')
 const failed = results.filter((x) => !x).length

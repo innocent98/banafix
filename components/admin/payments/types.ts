@@ -38,12 +38,27 @@ export interface OutstandingRow {
   lastPaymentAt: string | null
 }
 
+/** Credit on account: paid beyond what is owed, or tuition paid on a cancelled enrollment. Refund by hand or apply to a top-up. */
+export interface CreditRow {
+  enrollmentId: string
+  enrollmentStatus: string
+  student: string
+  email: string
+  course: string
+  location: string
+  reason: "overpaid" | "cancelled"
+  charged: number | null
+  paid: number
+  credit: number
+}
+
 export interface PaymentsResponse {
   payments: PaymentRow[]
   outstanding: OutstandingRow[]
-  totals: { collected: number; pendingOnline: number; outstanding: number }
-  /** The route sends one flag per list; tolerate a single boolean too. */
-  truncated: { payments: boolean; outstanding: boolean } | boolean
+  credits: CreditRow[]
+  totals: { collected: number; pendingOnline: number; outstanding: number; credit: number }
+  /** One flag per list. `outstandingScan` = the enrollment scan itself was cut short, so totals are a lower bound. */
+  truncated: { payments: boolean; outstanding: boolean; outstandingScan?: boolean; credits?: boolean } | boolean
 }
 
 export interface Filters {
@@ -74,7 +89,7 @@ export function toQueryString(f: Filters): string {
   return qs ? `?${qs}` : ""
 }
 
-export const isTruncated = (t: PaymentsResponse["truncated"], list: "payments" | "outstanding"): boolean =>
+export const isTruncated = (t: PaymentsResponse["truncated"], list: "payments" | "outstanding" | "credits"): boolean =>
   typeof t === "boolean" ? t : Boolean(t?.[list])
 
 const stamp = (iso: string | null): string => (iso ? iso.slice(0, 16).replace("T", " ") : "")
@@ -116,6 +131,16 @@ export function outstandingCsv(rows: OutstandingRow[]): string {
     r.classesCovered,
     r.classesPurchased,
     stamp(r.lastPaymentAt),
+  ])
+  return toCsv([header, ...body])
+}
+
+export function creditsCsv(rows: CreditRow[]): string {
+  const header: CsvCell[] = ["Student", "Email", "Course", "Location", "Enrollment status", "Reason", "Charged (NGN)", "Paid (NGN)", "Credit (NGN)"]
+  const body: CsvCell[][] = rows.map((r) => [
+    r.student, r.email, r.course, r.location, r.enrollmentStatus,
+    r.reason === "cancelled" ? "Paid on a cancelled enrollment" : "Paid more than owed",
+    r.charged, r.paid, r.credit,
   ])
   return toCsv([header, ...body])
 }

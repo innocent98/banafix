@@ -1,76 +1,117 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/payments?locationId=t5_loc_1793722763498&method=cash",
+    "path": "/api/admin/payments?locationId=t5_loc_1793739529508&method=cash",
     "body": null
   },
   "status": 200,
   "response": {
     "payments": [
       {
-        "id": "cmw0w84qt001t0767cp3kawrp",
-        "enrollmentId": "t5_e4_1793722763498",
+        "id": "cmw167t0v001e073m70wro64a",
+        "enrollmentId": "t5_e4_1793739529508",
         "amount": 90000,
         "status": "completed",
         "method": "cash",
         "channel": null,
         "reference": null,
-        "receiptNumber": "TUI-1793722771958-WWRE",
+        "receiptNumber": "TUI-1793739552941-8OAI",
         "description": null,
-        "paidAt": "2026-11-03T16:19:31.972Z",
-        "createdAt": "2026-11-03T16:19:31.973Z",
+        "paidAt": "2026-11-03T20:59:12.943Z",
+        "createdAt": "2026-11-03T20:59:12.943Z",
         "paymentUrl": null,
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722763498@example.com",
+        "email": "t5stu1793739529508@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722763498"
+        "location": "T5 Loc 1793739529508"
       },
       {
-        "id": "cmw0w7yln000r07678bcgvajj",
-        "enrollmentId": "t5_e1_1793722763498",
+        "id": "cmw167bag000b073more8aoma",
+        "enrollmentId": "t5_e1_1793739529508",
         "amount": 20000,
         "status": "completed",
         "method": "cash",
         "channel": null,
         "reference": null,
-        "receiptNumber": "TUI-1793722764008-Z0D9",
+        "receiptNumber": "TUI-1793739529957-00S9",
         "description": "First part",
-        "paidAt": "2026-11-03T16:19:24.010Z",
-        "createdAt": "2026-11-03T16:19:24.011Z",
+        "paidAt": "2026-11-03T20:58:49.960Z",
+        "createdAt": "2026-11-03T20:58:49.960Z",
         "paymentUrl": null,
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722763498@example.com",
+        "email": "t5stu1793739529508@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722763498"
+        "location": "T5 Loc 1793739529508"
       }
     ],
     "outstanding": [
       {
-        "enrollmentId": "t5_e6_1793722763498",
+        "enrollmentId": "t5_e6_1793739529508",
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722763498@example.com",
+        "email": "t5stu1793739529508@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722763498",
+        "location": "T5 Loc 1793739529508",
         "mode": "ledger",
         "charged": 10000,
         "paid": 7000,
         "outstanding": 3000,
         "classesCovered": 1,
         "classesPurchased": 2,
-        "lastPaymentAt": "2026-11-03T16:19:32.212Z"
+        "lastPaymentAt": "2026-11-03T20:59:13.244Z"
+      }
+    ],
+    "credits": [
+      {
+        "enrollmentId": "t5_e3_1793739529508",
+        "enrollmentStatus": "cancelled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793739529508@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793739529508",
+        "reason": "cancelled",
+        "charged": null,
+        "paid": 5000,
+        "credit": 5000
+      },
+      {
+        "enrollmentId": "t5_e5_1793739529508",
+        "enrollmentStatus": "enrolled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793739529508@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793739529508",
+        "reason": "overpaid",
+        "charged": 10000,
+        "paid": 12000,
+        "credit": 2000
+      },
+      {
+        "enrollmentId": "t5_e1_1793739529508",
+        "enrollmentStatus": "enrolled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793739529508@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793739529508",
+        "reason": "overpaid",
+        "charged": 52500,
+        "paid": 54500,
+        "credit": 2000
       }
     ],
     "totals": {
       "collected": 110000,
       "pendingOnline": 0,
-      "outstanding": 3000
+      "outstanding": 3000,
+      "credit": 9000
     },
     "truncated": {
       "payments": false,
-      "outstanding": false
+      "outstanding": false,
+      "outstandingScan": false,
+      "credits": false
     }
   }
 }

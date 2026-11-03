@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   chargesAsOf,
+  openLinkHeadroom,
   checkPaymentAmount,
   classesCovered,
   summarizeLedger,
@@ -137,5 +138,22 @@ describe('checkPaymentAmount', () => {
   })
   it('caps an absurd amount', () => {
     expect(checkPaymentAmount(10000, 1e12, true).ok).toBe(false)
+  })
+})
+
+describe('openLinkHeadroom', () => {
+  it('no open links: the whole outstanding balance', () => {
+    expect(openLinkHeadroom(40000, [])).toBe(40000)
+  })
+  it('subtracts every open link', () => {
+    expect(openLinkHeadroom(40000, [25000])).toBe(15000)
+    expect(openLinkHeadroom(40000, [10000, 10000, 5000])).toBe(15000)
+  })
+  it('a link for the full balance leaves nothing (the 40,000 + 40,000 case)', () => {
+    expect(openLinkHeadroom(40000, [40000])).toBe(0)
+  })
+  it('never negative (links opened before the balance shrank)', () => {
+    expect(openLinkHeadroom(10000, [25000])).toBe(0)
+    expect(openLinkHeadroom(0, [])).toBe(0)
   })
 })

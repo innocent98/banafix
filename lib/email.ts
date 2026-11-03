@@ -747,6 +747,83 @@ export async function sendAdminDuplicatePaymentNotice(data: {
   }
 }
 
+export type TuitionAlertKind =
+  | 'amount_mismatch'
+  | 'metadata_mismatch'
+  | 'paid_unexpected_state'
+  | 'overpayment'
+  | 'refund_processed'
+  | 'dispute'
+
+const TUITION_ALERT_COPY: Record<TuitionAlertKind, { subject: string; body: string }> = {
+  amount_mismatch: {
+    subject: 'Tuition payment taken but NOT recorded: amount mismatch',
+    body: 'Paystack reports a different amount or currency than the payment link asked for, so the payment was <strong>not</strong> recorded. The student may have been charged. Check the transaction in the Paystack dashboard, then record the payment by hand or refund it.',
+  },
+  metadata_mismatch: {
+    subject: 'Tuition payment taken but NOT recorded: reference mismatch',
+    body: 'Paystack echoed details that do not match the payment link we created for this reference, so the payment was <strong>not</strong> recorded. Check the transaction in the Paystack dashboard before doing anything.',
+  },
+  paid_unexpected_state: {
+    subject: 'Tuition paid on an enrollment that is not active',
+    body: 'Money arrived for an enrollment that is cancelled (or otherwise not plan agreed / enrolled). The payment is recorded, the enrollment status was not changed and no receipt was sent. Decide whether to refund it (tuition refund policy is not built).',
+  },
+  overpayment: {
+    subject: 'Tuition overpayment: credit on account',
+    body: 'A payment brought this student above what is owed (for example a second payment link, or a link paid after cash). The extra amount is shown as credit on the Payments dashboard. Apply it to a top-up or refund it by hand.',
+  },
+  refund_processed: {
+    subject: 'Paystack processed a refund on a tuition payment',
+    body: 'Paystack reports a refund on this tuition payment. The student\'s balance was <strong>not</strong> changed automatically (refund policy is not built): review it and adjust the ledger by hand if needed.',
+  },
+  dispute: {
+    subject: 'Dispute opened on a tuition payment',
+    body: 'A card dispute was opened on this tuition payment. Review it in the Paystack dashboard.',
+  },
+}
+
+/**
+ * Best-effort alert to the admin inbox for a tuition payment that needs a human (money taken but not
+ * recorded, paid on a cancelled enrollment, credit, refund, dispute). An audit row is always written too.
+ * TODO(S7): route this send through the communications outbox instead of calling resend directly.
+ */
+export async function sendAdminTuitionAlert(data: {
+  kind: TuitionAlertKind
+  studentName: string
+  studentEmail: string
+  enrollmentId: string
+  paymentId?: string
+  reference?: string | null
+  amount?: number
+  detail?: string
+}): Promise<boolean> {
+  try {
+    const copy = TUITION_ALERT_COPY[data.kind]
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: copy.subject,
+      html: `
+        <p><strong>${escapeHtml(copy.subject)}</strong></p>
+        <p>${copy.body}</p>
+        <p>Student: ${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)})<br>
+        ${data.amount != null ? `Amount: ₦${data.amount.toLocaleString()}<br>` : ''}
+        Paystack reference: ${escapeHtml(data.reference ?? 'n/a')}<br>
+        ${data.detail ? `${escapeHtml(data.detail)}<br>` : ''}
+        Enrollment: ${escapeHtml(data.enrollmentId)}${data.paymentId ? `<br>Payment: ${escapeHtml(data.paymentId)}` : ''}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send tuition alert:', data.kind, emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending tuition alert:', data.kind, error)
+    return false
+  }
+}
+
 /**
  * "Application received, fee already covered": sent instead of a receipt when a student who has
  * already paid the (once per student, non-refundable) assessment fee applies again.

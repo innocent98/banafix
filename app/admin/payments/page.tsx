@@ -9,9 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Download, Wallet } from "lucide-react"
 import { PaymentsFilters } from "@/components/admin/payments/payments-filters"
-import { OutstandingTable, PaymentsTable } from "@/components/admin/payments/payments-tables"
+import { CreditsTable, OutstandingTable, PaymentsTable } from "@/components/admin/payments/payments-tables"
 import {
   EMPTY_FILTERS,
+  creditsCsv,
   downloadCsv,
   isTruncated,
   outstandingCsv,
@@ -22,7 +23,7 @@ import {
 } from "@/components/admin/payments/types"
 import { formatMoney } from "@/components/admin/tuition/shared"
 
-type Tab = "payments" | "outstanding"
+type Tab = "payments" | "outstanding" | "credits"
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -108,12 +109,13 @@ export default function PaymentsPage() {
     if (!data) return
     const day = new Date().toISOString().slice(0, 10)
     if (tab === "payments") downloadCsv(`tuition-payments-${day}.csv`, paymentsCsv(data.payments))
+    else if (tab === "credits") downloadCsv(`tuition-credits-${day}.csv`, creditsCsv(data.credits ?? []))
     else downloadCsv(`tuition-outstanding-${day}.csv`, outstandingCsv(data.outstanding))
   }
 
-  const rowsShown = data ? (tab === "payments" ? data.payments.length : data.outstanding.length) : 0
+  const rowsShown = data ? (tab === "payments" ? data.payments.length : tab === "credits" ? (data.credits ?? []).length : data.outstanding.length) : 0
 
-  const body = (list: "payments" | "outstanding") => {
+  const body = (list: "payments" | "outstanding" | "credits") => {
     if (loading && !data) return <p className="py-10 text-center text-muted-foreground">Loading...</p>
     if (error) {
       return (
@@ -126,23 +128,39 @@ export default function PaymentsPage() {
       )
     }
     if (!data) return null
-    const rows = data[list].length
+    const rows = (data[list] ?? []).length
     return (
       <div className={`space-y-3 ${loading ? "opacity-60" : ""}`}>
         {isTruncated(data.truncated, list) && (
           <Alert>
             <AlertDescription>
               Showing the first {rows} rows only. Narrow the filters to see the rest. The CSV export contains just the rows shown.
+              {list !== "payments" && typeof data.truncated !== "boolean" && data.truncated.outstandingScan
+                ? " Too many enrollments to scan in one go: the totals above are a lower bound."
+                : ""}
             </AlertDescription>
           </Alert>
         )}
         {rows === 0 ? (
           <div className="py-10 text-center text-muted-foreground">
             <Wallet className="mx-auto mb-3 h-10 w-10 opacity-50" />
-            <p>{list === "payments" ? "No payments match these filters." : "Nobody owes tuition for these filters."}</p>
+            <p>
+              {list === "payments"
+                ? "No payments match these filters."
+                : list === "credits"
+                  ? "No credit on account for these filters."
+                  : "Nobody owes tuition for these filters."}
+            </p>
           </div>
         ) : list === "payments" ? (
           <PaymentsTable rows={data.payments} />
+        ) : list === "credits" ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Money held beyond what is owed (for example two payment links both paid), or paid on an enrollment that was cancelled. There is no refund flow yet: apply it to a top-up (Enrollments, Manage payments, Add charge) or refund it by hand in Paystack or by bank transfer.
+            </p>
+            <CreditsTable rows={data.credits ?? []} />
+          </>
         ) : (
           <>
             <p className="text-xs text-muted-foreground">
@@ -174,10 +192,11 @@ export default function PaymentsPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Tile label="Collected" value={data ? formatMoney(data.totals.collected) : "-"} hint="Completed and part payments in the rows shown" />
           <Tile label="Pending online" value={data ? formatMoney(data.totals.pendingOnline) : "-"} hint="Payment links not yet paid" />
           <Tile label="Outstanding" value={data ? formatMoney(data.totals.outstanding) : "-"} hint="Still owed by enrolled and plan-agreed students" />
+          <Tile label="Credit on account" value={data ? formatMoney(data.totals.credit ?? 0) : "-"} hint="Paid beyond what is owed, or on cancelled enrollments: refund or apply" />
         </div>
 
         <Card>
@@ -193,11 +212,13 @@ export default function PaymentsPage() {
           <TabsList>
             <TabsTrigger value="payments">Payments{data ? ` (${data.payments.length})` : ""}</TabsTrigger>
             <TabsTrigger value="outstanding">Outstanding{data ? ` (${data.outstanding.length})` : ""}</TabsTrigger>
+            <TabsTrigger value="credits">Credits{data ? ` (${(data.credits ?? []).length})` : ""}</TabsTrigger>
           </TabsList>
           <Card>
             <CardContent className="pt-6">
               <TabsContent value="payments">{body("payments")}</TabsContent>
               <TabsContent value="outstanding">{body("outstanding")}</TabsContent>
+              <TabsContent value="credits">{body("credits")}</TabsContent>
             </CardContent>
           </Card>
         </Tabs>

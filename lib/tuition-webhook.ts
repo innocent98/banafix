@@ -7,8 +7,38 @@ import { loadTuitionReceiptData } from './tuition-receipt-data'
 import { computeTuitionBalance } from './tuition-balance'
 import { COUNTED_STATUSES, toLedgerCharges } from './tuition-ledger'
 import { generateTuitionReceiptPDF } from './receipt'
-import { sendTuitionReceipt } from './email'
+import { sendTuitionReceipt, sendAdminTuitionAlert, type TuitionAlertKind } from './email'
 import type { PaystackVerifyResponse } from './paystack'
+
+/**
+ * Email the admin inbox about a tuition payment that needs a human, in addition to the audit row the
+ * caller writes. Best-effort: a failed lookup or send is logged and never rethrown (it must not make
+ * the webhook answer 500, which would make Paystack retry an event we already handled).
+ */
+async function alertAdmin(
+  kind: TuitionAlertKind,
+  payment: TuitionPayment,
+  extra: { amount?: number; detail?: string } = {},
+): Promise<void> {
+  try {
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id: payment.enrollmentId },
+      select: { student: { select: { firstName: true, lastName: true, email: true } } },
+    })
+    await sendAdminTuitionAlert({
+      kind,
+      studentName: enrollment ? `${enrollment.student.firstName} ${enrollment.student.lastName}` : 'Unknown student',
+      studentEmail: enrollment?.student.email ?? 'unknown',
+      enrollmentId: payment.enrollmentId,
+      paymentId: payment.id,
+      reference: payment.paystackReference,
+      amount: extra.amount ?? payment.amount,
+      detail: extra.detail,
+    })
+  } catch (error) {
+    console.error('Failed to alert admin about tuition payment:', kind, payment.id, error)
+  }
+}
 
 /**
  * Paystack `charge.success` for an ONLINE TUITION payment (the row was found by reference; metadata
@@ -31,6 +61,7 @@ export async function handleTuitionChargeSuccess(
       entityId: payment.id,
       metadata: { reference, enrollmentId: payment.enrollmentId, metadata: verified.metadata ?? null },
     })
+    await alertAdmin('metadata_mismatch', payment)
     return
   }
 
@@ -49,6 +80,9 @@ export async function handleTuitionChargeSuccess(
         paidKobo: verified.amount,
         paidCurrency: verified.currency,
       },
+    })
+    await alertAdmin('amount_mismatch', payment, {
+      detail: `Expected ₦${payment.amount.toLocaleString()} ${payment.currency}; Paystack reports ${verified.amount} kobo ${verified.currency}.`,
     })
     return
   }
@@ -80,6 +114,7 @@ export async function handleTuitionChargeSuccess(
       entityId: payment.id,
       metadata: { reference, enrollmentId: payment.enrollmentId, amount: payment.amount, statusAtPayment: outcome.status },
     })
+    await alertAdmin('paid_unexpected_state', payment, { detail: `Enrollment status: ${outcome.status}.` })
     return
   }
 
@@ -97,6 +132,18 @@ export async function handleTuitionChargeSuccess(
       entityType: 'enrollment',
       entityId: payment.enrollmentId,
       metadata: { tuitionPaymentId: payment.id, fromStatus: 'plan_agreed', toStatus: 'enrolled' },
+    })
+  }
+
+  // The admin cancelled this link but the student paid it anyway: the money is recorded (it was taken), and
+  // the audit row says so. If it also overpays, the credit shows on the dashboard and the alert below fires.
+  if (payment.status === 'cancelled') {
+    await logAdminAction({
+      adminId: null,
+      action: 'tuition.paid_on_cancelled_link',
+      entityType: 'tuition_payment',
+      entityId: payment.id,
+      metadata: { reference, enrollmentId: payment.enrollmentId, amount: payment.amount },
     })
   }
 
@@ -123,6 +170,7 @@ export async function handleTuitionChargeSuccess(
           entityId: payment.enrollmentId,
           metadata: { tuitionPaymentId: payment.id, credit: balance.credit, charged: balance.charged, paid: balance.paid, via: 'paystack' },
         })
+        await alertAdmin('overpayment', payment, { amount: balance.credit, detail: `Charged ₦${balance.charged.toLocaleString()}, paid ₦${balance.paid.toLocaleString()}.` })
       }
     }
   } catch (error) {
@@ -157,5 +205,36 @@ export async function handleTuitionDispute(payment: TuitionPayment, dispute: { i
     entityType: 'tuition_payment',
     entityId: payment.id,
     metadata: { enrollmentId: payment.enrollmentId, disputeId: dispute.id ?? null, reason: dispute.reason ?? null, amount: dispute.amount ?? null },
+  })
+  await alertAdmin('dispute', payment, { detail: dispute.reason ? `Reason: ${String(dispute.reason)}` : undefined })
+}
+
+/**
+ * `refund.processed` for a tuition payment: FLAG it for an admin (audit + email). The ledger is NOT
+ * changed: a refund policy for tuition is John's decision and is not built, so a refunded payment still
+ * counts as paid until an admin adjusts the ledger by hand. The payload shape is from Paystack's docs
+ * and has not been seen from a live account.
+ */
+export async function handleTuitionRefund(
+  payment: TuitionPayment,
+  refund: { refund_reference?: unknown; amount?: unknown; currency?: unknown; status?: unknown },
+) {
+  console.warn('Refund processed on a tuition payment; needs admin attention:', payment.id, refund)
+  await logAdminAction({
+    adminId: null,
+    action: 'tuition.refund_processed',
+    entityType: 'tuition_payment',
+    entityId: payment.id,
+    metadata: {
+      enrollmentId: payment.enrollmentId,
+      reference: payment.paystackReference,
+      refundReference: refund.refund_reference ?? null,
+      refundAmountKobo: refund.amount ?? null,
+      currency: refund.currency ?? null,
+      balanceChanged: false,
+    },
+  })
+  await alertAdmin('refund_processed', payment, {
+    detail: typeof refund.amount === 'number' ? `Refunded: ₦${(refund.amount / 100).toLocaleString()}.` : undefined,
   })
 }

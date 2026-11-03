@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StatusBadge } from "@/components/admin/enrollments/status-badge"
 import { STATUS_STYLES, formatDay, formatMoney } from "@/components/admin/tuition/shared"
-import { methodLabel, type OutstandingRow, type PaymentRow } from "./types"
+import { methodLabel, type CreditRow, type OutstandingRow, type PaymentRow } from "./types"
 
 function Person({ name, email }: { name: string; email: string }) {
   return (
@@ -95,6 +95,45 @@ export function OutstandingTable({ rows }: { rows: OutstandingRow[] }) {
                 {r.classesCovered != null && r.classesPurchased != null ? `${r.classesCovered} of ${r.classesPurchased}` : "-"}
               </TableCell>
               <TableCell className="whitespace-nowrap text-sm">{r.lastPaymentAt ? formatDay(r.lastPaymentAt) : "None yet"}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+export function CreditsTable({ rows }: { rows: CreditRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Student</TableHead>
+            <TableHead>Course</TableHead>
+            <TableHead>Enrollment</TableHead>
+            <TableHead>Why</TableHead>
+            <TableHead className="text-right">Charged</TableHead>
+            <TableHead className="text-right">Paid</TableHead>
+            <TableHead className="text-right">Credit</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={`${r.enrollmentId}-${r.reason}`}>
+              <TableCell><Person name={r.student} email={r.email} /></TableCell>
+              <TableCell><CourseCell course={r.course} location={r.location} /></TableCell>
+              <TableCell><StatusBadge status={r.enrollmentStatus} /></TableCell>
+              <TableCell className="text-sm">
+                {r.reason === "cancelled" ? (
+                  <span className="text-red-600">Paid on a cancelled enrollment: refund needed</span>
+                ) : (
+                  "Paid more than owed: apply to a top-up or refund"
+                )}
+              </TableCell>
+              <TableCell className="text-right">{r.charged == null ? "-" : formatMoney(r.charged)}</TableCell>
+              <TableCell className="text-right">{formatMoney(r.paid)}</TableCell>
+              <TableCell className="text-right font-semibold text-red-600">{formatMoney(r.credit)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

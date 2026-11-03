@@ -25,12 +25,13 @@ Enrollment: recording or receiving a first counted payment on a `plan_agreed` en
 ## UX consequences the FE must surface
 - **Editing a plan voids and recreates its charges.** Warn before saving a plan edit; it is only possible while `plan_agreed`.
 - **A top-up uses today's rate**, not the rate the student was originally quoted. Show the rate before the admin confirms.
-- **A payment link cannot exceed the outstanding balance**; to take money for more classes, add a charge (top-up) first.
+- **Open payment links count against the balance.** A new link can ask for at most the outstanding balance **minus links that are already open (pending)**; otherwise the answer is `409` with the amount that is left. To take money for more classes add a charge (top-up) first; to free up room cancel an open link. A link that was cancelled can still be paid (the money was taken): it is recorded, never dropped.
+- **Credit on account is listed on `/admin/payments` (Credits tab)**: paid beyond what is owed, or tuition paid on a cancelled enrollment. There is no refund flow: apply the credit to a top-up or refund it by hand. Tell the admin this wherever credit is shown.
 - **A payment above the outstanding balance needs an explicit confirmation** (`allowOverpayment: true`); show the credit it creates.
-- A stale pending link that is paid after the balance was cleared **records the money as credit** and is not refused.
-- A payment arriving for a **cancelled** enrolment is recorded but gets **no receipt**; the dashboard shows the enrollment status so an admin can act. Refunds are not handled (John's policy).
+- A pending link that is paid after the balance was cleared (cash, or a cancelled link paid anyway) **records the money as credit** and is not refused; the admin gets an email and a `tuition.overpayment` audit row.
+- A payment arriving for a **cancelled** enrolment is recorded but gets **no receipt**; the admin gets an email, and the payment shows under **Credits** as refund-needed. Refunds are not handled (John's policy). A Paystack refund event is flagged (audit + email) but does **not** change the balance.
 - Receipt PDFs print amounts as `NGN 20,000` (the PDF font has no ₦); emails and the UI use ₦.
-- Pending links older than ~10 minutes are not reused; creating a link twice quickly returns the same link (`reused: true`).
+- Creating the same link twice within 10 minutes returns the same link (`reused: true`; a request with no amount counts as "the whole balance"). A link row that never received its URL answers `409 A payment link for this amount is being created`, and is swept to `failed` after 2 minutes. If the URL could not be saved after Paystack created the link, the `201` response carries `urlNotSaved: true`: copy the URL from that response, it will not be shown again.
 
 ## Endpoints
 
@@ -40,12 +41,12 @@ Enrollment: recording or receiving a first counted payment on a `plan_agreed` en
 Request body:
 ```json
 {
-  "offeringId": "t5_off_1793722161679",
+  "offeringId": "t5_off_1793739529508",
   "durationMins": 60,
   "classesPerWeek": 2,
   "plannedClasses": 8,
   "materialIds": [
-    "t5_mato_1793722161679"
+    "t5_mato_1793739529508"
   ]
 }
 ```
@@ -53,9 +54,9 @@ Response (captured `docs/captures/stream5/01-plan-agree.json`):
 ```json
 {
   "enrollment": {
-    "id": "t5_e1_1793722161679",
-    "courseId": "t5_course_1793722161679",
-    "studentId": "t5_stu_1793722161679",
+    "id": "t5_e1_1793739529508",
+    "courseId": "t5_course_1793739529508",
+    "studentId": "t5_stu_1793739529508",
     "email": null,
     "firstName": null,
     "lastName": null,
@@ -79,16 +80,17 @@ Response (captured `docs/captures/stream5/01-plan-agree.json`):
     "applicationPaid": true,
     "applicationFeeAmount": null,
     "status": "plan_agreed",
-    "locationId": "t5_loc_1793722161679",
-    "offeringId": "t5_off_1793722161679",
+    "locationId": "t5_loc_1793739529508",
+    "offeringId": "t5_off_1793739529508",
+    "feeCoveredByPaymentId": null,
     "durationMins": 60,
     "classesPerWeek": 2,
     "plannedClasses": 8,
     "ratePerClass": 4000,
     "couponCode": null,
     "waitlistNotes": null,
-    "createdAt": "2026-11-03T17:09:21.929Z",
-    "updatedAt": "2026-11-03T16:09:21.968Z"
+    "createdAt": "2026-11-03T21:58:49.723Z",
+    "updatedAt": "2026-11-03T20:58:49.775Z"
   }
 }
 ```
@@ -99,12 +101,12 @@ Editing the plan (voids the old PLAN charges, recreates them):
 Request body:
 ```json
 {
-  "offeringId": "t5_off_1793722161679",
+  "offeringId": "t5_off_1793739529508",
   "durationMins": 60,
   "classesPerWeek": 2,
   "plannedClasses": 10,
   "materialIds": [
-    "t5_mato_1793722161679"
+    "t5_mato_1793739529508"
   ]
 }
 ```
@@ -112,9 +114,9 @@ Response (captured `docs/captures/stream5/02-plan-edit.json`):
 ```json
 {
   "enrollment": {
-    "id": "t5_e1_1793722161679",
-    "courseId": "t5_course_1793722161679",
-    "studentId": "t5_stu_1793722161679",
+    "id": "t5_e1_1793739529508",
+    "courseId": "t5_course_1793739529508",
+    "studentId": "t5_stu_1793739529508",
     "email": null,
     "firstName": null,
     "lastName": null,
@@ -138,16 +140,17 @@ Response (captured `docs/captures/stream5/02-plan-edit.json`):
     "applicationPaid": true,
     "applicationFeeAmount": null,
     "status": "plan_agreed",
-    "locationId": "t5_loc_1793722161679",
-    "offeringId": "t5_off_1793722161679",
+    "locationId": "t5_loc_1793739529508",
+    "offeringId": "t5_off_1793739529508",
+    "feeCoveredByPaymentId": null,
     "durationMins": 60,
     "classesPerWeek": 2,
     "plannedClasses": 10,
     "ratePerClass": 4000,
     "couponCode": null,
     "waitlistNotes": null,
-    "createdAt": "2026-11-03T17:09:21.929Z",
-    "updatedAt": "2026-11-03T16:09:22.098Z"
+    "createdAt": "2026-11-03T21:58:49.723Z",
+    "updatedAt": "2026-11-03T20:58:49.894Z"
   }
 }
 ```
@@ -163,7 +166,7 @@ Response (captured `docs/captures/stream5/03-ledger-before-payment.json`):
 {
   "mode": "ledger",
   "enrollment": {
-    "id": "t5_e1_1793722161679",
+    "id": "t5_e1_1793739529508",
     "status": "plan_agreed",
     "applicationPaid": true,
     "selectedMode": "T5 Mode",
@@ -173,91 +176,91 @@ Response (captured `docs/captures/stream5/03-ledger-before-payment.json`):
   },
   "charges": [
     {
-      "id": "cmw0vv229000c07kn80vyuwwn",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0000073mfwn0fizo",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "CLASSES",
       "origin": "PLAN",
       "quantity": 8,
       "unitPrice": 4000,
       "description": "8 x 60-minute classes",
       "materialId": null,
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv229000d07knue7s80w6",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0001073m32q1isvk",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 3000,
       "description": "Theory workbook",
-      "materialId": "t5_matr_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "materialId": "t5_matr_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv229000e07knp5gf683a",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0002073m7shk1sgo",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 1500,
       "description": "Metronome",
-      "materialId": "t5_mato_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "materialId": "t5_mato_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv25v000h07kni8yno1cd",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0005073mble5umbc",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "CLASSES",
       "origin": "PLAN",
       "quantity": 10,
       "unitPrice": 4000,
       "description": "10 x 60-minute classes",
       "materialId": null,
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
     },
     {
-      "id": "cmw0vv25v000i07knu61w3jba",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0006073mmn2az6r6",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 3000,
       "description": "Theory workbook",
-      "materialId": "t5_matr_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "materialId": "t5_matr_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
     },
     {
-      "id": "cmw0vv25v000j07knaf8ibta1",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0007073mye1rjs8m",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 1500,
       "description": "Metronome",
-      "materialId": "t5_mato_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "materialId": "t5_mato_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
@@ -294,29 +297,29 @@ Response (captured `docs/captures/stream5/04-record-cash-partial.json`):
 ```json
 {
   "payment": {
-    "id": "cmw0vv27t000n07knpoucgumf",
-    "enrollmentId": "t5_e1_1793722161679",
+    "id": "cmw167bag000b073more8aoma",
+    "enrollmentId": "t5_e1_1793739529508",
     "amount": 20000,
     "currency": "NGN",
     "paymentMethod": "cash",
     "description": "First part",
     "status": "completed",
-    "paidAt": "2026-11-03T16:09:22.169Z",
-    "receiptNumber": "TUI-1793722162166-35EH",
+    "paidAt": "2026-11-03T20:58:49.960Z",
+    "receiptNumber": "TUI-1793739529957-00S9",
     "receiptGenerated": false,
     "receiptSent": false,
     "paystackReference": null,
     "paystackChannel": null,
     "paymentUrl": null,
-    "recordedBy": "t5_admin_1793722161679",
+    "recordedBy": "t5_admin_1793739529508",
     "adminNotes": null,
-    "createdAt": "2026-11-03T16:09:22.170Z",
-    "updatedAt": "2026-11-03T16:09:22.170Z",
+    "createdAt": "2026-11-03T20:58:49.960Z",
+    "updatedAt": "2026-11-03T20:58:49.960Z",
     "enrollment": {
       "student": {
         "firstName": "Ada",
         "lastName": "Placeholder",
-        "email": "t5stu1793722161679@example.com"
+        "email": "t5stu1793739529508@example.com"
       }
     }
   },
@@ -368,29 +371,29 @@ Response (captured `docs/captures/stream5/16-overpayment-confirmed.json`):
 ```json
 {
   "payment": {
-    "id": "cmw0vv4qe001s07knn0lo7yq0",
-    "enrollmentId": "t5_e5_1793722161679",
+    "id": "cmw167t2j001h073mvtdy9nqz",
+    "enrollmentId": "t5_e5_1793739529508",
     "amount": 12000,
     "currency": "NGN",
     "paymentMethod": "pos",
     "description": null,
     "status": "completed",
-    "paidAt": "2026-11-03T16:09:25.430Z",
-    "receiptNumber": "TUI-1793722165428-DEFQ",
+    "paidAt": "2026-11-03T20:59:13.003Z",
+    "receiptNumber": "TUI-1793739553001-GXVU",
     "receiptGenerated": false,
     "receiptSent": false,
     "paystackReference": null,
     "paystackChannel": null,
     "paymentUrl": null,
-    "recordedBy": "t5_admin_1793722161679",
+    "recordedBy": "t5_admin_1793739529508",
     "adminNotes": null,
-    "createdAt": "2026-11-03T16:09:25.431Z",
-    "updatedAt": "2026-11-03T16:09:25.431Z",
+    "createdAt": "2026-11-03T20:59:13.004Z",
+    "updatedAt": "2026-11-03T20:59:13.004Z",
     "enrollment": {
       "student": {
         "firstName": "Ada",
         "lastName": "Placeholder",
-        "email": "t5stu1793722161679@example.com"
+        "email": "t5stu1793739529508@example.com"
       }
     }
   },
@@ -420,10 +423,10 @@ Response (captured `docs/captures/stream5/06-payment-link-default-amount.json`):
 ```json
 {
   "payment": {
-    "id": "cmw0vv2az000r07knb9wtdpgu",
+    "id": "cmw167bem000f073m2s25fmgc",
     "amount": 24500,
-    "paymentUrl": "http://127.0.0.1:4010/pay/tuition_1793722162281_z5e3gu",
-    "reference": "tuition_1793722162281_z5e3gu"
+    "paymentUrl": "http://127.0.0.1:4015/pay/tuition_1793739530107_5kg85b",
+    "reference": "tuition_1793739530107_5kg85b"
   },
   "reused": false
 }
@@ -442,6 +445,22 @@ Response (captured `docs/captures/stream5/07-payment-link-over-balance.json`):
 ```json
 {
   "error": "Amount exceeds the outstanding balance of \u20a624,500. Add a charge first, or confirm the overpayment."
+}
+```
+A second link while the first already covers the whole balance:
+
+**POST `/api/admin/enrollments/<enrollmentId>/tuition/payment-link`** → **409**
+
+Request body:
+```json
+{
+  "amount": 40000
+}
+```
+Response (captured `docs/captures/stream5/20-second-link-refused.json`):
+```json
+{
+  "error": "Open payment links already cover the whole outstanding balance (1 link, \u20a640,000). Cancel one, or wait for it to be paid, before creating another."
 }
 ```
 Second click for the same amount returns the same link with `reused: true` (verified live; status 200, body shape as above). Legacy enrollment → 400 (status verified live).
@@ -472,7 +491,7 @@ Response (captured `docs/captures/stream5/08-ledger-after-online-payment.json`):
 {
   "mode": "ledger",
   "enrollment": {
-    "id": "t5_e1_1793722161679",
+    "id": "t5_e1_1793739529508",
     "status": "enrolled",
     "applicationPaid": true,
     "selectedMode": "T5 Mode",
@@ -482,91 +501,91 @@ Response (captured `docs/captures/stream5/08-ledger-after-online-payment.json`):
   },
   "charges": [
     {
-      "id": "cmw0vv229000c07kn80vyuwwn",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0000073mfwn0fizo",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "CLASSES",
       "origin": "PLAN",
       "quantity": 8,
       "unitPrice": 4000,
       "description": "8 x 60-minute classes",
       "materialId": null,
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv229000d07knue7s80w6",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0001073m32q1isvk",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 3000,
       "description": "Theory workbook",
-      "materialId": "t5_matr_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "materialId": "t5_matr_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv229000e07knp5gf683a",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b5e0002073m7shk1sgo",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 1500,
       "description": "Metronome",
-      "materialId": "t5_mato_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:21.970Z",
-      "voidedAt": "2026-11-03T16:09:22.098Z",
-      "voidedBy": "t5_admin_1793722161679",
+      "materialId": "t5_mato_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.778Z",
+      "voidedAt": "2026-11-03T20:58:49.895Z",
+      "voidedBy": "t5_admin_1793739529508",
       "voidReason": "Plan edited"
     },
     {
-      "id": "cmw0vv25v000h07kni8yno1cd",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0005073mble5umbc",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "CLASSES",
       "origin": "PLAN",
       "quantity": 10,
       "unitPrice": 4000,
       "description": "10 x 60-minute classes",
       "materialId": null,
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
     },
     {
-      "id": "cmw0vv25v000i07knu61w3jba",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0006073mmn2az6r6",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 3000,
       "description": "Theory workbook",
-      "materialId": "t5_matr_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "materialId": "t5_matr_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
     },
     {
-      "id": "cmw0vv25v000j07knaf8ibta1",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167b8o0007073mye1rjs8m",
+      "enrollmentId": "t5_e1_1793739529508",
       "kind": "MATERIAL",
       "origin": "PLAN",
       "quantity": 1,
       "unitPrice": 1500,
       "description": "Metronome",
-      "materialId": "t5_mato_1793722161679",
-      "createdBy": "t5_admin_1793722161679",
-      "createdAt": "2026-11-03T16:09:22.099Z",
+      "materialId": "t5_mato_1793739529508",
+      "createdBy": "t5_admin_1793739529508",
+      "createdAt": "2026-11-03T20:58:49.896Z",
       "voidedAt": null,
       "voidedBy": null,
       "voidReason": null
@@ -574,44 +593,44 @@ Response (captured `docs/captures/stream5/08-ledger-after-online-payment.json`):
   ],
   "payments": [
     {
-      "id": "cmw0vv2ce000u07knvf6fnq49",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167bgy000j073mvu4rvo3c",
+      "enrollmentId": "t5_e1_1793739529508",
       "amount": 10000,
       "currency": "NGN",
       "paymentMethod": "paystack",
       "description": "Online tuition payment",
       "status": "pending",
       "paidAt": null,
-      "receiptNumber": "TUI-1793722162334-GGXX",
+      "receiptNumber": "TUI-1793739530194-D5E6",
       "receiptGenerated": false,
       "receiptSent": false,
-      "paystackReference": "tuition_1793722162332_k5yusa",
+      "paystackReference": "tuition_1793739530191_o7vtnv",
       "paystackChannel": null,
-      "paymentUrl": "http://127.0.0.1:4010/pay/tuition_1793722162332_k5yusa",
-      "recordedBy": "t5_admin_1793722161679",
+      "paymentUrl": "http://127.0.0.1:4015/pay/tuition_1793739530191_o7vtnv",
+      "recordedBy": "t5_admin_1793739529508",
       "adminNotes": null,
-      "createdAt": "2026-11-03T16:09:22.334Z",
-      "updatedAt": "2026-11-03T16:09:22.336Z"
+      "createdAt": "2026-11-03T20:58:50.195Z",
+      "updatedAt": "2026-11-03T20:58:50.198Z"
     },
     {
-      "id": "cmw0vv2az000r07knb9wtdpgu",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167bem000f073m2s25fmgc",
+      "enrollmentId": "t5_e1_1793739529508",
       "amount": 24500,
       "currency": "NGN",
       "paymentMethod": "paystack",
       "description": "Online tuition payment",
       "status": "completed",
-      "paidAt": "2026-11-03T16:09:22.346Z",
-      "receiptNumber": "TUI-1793722162283-O3VV",
+      "paidAt": "2026-11-03T20:58:50.211Z",
+      "receiptNumber": "TUI-1793739530110-YINT",
       "receiptGenerated": true,
       "receiptSent": false,
-      "paystackReference": "tuition_1793722162281_z5e3gu",
+      "paystackReference": "tuition_1793739530107_5kg85b",
       "paystackChannel": "card",
       "paymentUrl": null,
-      "recordedBy": "t5_admin_1793722161679",
+      "recordedBy": "t5_admin_1793739529508",
       "adminNotes": null,
-      "createdAt": "2026-11-03T16:09:22.283Z",
-      "updatedAt": "2026-11-03T16:09:22.717Z"
+      "createdAt": "2026-11-03T20:58:50.111Z",
+      "updatedAt": "2026-11-03T20:59:00.625Z"
     }
   ],
   "summary": {
@@ -642,16 +661,16 @@ Response (captured `docs/captures/stream5/11-topup-at-current-rate.json`):
 ```json
 {
   "charge": {
-    "id": "cmw0vv4fz001f07kndw379pbi",
-    "enrollmentId": "t5_e1_1793722161679",
+    "id": "cmw167svt0014073mmh0artrq",
+    "enrollmentId": "t5_e1_1793739529508",
     "kind": "CLASSES",
     "origin": "ADJUSTMENT",
     "quantity": 2,
     "unitPrice": 4000,
     "description": "2 x 60-minute classes (top-up)",
     "materialId": null,
-    "createdBy": "t5_admin_1793722161679",
-    "createdAt": "2026-11-03T16:09:25.055Z",
+    "createdBy": "t5_admin_1793739529508",
+    "createdAt": "2026-11-03T20:59:12.761Z",
     "voidedAt": null,
     "voidedBy": null,
     "voidReason": null
@@ -670,18 +689,18 @@ Response (captured `docs/captures/stream5/12-void-charge.json`):
 ```json
 {
   "charge": {
-    "id": "cmw0vv4hc001i07kn6m9e8urm",
-    "enrollmentId": "t5_e1_1793722161679",
+    "id": "cmw167swl0017073m11e23424",
+    "enrollmentId": "t5_e1_1793739529508",
     "kind": "CLASSES",
     "origin": "ADJUSTMENT",
     "quantity": 1,
     "unitPrice": 5000,
     "description": "1 x 60-minute classes (top-up)",
     "materialId": null,
-    "createdBy": "t5_admin_1793722161679",
-    "createdAt": "2026-11-03T16:09:25.105Z",
-    "voidedAt": "2026-11-03T16:09:25.192Z",
-    "voidedBy": "t5_admin_1793722161679",
+    "createdBy": "t5_admin_1793739529508",
+    "createdAt": "2026-11-03T20:59:12.790Z",
+    "voidedAt": "2026-11-03T20:59:12.850Z",
+    "voidedBy": "t5_admin_1793739529508",
     "voidReason": "Student changed their mind"
   }
 }
@@ -704,29 +723,29 @@ Response (captured `docs/captures/stream5/14-legacy-record-partial.json`):
 ```json
 {
   "payment": {
-    "id": "cmw0vv4m5001m07knmt2wbozm",
-    "enrollmentId": "t5_e4_1793722161679",
+    "id": "cmw167szx001b073m10vhetzj",
+    "enrollmentId": "t5_e4_1793739529508",
     "amount": 20000,
     "currency": "NGN",
     "paymentMethod": "bank-transfer",
     "description": null,
     "status": "partial",
-    "paidAt": "2026-11-03T16:09:25.277Z",
-    "receiptNumber": "TUI-1793722165273-KVWY",
+    "paidAt": "2026-11-03T20:59:12.909Z",
+    "receiptNumber": "TUI-1793739552907-Y91B",
     "receiptGenerated": false,
     "receiptSent": false,
     "paystackReference": null,
     "paystackChannel": null,
     "paymentUrl": null,
-    "recordedBy": "t5_admin_1793722161679",
+    "recordedBy": "t5_admin_1793739529508",
     "adminNotes": null,
-    "createdAt": "2026-11-03T16:09:25.278Z",
-    "updatedAt": "2026-11-03T16:09:25.278Z",
+    "createdAt": "2026-11-03T20:59:12.910Z",
+    "updatedAt": "2026-11-03T20:59:12.910Z",
     "enrollment": {
       "student": {
         "firstName": "Ada",
         "lastName": "Placeholder",
-        "email": "t5stu1793722161679@example.com"
+        "email": "t5stu1793739529508@example.com"
       }
     }
   },
@@ -750,7 +769,7 @@ Response (captured `docs/captures/stream5/15-legacy-ledger.json`):
 {
   "mode": "legacy",
   "enrollment": {
-    "id": "t5_e4_1793722161679",
+    "id": "t5_e4_1793739529508",
     "status": "enrolled",
     "applicationPaid": true,
     "selectedMode": "On-site",
@@ -761,24 +780,24 @@ Response (captured `docs/captures/stream5/15-legacy-ledger.json`):
   "charges": [],
   "payments": [
     {
-      "id": "cmw0vv4m5001m07knmt2wbozm",
-      "enrollmentId": "t5_e4_1793722161679",
+      "id": "cmw167szx001b073m10vhetzj",
+      "enrollmentId": "t5_e4_1793739529508",
       "amount": 20000,
       "currency": "NGN",
       "paymentMethod": "bank-transfer",
       "description": null,
       "status": "partial",
-      "paidAt": "2026-11-03T16:09:25.277Z",
-      "receiptNumber": "TUI-1793722165273-KVWY",
+      "paidAt": "2026-11-03T20:59:12.909Z",
+      "receiptNumber": "TUI-1793739552907-Y91B",
       "receiptGenerated": false,
       "receiptSent": false,
       "paystackReference": null,
       "paystackChannel": null,
       "paymentUrl": null,
-      "recordedBy": "t5_admin_1793722161679",
+      "recordedBy": "t5_admin_1793739529508",
       "adminNotes": null,
-      "createdAt": "2026-11-03T16:09:25.278Z",
-      "updatedAt": "2026-11-03T16:09:25.278Z"
+      "createdAt": "2026-11-03T20:59:12.910Z",
+      "updatedAt": "2026-11-03T20:59:12.910Z"
     }
   ],
   "summary": {
@@ -802,12 +821,12 @@ Response (captured `docs/captures/stream5/09-receipt-first-payment.json`):
 ```json
 {
   "receiptData": {
-    "receiptNumber": "TUI-1793722162166-35EH",
+    "receiptNumber": "TUI-1793739529957-00S9",
     "enrollment": {
-      "id": "t5_e1_1793722161679",
+      "id": "t5_e1_1793739529508",
       "firstName": "Ada",
       "lastName": "Placeholder",
-      "email": "t5stu1793722161679@example.com"
+      "email": "t5stu1793739529508@example.com"
     },
     "course": {
       "title": "T5 Guitar",
@@ -816,7 +835,7 @@ Response (captured `docs/captures/stream5/09-receipt-first-payment.json`):
     },
     "payment": {
       "amount": 20000,
-      "paidAt": "2026-11-03T16:09:22.169Z",
+      "paidAt": "2026-11-03T20:58:49.960Z",
       "description": "First part",
       "paymentMethod": "cash"
     },
@@ -860,7 +879,7 @@ Response (captured `docs/captures/stream5/09-receipt-first-payment.json`):
 `GET …/receipt?download=true` returns the PDF (`application/pdf`, starts `%PDF`, verified live). `POST …/receipt` re-sends the email (student copy + admin copy); **email delivery is not verified** (Resend key is a placeholder).
 
 ### Payments dashboard
-**GET `/api/admin/payments?locationId=t5_loc_1793722161679&method=cash`** → **200**
+**GET `/api/admin/payments?locationId=t5_loc_1793739529508&method=cash`** → **200**
 
 Request body:
 ```json
@@ -871,73 +890,114 @@ Response (captured `docs/captures/stream5/18-dashboard-filter-cash.json`):
 {
   "payments": [
     {
-      "id": "cmw0vv4nk001p07knq3fnx5xl",
-      "enrollmentId": "t5_e4_1793722161679",
+      "id": "cmw167t0v001e073m70wro64a",
+      "enrollmentId": "t5_e4_1793739529508",
       "amount": 90000,
       "status": "completed",
       "method": "cash",
       "channel": null,
       "reference": null,
-      "receiptNumber": "TUI-1793722165323-ZLFD",
+      "receiptNumber": "TUI-1793739552941-8OAI",
       "description": null,
-      "paidAt": "2026-11-03T16:09:25.328Z",
-      "createdAt": "2026-11-03T16:09:25.329Z",
+      "paidAt": "2026-11-03T20:59:12.943Z",
+      "createdAt": "2026-11-03T20:59:12.943Z",
       "paymentUrl": null,
       "enrollmentStatus": "enrolled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679"
+      "location": "T5 Loc 1793739529508"
     },
     {
-      "id": "cmw0vv27t000n07knpoucgumf",
-      "enrollmentId": "t5_e1_1793722161679",
+      "id": "cmw167bag000b073more8aoma",
+      "enrollmentId": "t5_e1_1793739529508",
       "amount": 20000,
       "status": "completed",
       "method": "cash",
       "channel": null,
       "reference": null,
-      "receiptNumber": "TUI-1793722162166-35EH",
+      "receiptNumber": "TUI-1793739529957-00S9",
       "description": "First part",
-      "paidAt": "2026-11-03T16:09:22.169Z",
-      "createdAt": "2026-11-03T16:09:22.170Z",
+      "paidAt": "2026-11-03T20:58:49.960Z",
+      "createdAt": "2026-11-03T20:58:49.960Z",
       "paymentUrl": null,
       "enrollmentStatus": "enrolled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679"
+      "location": "T5 Loc 1793739529508"
     }
   ],
   "outstanding": [
     {
-      "enrollmentId": "t5_e6_1793722161679",
+      "enrollmentId": "t5_e6_1793739529508",
       "enrollmentStatus": "enrolled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679",
+      "location": "T5 Loc 1793739529508",
       "mode": "ledger",
       "charged": 10000,
       "paid": 7000,
       "outstanding": 3000,
       "classesCovered": 1,
       "classesPurchased": 2,
-      "lastPaymentAt": "2026-11-03T16:09:25.602Z"
+      "lastPaymentAt": "2026-11-03T20:59:13.244Z"
+    }
+  ],
+  "credits": [
+    {
+      "enrollmentId": "t5_e3_1793739529508",
+      "enrollmentStatus": "cancelled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "cancelled",
+      "charged": null,
+      "paid": 5000,
+      "credit": 5000
+    },
+    {
+      "enrollmentId": "t5_e5_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 10000,
+      "paid": 12000,
+      "credit": 2000
+    },
+    {
+      "enrollmentId": "t5_e1_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 52500,
+      "paid": 54500,
+      "credit": 2000
     }
   ],
   "totals": {
     "collected": 110000,
     "pendingOnline": 0,
-    "outstanding": 3000
+    "outstanding": 3000,
+    "credit": 9000
   },
   "truncated": {
     "payments": false,
-    "outstanding": false
+    "outstanding": false,
+    "outstandingScan": false,
+    "credits": false
   }
 }
 ```
-**GET `/api/admin/payments?locationId=t5_loc_1793722161679`** → **200**
+**GET `/api/admin/payments?locationId=t5_loc_1793739529508`** → **200**
 
 Request body:
 ```json
@@ -948,74 +1008,216 @@ Response (captured `docs/captures/stream5/19-dashboard-all.json`):
 {
   "payments": [
     {
-      "id": "t5_p3_1793722161679",
-      "enrollmentId": "t5_e3_1793722161679",
+      "id": "t5_p3_1793739529508",
+      "enrollmentId": "t5_e3_1793739529508",
       "amount": 5000,
       "status": "completed",
       "method": "paystack",
       "channel": "card",
-      "reference": "t5_ref_cancelled_1793722161679",
-      "receiptNumber": "TUI-t5-1793722161679",
+      "reference": "t5_ref_cancelled_1793739529508",
+      "receiptNumber": "TUI-t5-1793739529508",
       "description": null,
-      "paidAt": "2026-11-03T16:09:24.904Z",
-      "createdAt": "2026-11-03T17:09:24.867Z",
+      "paidAt": "2026-11-03T20:59:12.226Z",
+      "createdAt": "2026-11-03T21:59:12.197Z",
       "paymentUrl": null,
       "enrollmentStatus": "cancelled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679"
+      "location": "T5 Loc 1793739529508"
     },
     {
-      "id": "cmw0vv4t7001x07knzfssku6s",
-      "enrollmentId": "t5_e6_1793722161679",
+      "id": "cmw167t6p001m073mzktu8g6i",
+      "enrollmentId": "t5_e6_1793739529508",
       "amount": 7000,
       "status": "completed",
       "method": "paystack",
       "channel": "card",
-      "reference": "tuition_1793722165529_lxy752",
-      "receiptNumber": "TUI-1793722165530-WDR5",
+      "reference": "tuition_1793739553150_poduxu",
+      "receiptNumber": "TUI-1793739553152-B3IF",
       "description": "Online tuition payment",
-      "paidAt": "2026-11-03T16:09:25.602Z",
-      "createdAt": "2026-11-03T16:09:25.531Z",
+      "paidAt": "2026-11-03T20:59:13.244Z",
+      "createdAt": "2026-11-03T20:59:13.153Z",
       "paymentUrl": null,
       "enrollmentStatus": "enrolled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679"
+      "location": "T5 Loc 1793739529508"
     }
   ],
   "outstanding": [
     {
-      "enrollmentId": "t5_e6_1793722161679",
+      "enrollmentId": "t5_e6_1793739529508",
       "enrollmentStatus": "enrolled",
       "student": "Ada Placeholder",
-      "email": "t5stu1793722161679@example.com",
+      "email": "t5stu1793739529508@example.com",
       "course": "T5 Guitar",
-      "location": "T5 Loc 1793722161679",
+      "location": "T5 Loc 1793739529508",
       "mode": "ledger",
       "charged": 10000,
       "paid": 7000,
       "outstanding": 3000,
       "classesCovered": 1,
       "classesPurchased": 2,
-      "lastPaymentAt": "2026-11-03T16:09:25.602Z"
+      "lastPaymentAt": "2026-11-03T20:59:13.244Z"
+    }
+  ],
+  "credits": [
+    {
+      "enrollmentId": "t5_e3_1793739529508",
+      "enrollmentStatus": "cancelled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "cancelled",
+      "charged": null,
+      "paid": 5000,
+      "credit": 5000
+    },
+    {
+      "enrollmentId": "t5_e5_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 10000,
+      "paid": 12000,
+      "credit": 2000
+    },
+    {
+      "enrollmentId": "t5_e1_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 52500,
+      "paid": 54500,
+      "credit": 2000
     }
   ],
   "totals": {
-    "collected": 213500,
+    "collected": 208500,
     "pendingOnline": 0,
-    "outstanding": 3000
+    "outstanding": 3000,
+    "credit": 9000
   },
   "truncated": {
     "payments": false,
-    "outstanding": false
+    "outstanding": false,
+    "outstandingScan": false,
+    "credits": false
   }
 }
 ```
-(Lists trimmed for length. `truncated` flips to `true` when a list hits its 500-row cap.)
+(Lists trimmed for length. `truncated.<list>` flips to `true` when a list hits its 500-row cap; `truncated.outstandingScan` is `true` when more than 5,000 enrollments exist and the outstanding/credit totals are a lower bound.)
 
+Credits (paid beyond what is owed, or paid on a cancelled enrollment):
+
+**GET `/api/admin/payments?locationId=t5_loc_1793739529508`** → **200**
+
+Request body:
+```json
+(no body)
+```
+Response (captured `docs/captures/stream5/21-dashboard-credits.json`):
+```json
+{
+  "payments": [
+    {
+      "id": "t5_p3_1793739529508",
+      "enrollmentId": "t5_e3_1793739529508",
+      "amount": 5000,
+      "status": "completed",
+      "method": "paystack",
+      "channel": "card",
+      "reference": "t5_ref_cancelled_1793739529508",
+      "receiptNumber": "TUI-t5-1793739529508",
+      "description": null,
+      "paidAt": "2026-11-03T20:59:12.226Z",
+      "createdAt": "2026-11-03T21:59:12.197Z",
+      "paymentUrl": null,
+      "enrollmentStatus": "cancelled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508"
+    }
+  ],
+  "outstanding": [
+    {
+      "enrollmentId": "t5_e16_1793739529508",
+      "enrollmentStatus": "plan_agreed",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "mode": "ledger",
+      "charged": 40000,
+      "paid": 0,
+      "outstanding": 40000,
+      "classesCovered": 0,
+      "classesPurchased": 8,
+      "lastPaymentAt": null
+    }
+  ],
+  "credits": [
+    {
+      "enrollmentId": "t5_e15_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 40000,
+      "paid": 80000,
+      "credit": 40000
+    },
+    {
+      "enrollmentId": "t5_e14_1793739529508",
+      "enrollmentStatus": "enrolled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "overpaid",
+      "charged": 10000,
+      "paid": 20000,
+      "credit": 10000
+    },
+    {
+      "enrollmentId": "t5_e3_1793739529508",
+      "enrollmentStatus": "cancelled",
+      "student": "Ada Placeholder",
+      "email": "t5stu1793739529508@example.com",
+      "course": "T5 Guitar",
+      "location": "T5 Loc 1793739529508",
+      "reason": "cancelled",
+      "charged": null,
+      "paid": 5000,
+      "credit": 5000
+    }
+  ],
+  "totals": {
+    "collected": 318500,
+    "pendingOnline": 44000,
+    "outstanding": 77500,
+    "credit": 59000
+  },
+  "truncated": {
+    "payments": false,
+    "outstanding": false,
+    "outstandingScan": false,
+    "credits": false
+  }
+}
+```
 ## Webhook (for operators, not the FE)
 `POST /api/webhooks/paystack` with `x-paystack-signature`. Tuition is recognised by looking the **reference** up in `tuition_payments`; metadata is only cross-checked. Verified on the mock: success, replay, 3 concurrent, amount mismatch, foreign currency, wrong metadata, unknown reference, late payment on a cancelled enrollment, `charge.failed` after success, failed-then-paid. Audit actions: `tuition.online_paid`, `enrollment.enrolled_by_tuition`, `tuition.amount_mismatch`, `tuition.metadata_mismatch`, `tuition.paid_unexpected_state`, `tuition.overpayment`, `tuition.dispute`, `payment.unmatched_reference`.
 
@@ -1029,7 +1231,10 @@ Response (captured `docs/captures/stream5/19-dashboard-all.json`):
 | Webhook settle, replay, concurrent, mismatches, cancelled, failed→paid, unknown ref | verified-live (Paystack = local mock) |
 | Top-up at today's rate, void, duplicate material, inactive material | verified-live |
 | Point-in-time receipt data + PDF download | verified-live |
-| Dashboard filters, outstanding list, 401s | verified-live |
+| Dashboard filters, outstanding list, credits list, 401s | verified-live |
+| Open-link cap (40,000 + 40,000 refused; partial headroom; cancel frees room; cancelled link paid anyway; stale/fresh URL-less rows) | verified-live (Paystack = local mock) |
+| `refund.processed` flagged (audit; balance unchanged), dispute audited | verified-live with the payload shape from Paystack's docs; **not seen from a real account** |
+| Admin alert emails (mismatch, cancelled, overpayment, refund, dispute) | **send path exercised, delivery NOT verified** (placeholder `RESEND_API_KEY`) |
 | **Real Paystack checkout, real `authorization_url`, real webhook signature from Paystack** | **NOT verified** (John's keys) |
 | **Email delivery of receipts (student + admin copy)** | **NOT verified** (placeholder `RESEND_API_KEY`) |
 | Admin UI screens | see `docs/sop/per-class-tuition.md` verification table |

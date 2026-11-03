@@ -134,3 +134,12 @@ export function checkPaymentAmount(outstanding: number, amount: unknown, allowOv
 export function toLedgerCharges<T extends Omit<LedgerCharge, 'kind'> & { kind: string }>(rows: T[]): (T & { kind: ChargeKind })[] {
   return rows.map((r) => ({ ...r, kind: (r.kind === 'MATERIAL' ? 'MATERIAL' : 'CLASSES') as ChargeKind }))
 }
+
+/**
+ * What a NEW online link may still ask for: the outstanding balance minus links that are already open
+ * (pending, not yet paid). Two open links must not add up to more than is owed, or both being paid
+ * would record credit with no refund path. Never negative.
+ */
+export function openLinkHeadroom(outstanding: number, openLinkAmounts: number[]): number {
+  return Math.max(0, outstanding - openLinkAmounts.reduce((sum, a) => sum + a, 0))
+}

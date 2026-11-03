@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e1_1793739529508/tuition/payment-link",
+    "body": {
+      "amount": 10000
+    }
+  },
+  "status": 409,
+  "response": {
+    "error": "Open payment links already cover the whole outstanding balance (1 link, ₦24,500). Cancel one, or wait for it to be paid, before creating another."
+  }
+}

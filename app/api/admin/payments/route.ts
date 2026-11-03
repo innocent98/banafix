@@ -5,6 +5,8 @@ import { computeTuitionBalance } from '@/lib/tuition-balance'
 import { COUNTED_STATUSES, toLedgerCharges } from '@/lib/tuition-ledger'
 
 const CAP = 500
+// Enrollments scanned for the outstanding/credit views before the totals become a lower bound.
+const SCAN_CAP = 5000
 
 // GET /api/admin/payments?locationId=&method=&status=&q=&from=&to=
 // The payments dashboard: tuition payments (filterable) and the outstanding view (enrollments that still
@@ -87,8 +89,10 @@ export const GET = withAuth(async (req: NextRequest) => {
       location: p.enrollment.location?.name ?? p.enrollment.course.location ?? '',
     }))
 
-    // Outstanding: enrollments past the plan stage whose balance is above zero. Method/status/date filters
-    // are about payments and do not apply here; location and search do.
+    // Outstanding + credits: enrollments past the plan stage. Method/status/date filters are about
+    // payments and do not apply here; location and search do. The scan is ordered (newest first, id as the
+    // tiebreak) and bounded; if it hits SCAN_CAP the totals are a lower bound and `truncated.outstandingScan`
+    // says so (the old code silently dropped rows past 2,000, in no particular order).
     const candidates = await prisma.enrollment.findMany({
       where: {
         status: { in: ['plan_agreed', 'enrolled'] },
@@ -108,25 +112,36 @@ export const GET = withAuth(async (req: NextRequest) => {
         tuitionCharges: true,
         tuitionPayments: { where: { status: { in: [...COUNTED_STATUSES] } }, select: { amount: true, status: true, paidAt: true, createdAt: true } },
       },
-      take: 2000,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      take: SCAN_CAP + 1,
+    })
+    const scanTruncated = candidates.length > SCAN_CAP
+    if (scanTruncated) candidates.length = SCAN_CAP
+
+    const rowBase = (e: (typeof candidates)[number]) => ({
+      enrollmentId: e.id,
+      enrollmentStatus: e.status,
+      student: `${e.student.firstName} ${e.student.lastName}`,
+      email: e.student.email,
+      course: e.course.title,
+      location: e.location?.name ?? e.course.location ?? '',
     })
 
-    const owing = candidates
-      .map((e) => {
-        const balance = computeTuitionBalance(
-          e,
-          toLedgerCharges(e.tuitionCharges),
-          e.tuitionPayments,
-          (e.course.pricing ?? null) as Record<string, number> | null,
-        )
+    const balances = candidates.map((e) => ({
+      e,
+      balance: computeTuitionBalance(
+        e,
+        toLedgerCharges(e.tuitionCharges),
+        e.tuitionPayments,
+        (e.course.pricing ?? null) as Record<string, number> | null,
+      ),
+    }))
+
+    const owing = balances
+      .map(({ e, balance }) => {
         const last = e.tuitionPayments.map((p) => (p.paidAt ?? p.createdAt).getTime()).sort((a, b) => b - a)[0]
         return {
-          enrollmentId: e.id,
-          enrollmentStatus: e.status,
-          student: `${e.student.firstName} ${e.student.lastName}`,
-          email: e.student.email,
-          course: e.course.title,
-          location: e.location?.name ?? e.course.location ?? '',
+          ...rowBase(e),
           mode: balance.mode,
           charged: balance.mode === 'ledger' ? balance.charged : balance.expectedTotal ?? null,
           paid: balance.paid,
@@ -139,16 +154,63 @@ export const GET = withAuth(async (req: NextRequest) => {
       .filter((r) => r.outstanding > 0)
       .sort((a, b) => b.outstanding - a.outstanding)
 
+    // Credit on account: paid beyond what is owed (a second payment link, a link paid after cash, a voided
+    // charge). There is no refund path yet, so it is surfaced here: apply it to a top-up or refund by hand.
+    const credits: Array<ReturnType<typeof rowBase> & { reason: 'overpaid' | 'cancelled'; charged: number | null; paid: number; credit: number }> =
+      balances
+        .filter(({ balance }) => balance.mode === 'ledger' && balance.credit > 0)
+        .map(({ e, balance }) => ({
+          ...rowBase(e),
+          reason: 'overpaid' as const,
+          charged: balance.mode === 'ledger' ? balance.charged : null,
+          paid: balance.paid,
+          credit: balance.mode === 'ledger' ? balance.credit : 0,
+        }))
+
+    // Tuition paid on an enrollment that was then cancelled (or paid after cancellation) is refund-needed
+    // too: every counted payment on it is money the academy holds for a student who is not enrolled.
+    const cancelled = await prisma.enrollment.findMany({
+      where: {
+        status: 'cancelled',
+        tuitionPayments: { some: { status: { in: [...COUNTED_STATUSES] } } },
+        ...(locationId ? { locationId } : {}),
+        ...(studentFilter ? { student: studentFilter } : {}),
+      },
+      select: {
+        id: true,
+        status: true,
+        location: { select: { name: true } },
+        course: { select: { title: true, location: true } },
+        student: { select: { firstName: true, lastName: true, email: true } },
+        tuitionPayments: { where: { status: { in: [...COUNTED_STATUSES] } }, select: { amount: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      take: CAP + 1,
+    })
+    for (const e of cancelled.slice(0, CAP)) {
+      const paid = e.tuitionPayments.reduce((sum, p) => sum + p.amount, 0)
+      credits.push({ ...rowBase(e as unknown as (typeof candidates)[number]), reason: 'cancelled', charged: null, paid, credit: paid })
+    }
+    credits.sort((a, b) => b.credit - a.credit)
+
     const counted = payments.filter((p) => COUNTED_STATUSES.includes(p.status))
     return createResponse({
       payments,
       outstanding: owing.slice(0, CAP),
+      credits: credits.slice(0, CAP),
       totals: {
         collected: counted.reduce((s, p) => s + p.amount, 0),
         pendingOnline: payments.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0),
         outstanding: owing.reduce((s, r) => s + r.outstanding, 0),
+        credit: credits.reduce((s, r) => s + r.credit, 0),
       },
-      truncated: { payments: paymentRows.length > CAP, outstanding: owing.length > CAP },
+      truncated: {
+        payments: paymentRows.length > CAP,
+        // True when rows were dropped from the list OR the scan itself was cut short (totals are then a lower bound).
+        outstanding: owing.length > CAP || scanTruncated,
+        outstandingScan: scanTruncated,
+        credits: credits.length > CAP || cancelled.length > CAP || scanTruncated,
+      },
     })
   } catch (error) {
     console.error('Get payments dashboard error:', error)

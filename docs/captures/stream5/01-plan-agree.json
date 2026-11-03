@@ -1,23 +1,23 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/t5_e1_1793722763498/plan",
+    "path": "/api/admin/enrollments/t5_e1_1793739529508/plan",
     "body": {
-      "offeringId": "t5_off_1793722763498",
+      "offeringId": "t5_off_1793739529508",
       "durationMins": 60,
       "classesPerWeek": 2,
       "plannedClasses": 8,
       "materialIds": [
-        "t5_mato_1793722763498"
+        "t5_mato_1793739529508"
       ]
     }
   },
   "status": 200,
   "response": {
     "enrollment": {
-      "id": "t5_e1_1793722763498",
-      "courseId": "t5_course_1793722763498",
-      "studentId": "t5_stu_1793722763498",
+      "id": "t5_e1_1793739529508",
+      "courseId": "t5_course_1793739529508",
+      "studentId": "t5_stu_1793739529508",
       "email": null,
       "firstName": null,
       "lastName": null,
@@ -41,8 +41,8 @@
       "applicationPaid": true,
       "applicationFeeAmount": null,
       "status": "plan_agreed",
-      "locationId": "t5_loc_1793722763498",
-      "offeringId": "t5_off_1793722763498",
+      "locationId": "t5_loc_1793739529508",
+      "offeringId": "t5_off_1793739529508",
       "feeCoveredByPaymentId": null,
       "durationMins": 60,
       "classesPerWeek": 2,
@@ -50,8 +50,8 @@
       "ratePerClass": 4000,
       "couponCode": null,
       "waitlistNotes": null,
-      "createdAt": "2026-11-03T17:19:23.760Z",
-      "updatedAt": "2026-11-03T16:19:23.805Z"
+      "createdAt": "2026-11-03T21:58:49.723Z",
+      "updatedAt": "2026-11-03T20:58:49.775Z"
     }
   }
 }

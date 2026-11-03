@@ -57,6 +57,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] Per-class receipts (PDF + email, student copy + admin copy, point-in-time); PDFs print `NGN` (helvetica has no ₦)
 - [x] Admin: ledger modal on the enrollment screen, `/admin/payments` (payments + outstanding, filters, CSV)
 - [~] Browser QA of the admin flow at 1280px: see the SOP verification table for what was and was not exercised
+- [x] Independent-review round 2 (open links vs the cap, credit/refund-needed visible on `/admin/payments`, admin alert emails, `refund.processed` flagged, URL-less rows, honest outstanding scan); [ ] **merge the PR #12 `chargeMatches` change (`requested_amount ?? amount`) when it lands and re-run the harness**
 - [ ] **Deploy gate:** snapshot prod, direct DB URL, migrate `20261103180000_per_class_tuition` after `20261103150000_assessment_first_admission`
 - [ ] John decides: **tuition refund policy** (not built); whether `plan_agreed → enrolled` should wait for the first class to be paid (built: any counted payment)
 - SOP: [`docs/sop/per-class-tuition.md`](../sop/per-class-tuition.md) · Spec: `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream5-per-class-tuition.md` · API guide: [`docs/fe-integration-guide-per-class-tuition.md`](../fe-integration-guide-per-class-tuition.md)

@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/t5_e1_1793722763498/tuition",
+    "path": "/api/admin/enrollments/t5_e1_1793739529508/tuition",
     "body": {
       "amount": 30000,
       "paymentMethod": "cash",

@@ -169,6 +169,8 @@ sequenceDiagram
     Note over A,DB: top-up classes (today's rate) / material / void a charge: POST …/tuition/charges[/…/void]
 ```
 
+**Open links count against the balance:** a new link may ask for at most `outstanding − Σ open pending links` (else `409`); a cancelled link that is paid anyway is recorded and flagged; credit and tuition paid on cancelled enrollments show on `/admin/payments` (Credits); admin alert emails for mismatch / cancelled / overpayment / refund / dispute; `refund.processed` is flagged, never applied. The webhook looks the reference up in `application_payments`, then `tuition_payments` (no prefix routing).
+
 **Derived, not stored:** `outstanding = max(0, Σ active charges − Σ completed+partial payments)`; paying beyond that shows as `credit`; `classesCovered` pays materials first, then classes in charge order, each at its own rate (a part-paid class does not count). **Edge cases proven on the mock 🟢:** replay, 3 concurrent deliveries, amount/currency mismatch, wrong metadata, unknown reference, late payment on a cancelled enrollment (recorded, status untouched, no student receipt, audit `tuition.paid_unexpected_state`), `charge.failed` after success, failed row later paid. Refunds are not built (John's policy).
 
 ---
@@ -408,7 +410,7 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | POST | `/api/admin/enrollments/[id]/tuition/charges` | JWT | `{kind:'CLASSES', quantity}` (today's rate for the offering + duration) or `{kind:'MATERIAL', materialId}`. Audit `tuition.charge_add` | 🟢 |
 | POST | `/api/admin/enrollments/[id]/tuition/charges/[chargeId]/void` | JWT | `{reason}`; voided, never deleted. Audit `tuition.charge_void` | 🟢 |
 | POST | `/api/admin/tuition-payments/[id]/cancel` | JWT | Withdraw a **pending** link. Audit `tuition.payment_cancel` | 🟢 |
-| GET | `/api/admin/payments` | JWT | Dashboard: `{payments[], outstanding[], totals, truncated}`; filters `locationId, method, status, q, from, to` | 🟢 |
+| GET | `/api/admin/payments` | JWT | Dashboard: `{payments[], outstanding[], credits[], totals{collected,pendingOnline,outstanding,credit}, truncated{payments,outstanding,outstandingScan,credits}}`; filters `locationId, method, status, q, from, to` | 🟢 |
 | GET/POST | `/api/admin/locations` | JWT | List (inactive included, with usage counts) / create `{name, kind, assessmentFee, isActive?, order?, address?}`; slug derived, collision-safe. Audit `location.create` | 🟡 |
 | GET/PATCH/DELETE | `/api/admin/locations/[id]` | JWT | PATCH keeps the slug on rename unless `regenerateSlug: true` (`location.update`). DELETE refused with 409 while any offering/enrollment references it (`location.delete`) | 🟡 |
 | GET/POST | `/api/admin/courses/[id]/offerings` | JWT | List with rates / create `{locationId, deliveryModeId, classesPerWeekOptions?}`; always created inactive; 409 on duplicate course × location × format. Audit `offering.create` | 🟡 |
