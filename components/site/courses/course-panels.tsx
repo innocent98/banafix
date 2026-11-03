@@ -93,34 +93,36 @@ export function OverviewPanel({
 export interface CurriculumModuleData {
   module: number
   title: string
-  weeks: string
+  /** Optional timeframe, e.g. "Weeks 1-2". Null when the admin left it blank. */
+  weeks: string | null
   outcomes: string[]
   tasks: string[]
 }
 
-export function CurriculumPanel({
-  modules,
-  duration,
-}: {
-  modules: CurriculumModuleData[]
-  duration: string
-}) {
+export function CurriculumPanel({ modules }: { modules: CurriculumModuleData[] }) {
+  // The timeframe column only exists when at least one module has a timeframe.
+  const hasTimeframes = modules.some((item) => item.weeks)
+
   return (
     <div>
-      {/* The handoff hardcodes "Twelve weeks, four phases"; both halves are
-          real data here — the course's own duration and module count. */}
+      {/* The handoff hardcodes "Twelve weeks, four phases"; the module count is
+          real data and a course has no fixed length in weeks. */}
       <Display className="mb-[22px] text-[34px] leading-[1.08] text-bfx-ink">
-        {duration}, {plural(modules.length, "module")}
+        {plural(modules.length, "module")}
       </Display>
       <ol className="flex flex-col gap-3.5">
         {modules.map((item) => (
           <li
             key={item.module}
-            className="grid grid-cols-1 gap-3 rounded-[18px] border border-bfx-border-5 bg-bfx-surface px-[26px] py-6 sm:grid-cols-[96px_1fr] sm:gap-6"
+            className={`grid grid-cols-1 gap-3 rounded-[18px] border border-bfx-border-5 bg-bfx-surface px-[26px] py-6 sm:gap-6 ${
+              hasTimeframes ? "sm:grid-cols-[96px_1fr]" : ""
+            }`}
           >
-            <div className="pt-1 text-xs font-bold uppercase tracking-[0.08em] text-bfx-bronze">
-              {item.weeks}
-            </div>
+            {hasTimeframes ? (
+              <div className="pt-1 text-xs font-bold uppercase tracking-[0.08em] text-bfx-bronze">
+                {item.weeks}
+              </div>
+            ) : null}
             <div>
               <h3 className="mb-[7px] text-[19px] font-bold tracking-[-0.01em] text-bfx-ink">
                 {item.title}

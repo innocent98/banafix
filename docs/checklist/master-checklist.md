@@ -14,10 +14,10 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
 - [ ] Official contact + feedback email addresses and forwarding
 
-### Stream 1 — Quick wins (independent)
-- [ ] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
-- [ ] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
-- [ ] Add Vitest for pure logic (no test runner exists today)
+### Stream 1 — Quick wins (independent) — ✅ built 2026-11-03, branch `feature/per-class-copy-and-modules` (SOP: [`per-class-copy-and-modules`](../sop/per-class-copy-and-modules.md))
+- [x] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
+- [x] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
+- [x] Add Vitest for pure logic (no test runner exists today)
 - [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
 
 ### Stream 2 — Location + offering model  *(foundation for 3–5)*  ✅ built 2026-11-03, branch `feature/assessment-first-admission` (PR open, not merged)
@@ -60,11 +60,13 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Admin announcements; `Feedback` model with testimonial-consent flag
 - [ ] WhatsApp/SMS provider plugged in later (John's choice; cost comparison to research)
 
-### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*
-- [ ] Models + admin CRUD: `Testimonial` (name, text, optional video, publish-permission flag), `TrustedPartner` (name, logo), `SiteEvent` (title, date, location, registration link), `SiteStat` (label, value; real figures only)
-- [ ] Public home / testimonials / events render from the DB; honest empty states, no invented content; remove hardcoded `testimonials.ts` / `events.ts` / trusted-by constants
-- [ ] Remove "Lagos Music Academy" overreach; stats show only entered values
-- [ ] Team-review readiness: noindex/preview guard decision (John wants staff to review before rollout)
+### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*  ✅ built 2026-11-03, PR `feature/site-content-admin` (SOP: [`site-content-admin`](../sop/site-content-admin.md))
+- [x] Models + admin CRUD: `Testimonial` (name, role, quote, optional video, `permissionToPublish`, publish, order), `TrustedPartner` (name, Blob logo, link), `SiteEvent` (title, description, start, location, registration link), `SiteStat` (label, value, admin note; real figures only); all audited, nav items added
+- [x] Publish-permission guard enforced server-side (+ revoking permission unpublishes); unit-tested
+- [x] Public home / testimonials / events render from the DB; honest empty states; hardcoded `testimonials.ts` / `events.ts` / trusted-by list deleted; past events hidden
+- [x] Removed unbacked hero claims ("3,200 alumni", "4.9 / 5 from 412 reviews"); stats show only entered values
+- [x] Team-review readiness: noindex/preview-guard recommendation made (not built; see PR description)
+- [ ] John to enter real content via `/admin` (stats, partners, testimonials with permission, events) and confirm "SINCE 2016"
 
 ### Wave plan (lead session)
 - **Wave 1 (now, ≤3 sessions):** S1 quick wins · S2+3 assessment-first admission · S8 site content

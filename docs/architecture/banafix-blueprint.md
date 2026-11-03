@@ -415,6 +415,8 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | The `assessment_paid` DB write path is proven | — | Proven via the local Paystack **mock** + scratch DB; **not** via a real Paystack test-mode charge | ⚠️ **honest gap** |
 | `charge.failed` is harmless to a paid payment | plan Review Focus 2 | Review found `handleChargeFailed` overwrote `ApplicationPayment` unconditionally; fixed to `updateMany where status='pending'` 🟡 + E2E case | ✅ fixed in the review pass |
 | Plan said the schedule route would create a standalone assessment for legacy `pending` rows | plan T2 | Code returns 400 for `pending` (fee must be paid first); record-only creation is for `enrolled`/`plan_agreed` | ✅ code is stricter than the plan |
+| Home/testimonials/events show real alumni figures, partners, testimonials and events | `components/site/home/*`, `/testimonials`, `/events` (pre-Stream 8) | Were hardcoded constants/invented copy (4 partner names, 3 quotes, "3,200 alumni", "4.9 / 5 from 412 reviews"); now read published rows from `testimonials`, `trusted_partners`, `site_events`, `site_stats` 🟢 LIVE (scratch DB) | ✅ **resolved by Stream 8** — blueprint sections that treat these as static copy are stale; "SINCE 2016" still static, unconfirmed ⚠️ |
+| Tuition is billed monthly / courses run 12 weeks | old site copy (`/admissions` tiers, why-banafix) | Client model is **per class** and **12 modules**; copy fixed, `CurriculumModule.weeks` now nullable (`prisma/schema.prisma`, migration `20261103130000`) 🟡 | ✅ resolved by Stream 1 (`Course.duration` still shows "12 weeks" on course cards until Stream 2) |
 
 ---
 

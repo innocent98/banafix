@@ -97,7 +97,7 @@ export default async function CourseDetailPage({
     tabs.push({
       key: "curriculum",
       label: "Curriculum",
-      panel: <CurriculumPanel modules={course.curriculum} duration={course.duration} />,
+      panel: <CurriculumPanel modules={course.curriculum} />,
     })
   }
 

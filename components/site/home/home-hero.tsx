@@ -4,13 +4,15 @@
  * Server component: nothing here is interactive. Both CTAs are navigations,
  * so they are <PillLink>s rather than buttons.
  *
- * Static marketing copy (no DB field backs any of it): the "SINCE 2016" pill,
- * "3,200 alumni", the three stat figures, and the "4.9 / 5 average from 412
- * student reviews" card. There is no Review model in Prisma — see the report.
+ * The figures row is admin-managed (`SiteStat`) and omitted when none are
+ * published. The earlier "3,200 alumni" claim and the "4.9 / 5 from 412 student
+ * reviews" card were removed: no data backed either. The "SINCE 2016" pill is
+ * still static copy pending John's confirmation of the founding year.
  */
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, PillLink } from "@/components/site/primitives"
 import { ENROL_HREF, ENROL_LABEL } from "@/lib/site"
+import type { PublicStat } from "@/lib/site-content-queries"
 
 /**
  * The handoff's hero photo (`bfx-hero` slot). images.unsplash.com is already
@@ -19,14 +21,7 @@ import { ENROL_HREF, ENROL_LABEL } from "@/lib/site"
 const HERO_PHOTO =
   "https://images.unsplash.com/photo-1696522732406-065ef560da8c?auto=format&fit=crop&w=1400&q=70"
 
-/** Static marketing copy — the handoff's three hero figures. */
-const STATS = [
-  { value: "3,200+", label: "Alumni taught" },
-  { value: "20", label: "Instruments" },
-  { value: "50", label: "Expert tutors" },
-] as const
-
-export function HomeHero() {
+export function HomeHero({ stats }: { stats: PublicStat[] }) {
   return (
     <section className="bfx-shell grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-center gap-16 pt-[72px] pb-10">
       <div className="bfx-rise">
@@ -36,7 +31,7 @@ export function HomeHero() {
             SINCE 2016
           </span>
           <span className="text-[13px] font-semibold text-[#4A5769]">
-            Lagos music academy · 3,200 alumni
+            Music academy in Lekki, Lagos
           </span>
         </div>
 
@@ -65,16 +60,18 @@ export function HomeHero() {
           </PillLink>
         </div>
 
-        <div className="flex flex-wrap gap-x-11 gap-y-6 border-t border-[#E4DBCC] pt-[30px]">
-          {STATS.map((stat) => (
-            <div key={stat.label}>
-              <div className="font-display text-[38px] leading-none">{stat.value}</div>
-              <div className="text-[13px] font-semibold tracking-[0.02em] text-bfx-muted">
-                {stat.label}
+        {stats.length > 0 ? (
+          <div className="flex flex-wrap gap-x-11 gap-y-6 border-t border-[#E4DBCC] pt-[30px]">
+            {stats.map((stat) => (
+              <div key={stat.id}>
+                <div className="font-display text-[38px] leading-none">{stat.value}</div>
+                <div className="text-[13px] font-semibold tracking-[0.02em] text-bfx-muted">
+                  {stat.label}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="bfx-rise-2 relative">
@@ -87,30 +84,6 @@ export function HomeHero() {
             glyphSize={150}
             loading="eager"
           />
-        </div>
-
-        {/*
-          Floating rating card. The handoff offsets it to left:-28px, which only
-          clears the shell padding once the grid is two-column; below that it is
-          pulled in to -12px so the page never scrolls sideways.
-        */}
-        {/*
-          z-[2] is required, not cosmetic: MediaSlot paints its <img> at z-[1]
-          so the photo sits above its own gradient placeholder. Without a
-          higher z-index here the card is an auto/0 sibling and the hero photo
-          renders on top of it, leaving only the sliver that overhangs the
-          arch visible. LevelBadge carries z-[2] for the same reason.
-        */}
-        <div className="absolute bottom-[34px] -left-3 z-[2] flex items-center gap-[13px] rounded-[18px] border border-[#EDE5D9] bg-white px-[19px] py-[15px] shadow-[0_16px_36px_-14px_rgba(16,26,40,0.25)] lg:-left-[28px]">
-          <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-bfx-ink text-[17px] text-bfx-amber" aria-hidden>
-            ★
-          </div>
-          <div>
-            <div className="text-[15px] font-extrabold tracking-[-0.01em]">4.9 / 5 average</div>
-            <div className="text-[12.5px] font-semibold text-bfx-muted">
-              from 412 student reviews
-            </div>
-          </div>
         </div>
       </div>
     </section>
