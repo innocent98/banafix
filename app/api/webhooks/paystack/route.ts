@@ -5,7 +5,7 @@ import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
 import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
-import { settleAssessmentFee } from '@/lib/assessment-payment'
+import { settleAssessmentFee, chargeMatches } from '@/lib/assessment-payment'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -82,7 +82,35 @@ async function handleChargeSuccess(data: any) {
     })
 
     if (!applicationPayment) {
+      // Money may have been taken for a reference we have no record of. Leave a trace for an admin.
       console.error('Application payment not found for reference:', reference)
+      await logAdminAction({
+        adminId: null,
+        action: 'payment.unmatched_reference',
+        entityType: 'application_payment',
+        entityId: String(reference),
+        metadata: { amountKobo: verificationResult.data.amount, currency: verificationResult.data.currency },
+      })
+      return
+    }
+
+    // The charge must be what we asked for. On a mismatch do not settle: flag it for an admin and
+    // answer 200 (a retry would fail identically).
+    if (!chargeMatches(verificationResult.data, { amountNaira: applicationPayment.amount, currency: applicationPayment.currency })) {
+      console.error('Charge amount mismatch for reference:', reference)
+      await logAdminAction({
+        adminId: null,
+        action: 'enrollment.fee_amount_mismatch',
+        entityType: 'enrollment',
+        entityId: applicationPayment.enrollmentId,
+        metadata: {
+          reference,
+          expectedNaira: applicationPayment.amount,
+          expectedCurrency: applicationPayment.currency,
+          paidKobo: verificationResult.data.amount,
+          paidCurrency: verificationResult.data.currency,
+        },
+      })
       return
     }
 
@@ -236,9 +264,10 @@ async function handleChargeFailed(data: any) {
       return
     }
 
-    // Update application payment status
-    await prisma.applicationPayment.update({
-      where: { id: applicationPayment.id },
+    // Only a still-pending payment can fail: a late/out-of-order charge.failed must never overwrite
+    // a payment that already completed.
+    await prisma.applicationPayment.updateMany({
+      where: { id: applicationPayment.id, status: 'pending' },
       data: {
         status: 'failed',
         paystackStatus: 'failed',

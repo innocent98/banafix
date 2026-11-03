@@ -143,6 +143,22 @@ async function e2e() {
   await postEvent('charge.failed', { reference: failedCase.ref })
   check('charge.failed never moves a progressed enrollment', q(failedCase.id, 'status') === 'assessment_scheduled')
 
+  // Amount verification: the mock reports 500000 kobo for unknown references; this payment expects 7000 naira.
+  const mismatch = mk('mismatch', 'pending', false)
+  psql(`update application_payments set amount=7000 where "enrollmentId"='${mismatch.id}'`)
+  await postEvent('charge.success', { reference: mismatch.ref })
+  check('amount MISMATCH: enrollment NOT settled (still pending)', q(mismatch.id, 'status') === 'pending' && q(mismatch.id, 'applicationPaid') === 'f')
+  check('amount MISMATCH: payment not completed + audit row', psql(`select status from application_payments where "enrollmentId"='${mismatch.id}'`) === 'pending' && audits(mismatch.id, 'enrollment.fee_amount_mismatch') === 1)
+
+  // Unknown reference: 200 and a trace for an admin.
+  const unknownRef = `e2e_unknown_${t}`
+  await postEvent('charge.success', { reference: unknownRef })
+  check('unknown reference leaves an audit trace', Number(psql(`select count(*) from audit_logs where "entityId"='${unknownRef}' and action='payment.unmatched_reference'`)) === 1)
+
+  // charge.failed after success must not overwrite a completed payment.
+  await postEvent('charge.failed', { reference: fresh.ref })
+  check('late charge.failed does not overwrite a completed payment', psql(`select status from application_payments where "enrollmentId"='${fresh.id}'`) === 'completed')
+
   const conc = mk('conc', 'pending', false)
   const statuses = await Promise.all([1, 2, 3].map(() => postEvent('charge.success', { reference: conc.ref })))
   check('3 CONCURRENT deliveries all answered 200', statuses.every((c) => c === 200))

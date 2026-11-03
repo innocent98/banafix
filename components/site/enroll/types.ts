@@ -139,4 +139,4 @@ export const SCHEDULE_OPTIONS = [
  */
 export const PAYSTACK_CHANNELS = ["Card", "Bank transfer", "USSD"] as const
 
-export const STEP_NAMES = ["Assessment", "Your details", "Pay"] as const
+export const STEP_NAMES = ["Assess", "Details", "Pay"] as const

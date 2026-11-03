@@ -9,7 +9,20 @@ export type SettleOutcome =
 export interface PaystackSuccessData {
   paid_at?: string | null
   channel?: string | null
+  amount?: number | null // kobo
+  currency?: string | null
   authorization?: { authorization_code?: string | null } | null
+}
+
+/**
+ * Does what Paystack says was charged match what we asked for? Paystack reports kobo; we store whole
+ * naira. A mismatch means a tampered/replayed reference or a fee edited mid-payment: do not settle.
+ */
+export function chargeMatches(
+  paystack: Pick<PaystackSuccessData, 'amount' | 'currency'>,
+  expected: { amountNaira: number; currency: string },
+): boolean {
+  return paystack.amount === expected.amountNaira * 100 && (paystack.currency ?? 'NGN') === expected.currency
 }
 
 /**

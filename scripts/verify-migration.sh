@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 PREV="20260902114015_instructor_roster"
 NEW="20261103150000_assessment_first_admission"
 
-URL="$(scripts/dev/ephemeral-pg.sh reset)"
+URL="$(EPHEMERAL_PG_PORT=5467 EPHEMERAL_PG_DIR="${TMPDIR:-/tmp}/banafix-verify-pg" scripts/dev/ephemeral-pg.sh reset)"
 export DATABASE_URL="$URL"
 case "$DATABASE_URL" in *127.0.0.1*) ;; *) echo "refusing: DATABASE_URL is not local" >&2; exit 1;; esac
 Q() { psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -c "$1"; }
@@ -42,9 +42,15 @@ check "no student lost"           "$before_stu"     "$(Q 'select count(*) from s
 check "no application payment lost" "$before_ap"    "$(Q 'select count(*) from application_payments')"
 check "no tuition payment lost"   "$before_tp"      "$(Q 'select count(*) from tuition_payments')"
 check "no delivery mode lost"     "$before_dm"      "$(Q 'select count(*) from delivery_modes')"
-check "enrollment statuses unchanged (grandfathered)" "$before_status" "$(Q "select string_agg(id||':'||status, ',' order by id) from enrollments")"
+expected_status="${before_status//e_apppaid:application_paid/e_apppaid:enrolled}"
+check "enrollment statuses unchanged (grandfathered); application_paid -> enrolled" "$expected_status" "$(Q "select string_agg(id||':'||status, ',' order by id) from enrollments")"
+check "no application_paid status left" "0" "$(Q "select count(*) from enrollments where status='application_paid'")"
 check "deprecated Course pricing/location untouched"  "$before_pricing" "$(Q "select string_agg(id||':'||pricing::text||':'||location, ',' order by id) from courses")"
-check "all 8 seed locations + Kano" "9" "$(Q 'select count(*) from locations')"
+check "8 seed locations + Kano + Port-Harcourt + non-ASCII + International" "12" "$(Q 'select count(*) from locations')"
+check "slugs are unique" "0" "$(Q 'select count(*) from (select slug from locations group by slug having count(*)>1) d')"
+check "colliding slug gets a suffix (Port Harcourt keeps the base)" "port-harcourt,port-harcourt-2" "$(Q "select string_agg(slug, ',' order by slug) from locations where slug like 'port-harcourt%'")"
+check "all-non-ASCII name gets a non-empty slug" "1" "$(Q "select count(*) from locations where name='ÀÈÌ' and slug <> ''")"
+check "International is ONLINE kind, fee 8000" "ONLINE:8000" "$(Q "select kind::text||':'||\"assessmentFee\" from locations where name='International'")"
 check "no duplicate ONDO row from padded text" "1" "$(Q "select count(*) from locations where lower(name)='ondo'")"
 check "Lagos fee 5000"            "5000" "$(Q "select \"assessmentFee\" from locations where name='Lagos'")"
 check "Online fee 5000"           "5000" "$(Q "select \"assessmentFee\" from locations where name='Online'")"
@@ -53,12 +59,12 @@ check "Ondo fee 2000"             "2000" "$(Q "select \"assessmentFee\" from loc
 check "Kano (unlisted) fee 2000"  "2000" "$(Q "select \"assessmentFee\" from locations where name='Kano'")"
 check "Online/Diaspora are ONLINE kind" "ONLINE,ONLINE" "$(Q "select string_agg(kind::text, ',') from locations where name in ('Online','Diaspora')")"
 check "slug of Port Harcourt"     "port-harcourt" "$(Q "select slug from locations where name='Port Harcourt'")"
-# offerings: lagos 2 + online 1 + ondo 1 (Masterclass skipped) + kano 1 = 5
-check "offerings created (orphan mode skipped)" "5" "$(Q 'select count(*) from course_offerings')"
+# lagos 2 + online 1 + ondo 1 (Masterclass skipped) + kano 1 + port-harcourt 1 + non-ascii 1 + intl 1 ('online' case-variant matched) = 8; empty-location course 0
+check "offerings created (orphan mode skipped, case-variant mode matched)" "8" "$(Q 'select count(*) from course_offerings')"
 check "ALL offerings inactive"    "0" "$(Q 'select count(*) from course_offerings where "isActive"')"
 check "NO rates created"          "0" "$(Q 'select count(*) from offering_rates')"
 check "default classes/week options [1,2]" "1" "$(Q "select count(distinct \"classesPerWeekOptions\"::text) from course_offerings where \"classesPerWeekOptions\"='{1,2}'")"
-check "every enrollment has locationId" "0" "$(Q 'select count(*) from enrollments where "locationId" is null')"
+check "only the empty-location enrollment has NULL locationId" "e_noloc" "$(Q 'select string_agg(id, $$,$$) from enrollments where "locationId" is null')"
 check "padded ' ONDO ' enrollment -> Ondo"  "Ondo" "$(Q "select l.name from enrollments e join locations l on l.id=e.\"locationId\" where e.id='e_ondo'")"
 check "enrollment offering backfilled (Lagos On-site)" "On-site" "$(Q "select dm.name from enrollments e join course_offerings o on o.id=e.\"offeringId\" join delivery_modes dm on dm.id=o.\"deliveryModeId\" where e.id='e_paid'")"
 check "orphan-mode enrollment has NULL offering" "" "$(Q "select \"offeringId\" from enrollments where id='e_ondo'")"
@@ -69,5 +75,5 @@ echo "5) prisma agrees the migration history matches schema.prisma"
 drift=$(npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script 2>/dev/null | grep -v "^$" | grep -v "Loaded Prisma" | tr -d '\n' || true)
 check "no schema drift after migration" "-- This is an empty migration." "$drift"
 
-scripts/dev/ephemeral-pg.sh stop
+EPHEMERAL_PG_PORT=5467 EPHEMERAL_PG_DIR="${TMPDIR:-/tmp}/banafix-verify-pg" scripts/dev/ephemeral-pg.sh stop
 if [ "$fail" = 0 ]; then echo "ALL MIGRATION ASSERTIONS PASSED"; else echo "MIGRATION VERIFICATION FAILED"; exit 1; fi

@@ -123,8 +123,12 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     }
     const fee = { amount: feeAmount, currency: ASSESSMENT_FEE_CURRENCY }
 
-    // Stale unpaid application for this course is replaced by this registration.
-    await prisma.enrollment.deleteMany({ where: { studentId: student.id, courseId, status: 'pending' } })
+    // Stale unpaid application for this course is cancelled by this registration (not deleted: a
+    // payment still in flight must keep its record; see the public POST).
+    await prisma.enrollment.updateMany({
+      where: { studentId: student.id, courseId, status: 'pending' },
+      data: { status: 'cancelled' },
+    })
 
     // Enrollment + Assessment + (fee payment, status moves) in ONE transaction. The walk-in is
     // created `pending`, then moved by the guard so every step is a legal, compare-and-set move.

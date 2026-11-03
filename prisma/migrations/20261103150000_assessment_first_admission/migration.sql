@@ -171,7 +171,9 @@ ALTER TABLE "assessments" ADD CONSTRAINT "assessments_recommendedOfferingId_fkey
 -- (a) Locations. Seed set = the names formerly hardcoded in lib/locations.ts, plus any distinct
 --     Course.location text not already covered (matched on lower(btrim)). Fee tiers formerly in
 --     lib/application-fee.ts: lagos/abuja/online 5000, diaspora/international 8000, else 2000.
---     Online + Diaspora are ONLINE-kind so the chooser lists them beside physical centres.
+--     Online, Diaspora and International are ONLINE-kind so the chooser lists them beside physical centres.
+--     Slugs are made unique even when two names slugify identically ("Port-Harcourt" vs
+--     "Port Harcourt", names with no ASCII letters/digits): base slug, then -2, -3 ... on clashes.
 WITH seed(name, ord) AS (
   VALUES ('Lagos',0),('Abuja',1),('Akure',2),('Ondo',3),('Port Harcourt',4),('Ibadan',5),('Online',6),('Diaspora',7)
 ),
@@ -185,14 +187,24 @@ extra AS (
 all_locs AS (
   SELECT name, ord FROM seed
   UNION ALL
-  SELECT name, 100 + row_number() OVER (ORDER BY name) FROM extra
+  SELECT name, 100 + (row_number() OVER (ORDER BY name))::int FROM extra
+),
+slugged AS (
+  SELECT name, ord,
+         COALESCE(NULLIF(trim(both '-' from regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')), ''), 'location') AS base_slug
+  FROM all_locs
+),
+numbered AS (
+  SELECT name, ord, base_slug,
+         row_number() OVER (PARTITION BY base_slug ORDER BY ord, name) AS n
+  FROM slugged
 )
 INSERT INTO "locations" ("id","name","slug","kind","assessmentFee","isActive","order","updatedAt")
 SELECT
   'loc_' || md5(lower(name)),
   name,
-  trim(both '-' from regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')),
-  CASE WHEN lower(name) IN ('online','diaspora') THEN 'ONLINE'::"LocationKind" ELSE 'PHYSICAL'::"LocationKind" END,
+  CASE WHEN n = 1 THEN base_slug ELSE base_slug || '-' || n END,
+  CASE WHEN lower(name) IN ('online','diaspora','international') THEN 'ONLINE'::"LocationKind" ELSE 'PHYSICAL'::"LocationKind" END,
   CASE
     WHEN lower(name) IN ('lagos','abuja','online') THEN 5000
     WHEN lower(name) IN ('diaspora','international') THEN 8000
@@ -201,7 +213,7 @@ SELECT
   true,
   ord,
   CURRENT_TIMESTAMP
-FROM all_locs
+FROM numbered
 ON CONFLICT ("name") DO NOTHING;
 
 -- (b) One INACTIVE offering per (course, location, availableModes entry that names a DeliveryMode).
@@ -213,7 +225,7 @@ SELECT
 FROM "courses" c
 JOIN "locations" l ON lower(l."name") = lower(btrim(c."location"))
 CROSS JOIN LATERAL unnest(c."availableModes") AS mode_name
-JOIN "delivery_modes" dm ON dm."name" = mode_name
+JOIN "delivery_modes" dm ON lower(btrim(dm."name")) = lower(btrim(mode_name))
 ON CONFLICT ("courseId","locationId","deliveryModeId") DO NOTHING;
 
 DO $$
@@ -222,8 +234,20 @@ BEGIN
   SELECT count(*) INTO skipped
   FROM "courses" c
   CROSS JOIN LATERAL unnest(c."availableModes") AS mode_name
-  WHERE NOT EXISTS (SELECT 1 FROM "delivery_modes" dm WHERE dm."name" = mode_name);
+  WHERE NOT EXISTS (SELECT 1 FROM "delivery_modes" dm WHERE lower(btrim(dm."name")) = lower(btrim(mode_name)));
   RAISE NOTICE 'assessment_first_admission: % (course, mode) pair(s) skipped: no matching DeliveryMode row', skipped;
+END $$;
+
+-- (c0) Rows still carrying the retired `application_paid` status (only an old unauthenticated manual
+--      verify route could write it after the Foundation migration). They paid the fee under the old
+--      "paying = enrolled" rule (D1), so they are grandfathered as `enrolled`, never left stranded in a
+--      status the new guard does not know.
+DO $$
+DECLARE n integer;
+BEGIN
+  UPDATE "enrollments" SET "status" = 'enrolled', "applicationPaid" = true WHERE "status" = 'application_paid';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RAISE NOTICE 'assessment_first_admission: % legacy application_paid row(s) mapped to enrolled', n;
 END $$;
 
 -- (c) Backfill the enrollment's location and, when that offering exists, offering.
@@ -238,7 +262,7 @@ UPDATE "enrollments" e
 SET "offeringId" = o."id"
 FROM "delivery_modes" dm, "course_offerings" o
 WHERE e."offeringId" IS NULL
-  AND dm."name" = e."selectedMode"
+  AND lower(btrim(dm."name")) = lower(btrim(e."selectedMode"))
   AND o."courseId" = e."courseId"
   AND o."locationId" = e."locationId"
   AND o."deliveryModeId" = dm."id";

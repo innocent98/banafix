@@ -161,8 +161,12 @@ export async function POST(req: NextRequest) {
         400,
       )
     }
-    await prisma.enrollment.deleteMany({
+    // A stale unpaid application is CANCELLED, not deleted: deleting cascades its ApplicationPayment
+    // away, so a bank-transfer/USSD charge still in flight would settle later with no record.
+    // A late webhook for a cancelled enrollment is recorded + audited (never lost, never re-activated).
+    await prisma.enrollment.updateMany({
       where: { studentId: student.id, courseId, status: 'pending' },
+      data: { status: 'cancelled' },
     })
 
     let assessmentFee: number
@@ -171,6 +175,10 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
       throw e
+    }
+
+    if (assessmentFee <= 0) {
+      return createErrorResponse('The assessment fee for this location is not set. Please contact us to apply.', 400)
     }
 
     const enrollment = await prisma.enrollment.create({

@@ -14,6 +14,7 @@
 import http from 'node:http'
 
 const port = Number(process.env.MOCK_PAYSTACK_PORT || 4010)
+const amounts = new Map() // reference -> kobo, remembered from initialize so verify reports what was asked for
 
 const server = http.createServer((req, res) => {
   const send = (code, body) => {
@@ -27,6 +28,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'POST' && url.pathname === '/transaction/initialize') {
       const body = raw ? JSON.parse(raw) : {}
       const reference = body.reference || `mock_${Date.now()}`
+      amounts.set(reference, body.amount)
       return send(200, {
         status: true,
         message: 'Authorization URL created',
@@ -49,7 +51,7 @@ const server = http.createServer((req, res) => {
           domain: 'test',
           status: ok ? 'success' : 'failed',
           reference,
-          amount: 500000,
+          amount: amounts.get(reference) ?? 500000,
           message: null,
           gateway_response: ok ? 'Successful' : 'Declined',
           paid_at: ok ? new Date().toISOString() : null,

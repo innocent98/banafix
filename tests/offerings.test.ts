@@ -24,6 +24,7 @@ describe("offerableOfferingWhere", () => {
     expect(offerableOfferingWhere()).toEqual({
       isActive: true,
       location: { isActive: true },
+      deliveryMode: { isActive: true },
       rates: { some: {} },
     })
   })
@@ -32,6 +33,7 @@ describe("offerableOfferingWhere", () => {
     expect(offerableOfferingWhere("loc_1")).toEqual({
       isActive: true,
       location: { isActive: true },
+      deliveryMode: { isActive: true },
       locationId: "loc_1",
       rates: { some: {} },
     })

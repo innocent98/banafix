@@ -13,6 +13,7 @@ export function offerableOfferingWhere(locationId?: string): Prisma.CourseOfferi
   return {
     isActive: true,
     location: { isActive: true },
+    deliveryMode: { isActive: true },
     ...(locationId ? { locationId } : {}),
     rates: { some: {} },
   }

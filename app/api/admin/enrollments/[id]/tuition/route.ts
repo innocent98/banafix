@@ -6,7 +6,7 @@ import { generateTuitionReceiptPDF, generateReceiptNumber, TuitionReceiptData } 
 import { sendTuitionReceipt } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
 import { transitionEnrollment } from '@/lib/enrollment-transition'
-import { planTotal } from '@/lib/offering-rates'
+import { expectedTuitionTotal } from '@/lib/offering-rates'
 
 // POST /api/admin/enrollments/[id]/tuition - Record tuition payment
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
@@ -65,26 +65,42 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       return createErrorResponse('Assessment fee must be paid before recording tuition payments', 400)
     }
 
+    // Tuition is only taken once the plan is agreed (or for an enrolled student). Before that no
+    // price exists, so a receipt would carry a meaningless balance; cancelled rows take no money.
+    if (enrollment.status !== 'plan_agreed' && enrollment.status !== 'enrolled') {
+      return createErrorResponse(
+        'Tuition can only be recorded once the plan is agreed (the enrollment is ' + enrollment.status.replace(/_/g, ' ') + ')',
+        400,
+      )
+    }
+
     // Generate unique receipt number
     const receiptNumber = generateReceiptNumber('TUI')
 
     // Full payment settles the tuition (status 'completed'); partial leaves a balance.
     const status = paymentType === 'partial' ? 'partial' : 'completed'
 
-    // Create tuition payment record
-    const tuitionPayment = await prisma.tuitionPayment.create({
-      data: {
-        enrollmentId,
-        amount,
-        paymentMethod,
-        description,
-        status,
-        paidAt: new Date(),
-        receiptNumber,
-        recordedBy: admin.id,
-        receiptGenerated: false,
-        receiptSent: false,
-      },
+    // The payment and the plan_agreed -> enrolled move are ONE transaction (compare-and-set), so a
+    // failed move cannot leave a recorded payment behind for an admin retry to duplicate.
+    const { tuitionPayment, admitted } = await prisma.$transaction(async (tx) => {
+      const tuitionPayment = await tx.tuitionPayment.create({
+        data: {
+          enrollmentId,
+          amount,
+          paymentMethod,
+          description,
+          status,
+          paidAt: new Date(),
+          receiptNumber,
+          recordedBy: admin.id,
+          receiptGenerated: false,
+          receiptSent: false,
+        },
+      })
+      const admitted =
+        enrollment.status === 'plan_agreed' &&
+        (await transitionEnrollment(tx, enrollmentId, 'plan_agreed', 'enrolled'))
+      return { tuitionPayment, admitted }
     })
 
     // Total paid to date = all prior tuition payments (full + partial) + this one.
@@ -94,12 +110,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     // back to the course's per-MODE price (D3) until Stream 5. If neither exists we simply omit
     // the balance (never block).
     const pricing = (enrollment.course.pricing ?? null) as Record<string, number> | null
-    const expectedTotal =
-      enrollment.ratePerClass != null && enrollment.plannedClasses != null
-        ? planTotal(enrollment.ratePerClass, enrollment.plannedClasses)
-        : pricing && enrollment.selectedMode
-          ? pricing[enrollment.selectedMode]
-          : undefined
+    const expectedTotal = expectedTuitionTotal(enrollment, pricing)
     const remainingBalance =
       typeof expectedTotal === 'number' ? Math.max(0, expectedTotal - totalPaid) : undefined
 
@@ -111,19 +122,16 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       metadata: { enrollmentId, amount, paymentType: status, totalPaid, remainingBalance },
     })
 
-    // Recording tuition on an enrollment whose plan is agreed admits the student (spec: plan_agreed
-    // -> enrolled). Compare-and-set, so a concurrent "Confirm enrolment" cannot double-apply.
-    if (enrollment.status === 'plan_agreed') {
-      const admitted = await transitionEnrollment(prisma, enrollmentId, 'plan_agreed', 'enrolled')
-      if (admitted) {
-        await logAdminAction({
-          adminId: admin.id,
-          action: 'enrollment.enrolled_by_tuition',
-          entityType: 'enrollment',
-          entityId: enrollmentId,
-          metadata: { tuitionPaymentId: tuitionPayment.id, fromStatus: 'plan_agreed', toStatus: 'enrolled' },
-        })
-      }
+    // Recording tuition on an enrollment whose plan is agreed admitted the student (spec: plan_agreed
+    // -> enrolled); the move happened in the transaction above.
+    if (admitted) {
+      await logAdminAction({
+        adminId: admin.id,
+        action: 'enrollment.enrolled_by_tuition',
+        entityType: 'enrollment',
+        entityId: enrollmentId,
+        metadata: { tuitionPaymentId: tuitionPayment.id, fromStatus: 'plan_agreed', toStatus: 'enrolled' },
+      })
     }
 
     // Generate and send receipt if requested

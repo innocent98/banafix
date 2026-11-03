@@ -42,3 +42,18 @@ describe('buildPlanSnapshot', () => {
     expect(buildPlanSnapshot({ ...base, plannedClasses })).toMatchObject({ ok: false })
   })
 })
+
+import { expectedTuitionTotal } from '../lib/offering-rates'
+
+describe('expectedTuitionTotal', () => {
+  it('prefers the agreed plan snapshot over legacy pricing', () => {
+    expect(expectedTuitionTotal({ ratePerClass: 5000, plannedClasses: 8, selectedMode: 'On-site' }, { 'On-site': 99999 })).toBe(40000)
+  })
+  it('falls back to legacy per-mode pricing for rows with no plan', () => {
+    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: null, selectedMode: 'On-site' }, { 'On-site': 25000 })).toBe(25000)
+  })
+  it('is undefined when nothing prices the enrollment (balance omitted, never blocks)', () => {
+    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: null, selectedMode: '' }, { 'On-site': 25000 })).toBeUndefined()
+    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: 8, selectedMode: 'X' }, null)).toBeUndefined()
+  })
+})
