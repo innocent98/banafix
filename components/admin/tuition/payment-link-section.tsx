@@ -135,7 +135,7 @@ export function PaymentLinkSection({ enrollmentId, outstanding, studentFirstName
                 href={whatsAppShareUrl(studentFirstName, courseTitle, link.amount, link.paymentUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+                className={`${buttonVariants({ variant: "outline", size: "sm" })} max-w-full !whitespace-normal`}
               >
                 <MessageCircle className="mr-1 h-3 w-3" />
                 Share on WhatsApp
