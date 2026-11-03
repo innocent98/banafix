@@ -14,10 +14,10 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
 - [ ] Official contact + feedback email addresses and forwarding
 
-### Stream 1 — Quick wins (independent)
-- [ ] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
-- [ ] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
-- [ ] Add Vitest for pure logic (no test runner exists today)
+### Stream 1 — Quick wins (independent) — ✅ built 2026-11-03, branch `feature/per-class-copy-and-modules` (SOP: [`per-class-copy-and-modules`](../sop/per-class-copy-and-modules.md))
+- [x] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
+- [x] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
+- [x] Add Vitest for pure logic (no test runner exists today)
 - [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
 
 ### Stream 2 — Location + offering model  *(foundation for 3–5)*

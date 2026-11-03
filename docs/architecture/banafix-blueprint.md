@@ -315,6 +315,7 @@ erDiagram
 | Tuition supports partial payments | schema comment `partial` | route hardcodes `completed`, balance never set 🟡 | ⚠️ modelled, not wired |
 | Enrollment emails are sent | SOP `enrollment-emails.md` | code sends 🟡 but `RESEND_API_KEY` is a placeholder → 401 🟢 | ⚠️ wired, **not delivering** — unrelated pre-existing blocker, unchanged by this shipment |
 | Admin status dropdown changes status | reasonable assumption | it's bound to `statusFilter` — a **filter**, not a setter 🟡 | ❌ no status write |
+| Tuition is billed monthly / courses run 12 weeks | old site copy (`/admissions` tiers, why-banafix) | Client model is **per class** and **12 modules**; copy fixed, `CurriculumModule.weeks` now nullable (`prisma/schema.prisma`, migration `20261103130000`) 🟡 | ✅ resolved by Stream 1 (`Course.duration` still shows "12 weeks" on course cards until Stream 2) |
 | The `enrolled`/audit-log DB write path is proven working | task ledger self-review | verified via scratch-DB assertions (migration) + `tsc`/`build` (webhook code) + manual review — **not** via a live Paystack test-mode charge (local harness's fabricated reference fails Paystack verify before this code runs) 🟡 CODE / ⚠️ UNVERIFIED live | ⚠️ **honest gap** — believed correct, not proven end-to-end |
 
 ---
