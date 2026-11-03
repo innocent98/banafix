@@ -1,0 +1,225 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/schedule?from=2026-11-09&to=2026-11-15&instructorId=cmw0wbw64000907xbnqa1l35q"
+  },
+  "status": 200,
+  "response": {
+    "sessions": [
+      {
+        "id": "cmw0wcc6m0009079366m6h4md",
+        "enrollmentId": "cmw0wbw6d000h07xbq83yw9fv",
+        "sequence": 1,
+        "startsAt": "2026-11-09T08:00:00.000Z",
+        "endsAt": "2026-11-09T09:00:00.000Z",
+        "durationMins": 60,
+        "status": "scheduled",
+        "mode": "CENTRE",
+        "notes": null,
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "rescheduledFromId": null,
+        "instructor": {
+          "name": "Ada Okafor"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "enrollment": {
+          "student": {
+            "id": "cmw0wbw6b000f07xbwjcfruei",
+            "firstName": "Chi",
+            "lastName": "Eze"
+          },
+          "course": {
+            "id": "cmw0wbw62000707xbk8i4py4i",
+            "title": "Guitar Foundations"
+          }
+        }
+      },
+      {
+        "id": "cmw0wcd2q000m0793qlq39son",
+        "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+        "sequence": 1,
+        "startsAt": "2026-11-09T09:00:00.000Z",
+        "endsAt": "2026-11-09T09:45:00.000Z",
+        "durationMins": 45,
+        "status": "rescheduled",
+        "mode": "CENTRE",
+        "notes": null,
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "rescheduledFromId": null,
+        "instructor": {
+          "name": "Ada Okafor"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "enrollment": {
+          "student": {
+            "id": "cmw0wbw6f000i07xb16dwyhdw",
+            "firstName": "Dayo",
+            "lastName": "Ade"
+          },
+          "course": {
+            "id": "cmw0wbw62000707xbk8i4py4i",
+            "title": "Guitar Foundations"
+          }
+        }
+      },
+      {
+        "id": "cmw0wcdmd000v0793zv3f3in8",
+        "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+        "sequence": 1,
+        "startsAt": "2026-11-10T08:00:00.000Z",
+        "endsAt": "2026-11-10T08:45:00.000Z",
+        "durationMins": 45,
+        "status": "scheduled",
+        "mode": "CENTRE",
+        "notes": null,
+        "instructorId": "cmw0wbw64000907xbnqa1l35q",
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "rescheduledFromId": "cmw0wcd2q000m0793qlq39son",
+        "instructor": {
+          "name": "Ada Okafor"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "enrollment": {
+          "student": {
+            "id": "cmw0wbw6f000i07xb16dwyhdw",
+            "firstName": "Dayo",
+            "lastName": "Ade"
+          },
+          "course": {
+            "id": "cmw0wbw62000707xbk8i4py4i",
+            "title": "Guitar Foundations"
+          }
+        }
+      }
+    ],
+    "availability": [
+      {
+        "id": "cmw0wbw67000b07xb8cxjev76",
+        "weekday": 1,
+        "startMinute": 540,
+        "endMinute": 720,
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "mode": "CENTRE",
+        "location": {
+          "name": "Lagos",
+          "kind": "PHYSICAL"
+        }
+      },
+      {
+        "id": "cmw0wbw67000c07xbl23144dm",
+        "weekday": 3,
+        "startMinute": 780,
+        "endMinute": 1020,
+        "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+        "mode": "HOME",
+        "location": {
+          "name": "Lagos",
+          "kind": "PHYSICAL"
+        }
+      },
+      {
+        "id": "cmw0wbw67000d07xbtx3fp5yu",
+        "weekday": 5,
+        "startMinute": 1080,
+        "endMinute": 1260,
+        "locationId": "loc_7f46165474d11ee5836777d85df2cdab",
+        "mode": "ONLINE",
+        "location": {
+          "name": "Online",
+          "kind": "ONLINE"
+        }
+      }
+    ],
+    "needsScheduling": [
+      {
+        "id": "cmw0wcbvy00020793wu5lwcpy",
+        "plannedClasses": 4,
+        "durationMins": 60,
+        "classesPerWeek": 2,
+        "preferredDays": [
+          "mon",
+          "wed"
+        ],
+        "preferredTimeBands": [
+          "evening"
+        ],
+        "preferredFromTime": "18:30",
+        "preferredToTime": "20:00",
+        "preferredClassesPerWeek": 2,
+        "schedulePreference": null,
+        "student": {
+          "firstName": "Walk",
+          "lastName": "In"
+        },
+        "course": {
+          "id": "cmw0wbw62000707xbk8i4py4i",
+          "title": "Guitar Foundations"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "scheduled": 0
+      },
+      {
+        "id": "cmw0wbw6g000n07xbkryxal1d",
+        "plannedClasses": 6,
+        "durationMins": 60,
+        "classesPerWeek": 1,
+        "preferredDays": [],
+        "preferredTimeBands": [],
+        "preferredFromTime": null,
+        "preferredToTime": null,
+        "preferredClassesPerWeek": null,
+        "schedulePreference": null,
+        "student": {
+          "firstName": "Ife",
+          "lastName": "Obi"
+        },
+        "course": {
+          "id": "cmw0wbw62000707xbk8i4py4i",
+          "title": "Guitar Foundations"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "scheduled": 0
+      },
+      {
+        "id": "cmw0wbw6f000k07xbsycnyyge",
+        "plannedClasses": 6,
+        "durationMins": 45,
+        "classesPerWeek": 1,
+        "preferredDays": [
+          "Monday"
+        ],
+        "preferredTimeBands": [
+          "morning"
+        ],
+        "preferredFromTime": null,
+        "preferredToTime": null,
+        "preferredClassesPerWeek": 1,
+        "schedulePreference": null,
+        "student": {
+          "firstName": "Dayo",
+          "lastName": "Ade"
+        },
+        "course": {
+          "id": "cmw0wbw62000707xbk8i4py4i",
+          "title": "Guitar Foundations"
+        },
+        "location": {
+          "name": "Lagos"
+        },
+        "scheduled": 2
+      }
+    ]
+  }
+}

@@ -1,26 +1,27 @@
 import type { Metadata } from "next"
 
 import { Display, Eyebrow, PillAnchor, PillLink } from "@/components/site/primitives"
-import { TestimonialWall } from "@/components/site/testimonials/testimonial-wall"
-import { TESTIMONIALS } from "@/components/site/testimonials/testimonials"
+import { TestimonialCard } from "@/components/site/testimonials/testimonial-card"
+import { getPublishedTestimonials } from "@/lib/site-content-queries"
 import { SITE_EMAIL, SITE_EMAIL_MAILTO, SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
   title: "Student stories | Banafix",
   description:
-    "What Banafix students say about learning piano, guitar, drums, vocals and violin in Lekki, Lagos.",
+    "What Banafix students and parents say about learning at the studio in Lekki, Lagos.",
 }
 
 /**
- * /testimonials — page header, the filterable wall, and a real "share yours"
- * block.
- *
- * The old page ended in a <form> with no `action`, no `onSubmit` and no API
- * behind it: filling it in and pressing Submit did nothing, silently. There is
- * no Testimonial model to POST to, so rather than fake a backend the block
- * below routes people to the channels that actually reach the team.
+ * /testimonials renders only testimonials an admin has published with the
+ * person's permission (`Testimonial`). With none, it says so plainly. Read per
+ * request so an admin publish shows up immediately and the build needs no
+ * database.
  */
-export default function TestimonialsPage() {
+export const dynamic = "force-dynamic"
+
+export default async function TestimonialsPage() {
+  const testimonials = await getPublishedTestimonials()
+
   return (
     <div className="bfx-rise">
       <section className="bfx-shell pt-16 pb-11">
@@ -30,14 +31,30 @@ export default function TestimonialsPage() {
             In their words
           </Display>
           <p className="bfx-pretty text-[18px] leading-[1.6] text-bfx-body">
-            Adults who started from nothing, parents who stopped fighting Lagos traffic, students
-            preparing for grades. Filter by instrument or level to find someone like you.
+            What our students and their parents say about learning at Banafix, shared with their
+            permission.
           </p>
         </div>
       </section>
 
       <section className="bfx-shell pb-20">
-        <TestimonialWall testimonials={TESTIMONIALS} />
+        {testimonials.length > 0 ? (
+          <div className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]">
+            {testimonials.map((item) => (
+              <TestimonialCard key={item.id} item={item} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[22px] border border-bfx-border bg-bfx-surface px-8 py-14 text-center">
+            <p className="font-display text-[26px] leading-none tracking-[-0.02em] text-bfx-ink">
+              No stories here yet
+            </p>
+            <p className="mx-auto mt-3 max-w-[420px] text-[15px] leading-[1.6] text-bfx-body-2">
+              We only publish what students and parents have agreed to share. Their words will
+              appear here once they have.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Share yours — replaces a submission form that had no handler and no

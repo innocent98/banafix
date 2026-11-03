@@ -10,14 +10,14 @@
  */
 
 import type * as React from "react"
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { Display, PillLink } from "@/components/site/primitives"
 import { formatNaira } from "@/lib/site"
 
 interface VerifyResult {
-  status: "completed" | "pending" | "failed"
+  status: "completed" | "pending" | "failed" | "received"
   amount: number
   receiptNumber: string
   enrollment: {
@@ -127,17 +127,21 @@ function SuccessSkeleton() {
 function SuccessContent() {
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") || searchParams.get("trxref")
+  // `?application=<id>`: the generic "received" page an applicant is sent to when no card payment is
+  // needed from this form. It deliberately says nothing about why, and looks nothing up.
+  const application = searchParams.get("application")
 
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [error, setError] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
+  const quietRecheck = useRef(false) // background re-checks must not flash the loading skeleton
 
   const retry = useCallback(() => setReloadToken((token) => token + 1), [])
 
   useEffect(() => {
     if (!reference) {
-      setError("No payment reference found.")
+      if (!application) setError("No payment reference found.")
       setLoading(false)
       return
     }
@@ -145,7 +149,8 @@ function SuccessContent() {
     let cancelled = false
 
     const verify = async () => {
-      setLoading(true)
+      if (!quietRecheck.current) setLoading(true)
+      quietRecheck.current = false
       setError("")
       try {
         const response = await fetch(
@@ -173,7 +178,48 @@ function SuccessContent() {
     }
   }, [reference, reloadToken])
 
+  // The webhook settles the payment, so right after Paystack redirects back the DB may still say
+  // pending for a few seconds. Re-check quietly (8 times, 3s apart) before asking the user to.
+  const [autoChecks, setAutoChecks] = useState(0)
+  useEffect(() => {
+    if (!reference || result?.status !== "pending" || autoChecks >= 8) return
+    const timer = setTimeout(() => {
+      quietRecheck.current = true
+      setAutoChecks((count) => count + 1)
+      setReloadToken((token) => token + 1)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [reference, result, autoChecks])
+
   /* ------------------------------------------------------------- loading */
+
+  if (!reference && application) {
+    return (
+      <Shell>
+        <Panel
+          glyph="✓"
+          tone="ok"
+          title="Application received"
+          actions={
+            <>
+              <PillLink href="/courses" variant="amber" size="md">
+                Browse courses
+              </PillLink>
+              <PillLink href="/contact" variant="outlineSoft" size="md">
+                Contact us
+              </PillLink>
+            </>
+          }
+        >
+          <p>
+            Thank you. Our team will confirm your application with you before anything else
+            happens, and we will contact you to arrange your assessment. If you have paid the
+            assessment fee before, you will not be charged for it again.
+          </p>
+        </Panel>
+      </Shell>
+    )
+  }
 
   if (loading) return <SuccessSkeleton />
 
@@ -248,6 +294,43 @@ function SuccessContent() {
   }
 
   /* ------------------------------------------------------------- pending */
+
+  /* ------------------------------------------------------------ received */
+
+  // Money arrived but the payment was recorded for follow-up (for example a second payment of an
+  // already paid fee). Honest wording: we have it, a person will sort out the rest.
+  if (result.status === "received") {
+    return (
+      <Shell>
+        <Panel
+          glyph="✓"
+          tone="note"
+          title="We have received your payment"
+          actions={
+            <>
+              <PillLink href="/contact" variant="amber" size="md">
+                Contact us
+              </PillLink>
+              <PillLink href="/courses" variant="outlineSoft" size="md">
+                Browse courses
+              </PillLink>
+            </>
+          }
+        >
+          <p>
+            Thank you, {result.enrollment.firstName}. Your payment has reached us and our team will
+            confirm your application and be in touch. If you were charged more than once, we will
+            refund the extra payment.
+          </p>
+          {reference ? (
+            <p className="mt-3 text-[14px] text-bfx-muted">
+              Quote reference <span className="font-mono text-bfx-ink">{reference}</span> if you contact us.
+            </p>
+          ) : null}
+        </Panel>
+      </Shell>
+    )
+  }
 
   if (result.status === "pending") {
     return (

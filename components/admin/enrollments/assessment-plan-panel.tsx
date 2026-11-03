@@ -19,7 +19,9 @@ import { canTransition } from "@/lib/enrollment-status"
 import { planTotal } from "@/lib/offering-rates"
 import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BAND_LABELS, isArrangement, isTimeBand } from "@/lib/assessment-vocab"
 import { formatNaira } from "@/lib/site"
-import { StatusBadge } from "./status-badge"
+import { StatusBadge, PaymentStatusBadge } from "./status-badge"
+import { RefundDialog } from "./refund-dialog"
+import { formatCurrency, type ApplicationPayment } from "./types"
 
 interface Rate { durationMins: number; pricePerClass: number }
 interface OfferingSummary {
@@ -45,6 +47,7 @@ interface AssessmentRow {
   completedAt: string | null
   assessor: { id: string; name: string } | null
 }
+interface MaterialRow { id: string; name: string; price: number; required: boolean }
 interface Detail {
   enrollment: {
     id: string
@@ -59,9 +62,19 @@ interface Detail {
     offering: { id: string; deliveryMode: { name: string } } | null
     course: { id: string; title: string }
     student: { firstName: string; lastName: string; address: string | null; landmark: string | null }
+    applicationPayments: ApplicationPayment[]
+    feeCoveredBy: { id: string; amount: number; receiptNumber: string; paidAt: string | null } | null
   }
   assessments: AssessmentRow[]
   offerings: OfferingSummary[]
+  /** Active materials of the course: required ones are always charged, optional ones are picked here. */
+  materials?: MaterialRow[]
+  reusableAssessment: {
+    id: string
+    resultLevel: string | null
+    completedAt: string | null
+    enrollment: { id: string; course: { title: string } }
+  } | null
 }
 
 interface Props {
@@ -156,7 +169,8 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const [notice, setNotice] = useState("")
   const [busy, setBusy] = useState(false)
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([])
-  const [confirming, setConfirming] = useState<null | "confirm" | "cancel">(null)
+  const [confirming, setConfirming] = useState<null | "confirm" | "cancel" | "reuse">(null)
+  const [refundPayment, setRefundPayment] = useState<ApplicationPayment | null>(null)
   const [cancelReason, setCancelReason] = useState("")
   const [addingRecord, setAddingRecord] = useState(false)
 
@@ -175,6 +189,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const [planDuration, setPlanDuration] = useState("")
   const [planPerWeek, setPlanPerWeek] = useState("")
   const [plannedClasses, setPlannedClasses] = useState("")
+  const [optionalMaterialIds, setOptionalMaterialIds] = useState<string[]>([])
 
   const load = useCallback(async () => {
     if (!enrollmentId) return
@@ -198,6 +213,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
     setNotice("")
     setAddingRecord(false)
     setConfirming(null)
+    setRefundPayment(null)
     setCancelReason("")
     if (!enrollmentId) return
     load()
@@ -244,6 +260,20 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
     setPlanDuration(e.durationMins != null ? String(e.durationMins) : "")
     setPlanPerWeek(e.classesPerWeek != null ? String(e.classesPerWeek) : "")
     setPlannedClasses(e.plannedClasses != null ? String(e.plannedClasses) : "")
+    setOptionalMaterialIds([])
+    // Editing an agreed plan recreates its charges, so start from the optional materials already charged.
+    if (e.status === "plan_agreed") {
+      const forEnrollment = e.id
+      api("GET", `/api/admin/enrollments/${forEnrollment}/tuition`)
+        .then(({ ok, data }) => {
+          if (!ok) return
+          const charged = ((data.charges ?? []) as Array<{ origin: string; kind: string; materialId?: string | null; voidedAt?: string | null }>)
+            .filter((c) => c.origin === "PLAN" && c.kind === "MATERIAL" && !c.voidedAt && c.materialId)
+            .map((c) => c.materialId as string)
+          setOptionalMaterialIds(charged)
+        })
+        .catch(() => {})
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey])
 
@@ -251,8 +281,15 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const planOffering = pricedOfferings.find((o) => o.id === planOfferingId)
   const rateForPlan = planOffering?.rates.find((r) => String(r.durationMins) === planDuration)?.pricePerClass
   const plannedN = Number(plannedClasses)
-  const previewTotal =
+  const classesTotal =
     rateForPlan != null && Number.isInteger(plannedN) && plannedN > 0 ? planTotal(rateForPlan, plannedN) : null
+  const courseMaterials = detail?.materials ?? []
+  const requiredMaterials = courseMaterials.filter((m) => m.required)
+  const optionalMaterials = courseMaterials.filter((m) => !m.required)
+  const chosenOptional = optionalMaterials.filter((m) => optionalMaterialIds.includes(m.id))
+  const materialsTotal =
+    requiredMaterials.reduce((sum, m) => sum + m.price, 0) + chosenOptional.reduce((sum, m) => sum + m.price, 0)
+  const previewTotal = classesTotal != null ? classesTotal + materialsTotal : null
 
   // Keep duration / classes-per-week valid for the chosen offering.
   useEffect(() => {
@@ -339,6 +376,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
           durationMins: Number(planDuration),
           classesPerWeek: Number(planPerWeek),
           plannedClasses: Number(plannedClasses),
+          materialIds: chosenOptional.map((m) => m.id),
         }),
       "Failed to save plan",
       status === "plan_agreed" ? "Plan updated" : "Plan agreed",
@@ -350,6 +388,18 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
       () => api("POST", `/api/admin/enrollments/${enrollmentId}/confirm`, {}),
       "Failed to confirm enrolment",
       "Enrolment confirmed",
+    )
+    if (ok) setConfirming(null)
+  }
+
+  const doReuse = async () => {
+    const ok = await run(
+      () => api("POST", `/api/admin/enrollments/${enrollmentId}/assessment/reuse`, {
+          // The assessment the admin was shown, so a newer result is never copied instead.
+          sourceAssessmentId: detail?.reusableAssessment?.id,
+        }),
+      "Failed to reuse assessment",
+      "Previous assessment reused; the student is now Assessed",
     )
     if (ok) setConfirming(null)
   }
@@ -385,6 +435,9 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const canPlan = status === "assessed" || status === "plan_agreed"
   const canConfirm = canTransition(status, "enrolled")
   const canCancel = canTransition(status, "cancelled")
+  const reusable = status === "assessment_paid" ? detail?.reusableAssessment ?? null : null
+  const duplicates = enr?.applicationPayments.filter((p) => p.status === "duplicate") ?? []
+  const refundedPayments = enr?.applicationPayments.filter((p) => p.status === "refunded") ?? []
   const showResultForm = canRecord || (isLegacyEnrolled && addingRecord)
 
   return (
@@ -414,6 +467,45 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
                   {[enr.location?.name, enr.offering?.deliveryMode.name].filter(Boolean).join(" • ") || "No location recorded (legacy)"}
                 </span>
               </div>
+
+              {enr.feeCoveredBy && (
+                <Alert>
+                  <AlertDescription>
+                    Fee already covered by receipt {enr.feeCoveredBy.receiptNumber}
+                    {enr.feeCoveredBy.paidAt && `, paid ${new Date(enr.feeCoveredBy.paidAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                    . No second assessment fee is charged for this student.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {(duplicates.length > 0 || refundedPayments.length > 0) && (
+                <Section
+                  title="Duplicate payments"
+                  hint="A second assessment-fee payment arrived after the fee was already covered. Refund it by hand in the Paystack dashboard, then record it here."
+                >
+                  <div className="space-y-2">
+                    {[...duplicates, ...refundedPayments].map((p) => (
+                      <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-3 text-sm">
+                        <div>
+                          <p className="font-medium">{formatCurrency(p.amount)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Receipt {p.receiptNumber}
+                            {p.status === "refunded" && p.refundedAt && `, refunded ${new Date(p.refundedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <PaymentStatusBadge status={p.status} />
+                          {p.status === "duplicate" && (
+                            <Button size="sm" variant="outline" onClick={() => setRefundPayment(p)} disabled={busy}>
+                              Mark refunded
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              )}
 
               {latest ? (
                 <div className="grid grid-cols-1 gap-3 rounded-lg bg-muted p-4 text-sm sm:grid-cols-2">
@@ -461,6 +553,23 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
 
               {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
               {notice && <Alert><AlertDescription>{notice}</AlertDescription></Alert>}
+
+              {/* Reuse a previous assessment */}
+              {reusable && (
+                <Section
+                  title="Reuse latest assessment"
+                  hint="This student has already been assessed. Copy that result instead of scheduling a new assessment, or schedule a new one below."
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm">
+                      <span className="font-medium">{reusable.resultLevel}</span>
+                      {` - ${reusable.enrollment.course.title}`}
+                      {reusable.completedAt && `, ${new Date(reusable.completedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}`}
+                    </p>
+                    <Button onClick={() => setConfirming("reuse")} disabled={busy}>Reuse latest assessment</Button>
+                  </div>
+                </Section>
+              )}
 
               {/* Schedule */}
               {canSchedule ? (
@@ -587,13 +696,46 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
                           <Input id="plannedClasses" type="number" min={1} step={1} value={plannedClasses} onChange={(e) => setPlannedClasses(e.target.value)} />
                         </div>
                       </div>
+                      {courseMaterials.length > 0 && (
+                        <div className="space-y-2 rounded-lg border p-3 text-sm" data-testid="plan-materials">
+                          <p className="font-medium">Books and materials</p>
+                          {requiredMaterials.map((m) => (
+                            <label key={m.id} className="flex items-center gap-2">
+                              <input type="checkbox" checked disabled className="rounded border-gray-300" />
+                              <span>{m.name} • {formatNaira(m.price)}</span>
+                              <span className="text-xs text-muted-foreground">Included</span>
+                            </label>
+                          ))}
+                          {optionalMaterials.map((m) => (
+                            <label key={m.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300"
+                                checked={optionalMaterialIds.includes(m.id)}
+                                onChange={(ev) =>
+                                  setOptionalMaterialIds((ids) => (ev.target.checked ? [...ids, m.id] : ids.filter((id) => id !== m.id)))
+                                }
+                              />
+                              <span>{m.name} • {formatNaira(m.price)}</span>
+                              <span className="text-xs text-muted-foreground">Optional</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
                       <div className="rounded-lg bg-muted p-3 text-sm" data-testid="plan-preview">
-                        {rateForPlan != null && previewTotal != null ? (
-                          <p className="font-medium">{formatNaira(rateForPlan)} × {plannedN} = {formatNaira(previewTotal)}</p>
+                        {rateForPlan != null && classesTotal != null && previewTotal != null ? (
+                          <>
+                            <p className="font-medium">{formatNaira(rateForPlan)} × {plannedN} = {formatNaira(classesTotal)}</p>
+                            {materialsTotal > 0 && <p className="font-medium">Materials: {formatNaira(materialsTotal)}</p>}
+                            {materialsTotal > 0 && <p className="mt-1 font-semibold">Total: {formatNaira(previewTotal)}</p>}
+                          </>
                         ) : (
                           <p className="text-muted-foreground">Choose a class length and enter the planned classes to see the total.</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">The rate is locked in when the plan is agreed.</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          The rate and material prices are locked in when the plan is agreed.
+                          {status === "plan_agreed" && " Saving voids and recreates this plan's charges (any extra charges added later stay)."}
+                        </p>
                       </div>
                       <Button type="submit" disabled={busy || !planOfferingId || !planDuration || !planPerWeek || previewTotal == null}>
                         {status === "plan_agreed" ? "Update plan" : "Agree plan"}
@@ -646,6 +788,27 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
         busy={busy}
         onConfirm={doConfirm}
         onCancel={() => setConfirming(null)}
+      />
+      <ConfirmDialog
+        open={confirming === "reuse"}
+        title="Reuse latest assessment"
+        description={
+          reusable
+            ? `Copy "${reusable.resultLevel}" (${reusable.enrollment.course.title}${reusable.completedAt ? `, ${new Date(reusable.completedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : ""}) onto this enrollment. The student moves to Assessed and no new assessment is scheduled.`
+            : "No assessment available to reuse."
+        }
+        confirmLabel="Reuse assessment"
+        busy={busy}
+        onConfirm={doReuse}
+        onCancel={() => setConfirming(null)}
+      />
+      <RefundDialog
+        payment={refundPayment}
+        onClose={() => setRefundPayment(null)}
+        onDone={() => {
+          load()
+          onChanged()
+        }}
       />
       <ConfirmDialog
         open={confirming === "cancel"}

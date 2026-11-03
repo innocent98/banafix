@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
-import { isNonNegativeInt, slugify, uniqueSlug } from '@/lib/admin-validation'
+import { isNonNegativeInt, isPositiveInt, slugify, uniqueSlug } from '@/lib/admin-validation'
 
 // GET /api/admin/locations - all locations (inactive included) with usage counts
 export const GET = withAuth(async () => {
@@ -27,8 +27,8 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     if (body.kind !== 'PHYSICAL' && body.kind !== 'ONLINE') {
       return createErrorResponse('Kind must be PHYSICAL or ONLINE', 400)
     }
-    if (!isNonNegativeInt(body.assessmentFee)) {
-      return createErrorResponse('Assessment fee must be a non-negative whole number', 400)
+    if (!isPositiveInt(body.assessmentFee)) {
+      return createErrorResponse('Assessment fee must be a whole number of naira greater than 0', 400)
     }
     if (body.order !== undefined && !Number.isInteger(body.order)) {
       return createErrorResponse('Order must be a whole number', 400)

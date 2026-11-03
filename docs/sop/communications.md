@@ -50,6 +50,7 @@ rewriting the webhook's PDF receipts onto the outbox (attachments, and the webho
 | Event | Trigger | Default | Notes |
 |---|---|---|---|
 | `application_received` | public enrol POST after payment init | email, applicant only | replaces `sendEnrollmentConfirmation` |
+| `application_covered` | public enrol POST when the student's fee is already covered (#12) | email, applicant only | replaces `sendApplicationFeeCovered`; greets by the STORED student name |
 | `assessment_paid` | `pending → assessment_paid` | **none** | the webhook's PDF receipt is the email; switch SMS/WhatsApp on in Templates later |
 | `assessment_scheduled` | `→ assessment_scheduled`, and a reschedule | email, student + guardian | key carries the slot, so a new slot re-notifies |
 | `assessed` | `→ assessed` | email | never includes the result |
@@ -102,11 +103,14 @@ rewriting the webhook's PDF receipts onto the outbox (attachments, and the webho
    `DATABASE_URL=… npx tsx scripts/test-messaging.ts` (refuses non-local databases). **Never `npm install` without `--ignore-scripts`**
    here: `postinstall` runs `prisma migrate deploy` against whatever `DATABASE_URL` is.
 
+## Merge with banafix (2026-11-04)
+Merged `origin/banafix` (#10–#12, #14, #15) into this branch. Conflicts and resolutions: `lib/throttle.ts` (both added it: kept banafix's `isThrottled`, the feedback route now uses it); `app/api/enrollments/route.ts` (kept the fee-once-per-student path; both acknowledgement emails now go through the outbox: `application_received` and the new `application_covered`); `components/admin/admin-layout.tsx` (identical fix on both sides, took banafix's); blueprint and checklist (kept every stream's content, comms is §5.4). Emission also now reads the **stored** student identity (name, email) instead of the enrollment's public-form copies. The full migration chain (14 migrations, including the already-deployed `communications_outbox`) applies to an empty Postgres with no drift. All status writes in the merged flows (`mark-paid`, covered fee, `assessment/reuse`, plan, tuition payment, confirm) go through `transitionEnrollment`, so the hook fires for each; cancellations send nothing. Still direct sends, by design: the webhook's PDF receipts and admin alerts, tuition receipts and tuition admin alerts (attachments / admin-only).
+
 ## Follow-ups
-- **Wire promote-to-testimonial** once PR #11 (Testimonial model) is in the base: implement `createTestimonial` in
-  `lib/feedback-promotion.ts` (TODO there) and remove the 501 branch in `app/api/admin/feedback/[id]/promote/route.ts`. Until then the button reports "not available yet".
+- ~~Wire promote-to-testimonial~~ **done on the merge with banafix**: `createTestimonial` in `lib/feedback-promotion.ts` now writes an unpublished Stream 8 `Testimonial` (consent required, 409 otherwise; review it in `/admin/testimonials`). Not exercised in a browser after the merge.
+- **Scheduling hooks:** `lib/scheduling/hooks.ts` (Stream 4) are still no-ops. Wire them to the outbox with the reserved `class_scheduled` / `class_reminder` templates (they run after commit, so a plain `enqueueMessages` + drain fits).
 - Unsubscribe link/endpoint for marketing email (NDPR practice); delivery-receipt webhooks from the future provider.
 - Consent for parents has no field of its own: derived from their children's enrollments. Unlinked parents are skipped (question for John).
 - Stream 4: emit `class_scheduled` / `class_reminder` through `emitEnrollmentEvent`-style calls (templates are reserved and inactive).
 - The public enrolment POST has no rate limit of its own (pre-existing); the acknowledgement it triggers goes only to the applicant's typed address.
-- Contact form could adopt `lib/throttle.ts`; `lib/email.ts`'s `sendEnrollmentConfirmation` / `sendBirthdayEmail` are now unused (kept, not deleted).
+- The feedback form reuses `lib/throttle.ts` (`isThrottled`, from the fee-once-per-student work); the contact form could too; `lib/email.ts`'s `sendEnrollmentConfirmation` / `sendBirthdayEmail` are now unused (kept, not deleted).

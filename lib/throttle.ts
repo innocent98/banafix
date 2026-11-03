@@ -1,28 +1,22 @@
-import type { NextRequest } from 'next/server'
-
 /**
- * Per-IP in-memory throttle (per lambda instance: slows a naive flood, no global cap, no Redis).
- * Same trade-off as /api/contact; if abuse becomes real, move it to the edge.
+ * Best-effort in-memory sliding-window throttle (same approach as POST /api/contact). It is per
+ * server instance, so it slows casual abuse of an unauthenticated route; it is not a hard limit.
  */
-export function createThrottle(opts: { windowMs: number; max: number }) {
-  const hits = new Map<string, number[]>()
-  return function isThrottled(key: string): boolean {
-    const now = Date.now()
-    const recent = (hits.get(key) ?? []).filter((t) => now - t < opts.windowMs)
-    if (recent.length >= opts.max) {
-      hits.set(key, recent)
-      return true
-    }
-    recent.push(now)
-    hits.set(key, recent)
-    if (hits.size > 500) {
-      for (const [k, stamps] of hits) if (stamps.every((t) => now - t >= opts.windowMs)) hits.delete(k)
-    }
-    return false
-  }
-}
+const buckets = new Map<string, number[]>()
 
-export function clientIp(req: NextRequest): string {
-  const first = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  return first || req.headers.get('x-real-ip') || 'unknown'
+/** Records a hit and returns true when `key` has exceeded `max` hits within `windowMs`. */
+export function isThrottled(key: string, max: number, windowMs: number, now = Date.now()): boolean {
+  const recent = (buckets.get(key) ?? []).filter((t) => now - t < windowMs)
+  if (recent.length >= max) {
+    buckets.set(key, recent)
+    return true
+  }
+  recent.push(now)
+  buckets.set(key, recent)
+  if (buckets.size > 5000) {
+    for (const [k, stamps] of buckets) {
+      if (stamps.every((t) => now - t >= windowMs)) buckets.delete(k)
+    }
+  }
+  return false
 }

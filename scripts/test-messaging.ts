@@ -73,6 +73,15 @@ async function main() {
   n = await emitEnrollmentEvent(prisma, e1.id, 'application_received')
   ok('replay enqueues nothing (idempotent)', n === 0, n)
 
+  // The stored student name is the identity, not the (public, unauthenticated) request body's copy
+  await prisma.enrollment.update({ where: { id: e1.id }, data: { firstName: 'Spoofed', email: 'someone-else@s7.test' } })
+  const covered = await mkEnrollment((await mkStudent('cov')).id, 'cov')
+  await prisma.enrollment.update({ where: { id: covered.id }, data: { firstName: 'Spoofed', guardianEmail: 'victim@s7.test' } })
+  n = await emitEnrollmentEvent(prisma, covered.id, 'application_covered')
+  const covRow = await prisma.outboundMessage.findFirst({ where: { enrollmentId: covered.id, templateKey: 'application_covered' } })
+  ok('application_covered: one row to the stored student address, greeted by the STORED name', n === 1 && covRow?.toAddress === 'cov@s7.test' && covRow.body.startsWith('Hi cov,'), covRow)
+  ok('application_covered replay adds nothing', (await emitEnrollmentEvent(prisma, covered.id, 'application_covered')) === 0)
+
   // ── B. transition → one set of rows; replay and race do not duplicate ─────────
   await saveTemplate(prisma, 'assessment_paid', {
     channels: ['EMAIL', 'SMS', 'WHATSAPP'], isActive: true,

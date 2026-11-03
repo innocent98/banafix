@@ -19,6 +19,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserPlus } from "lucide-react"
 import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BANDS, TIME_BAND_LABELS } from "@/lib/assessment-vocab"
 import { formatNaira } from "@/lib/site"
+import {
+  EMPTY_SCHEDULE_PREFS,
+  SchedulePreferencesFields,
+  scheduleTimeError,
+  schedulePrefsPayload,
+  type SchedulePrefsValue,
+} from "./schedule-preferences-fields"
 
 interface CourseLite {
   id: string
@@ -69,7 +76,6 @@ const EMPTY = {
   preferredTimeBand: "",
   scheduleAssessmentAt: "",
   priorLevel: "",
-  schedulePreference: "",
   musicExperience: "",
   goals: "",
   specialRequests: "",
@@ -87,11 +93,13 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const [feePaid, setFeePaid] = useState(true)
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const [consentToEmails, setConsentToEmails] = useState(false)
+  const [prefs, setPrefs] = useState<SchedulePrefsValue>({ ...EMPTY_SCHEDULE_PREFS })
   const [courses, setCourses] = useState<CourseLite[]>([])
   const [locations, setLocations] = useState<LocationLite[]>([])
   const [offerings, setOfferings] = useState<OfferingLite[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [coveredNote, setCoveredNote] = useState("")
 
   const token = () => (typeof window !== "undefined" ? localStorage.getItem("admin_token") : null)
 
@@ -101,7 +109,9 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     setFeePaid(true)
     setPaymentMethod("cash")
     setConsentToEmails(false)
+    setPrefs({ ...EMPTY_SCHEDULE_PREFS })
     setError("")
+    setCoveredNote("")
     setOfferings([])
     const headers = { Authorization: `Bearer ${token()}` }
     fetch(`/api/admin/locations`, { headers })
@@ -139,8 +149,13 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setCoveredNote("")
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.locationId || !form.courseId) {
       setError("First name, last name, email, location and course are required")
+      return
+    }
+    if (scheduleTimeError(prefs.preferredFromTime, prefs.preferredToTime)) {
+      setError("The earliest class time must be before the latest")
       return
     }
     setSaving(true)
@@ -150,6 +165,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         body: JSON.stringify({
           ...form,
+          ...schedulePrefsPayload(prefs),
           offeringId: form.offeringId || undefined,
           preferredDate: form.preferredDate || undefined,
           preferredTimeBand: form.preferredTimeBand || undefined,
@@ -159,10 +175,18 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
           consentToEmails,
         }),
       })
-      const d = await res.json()
+      const d = await res.json().catch(() => ({}))
       if (res.ok) {
         onRegistered()
-        onClose()
+        if (d.feeCovered) {
+          // Keep the dialog open so the note is read; the list behind it already refreshed.
+          setCoveredNote("Registered. Assessment fee already covered for this student, no fee recorded.")
+        } else {
+          onClose()
+        }
+      } else if (res.status === 409) {
+        // Conflict (e.g. fee already paid): the server message says exactly what to do.
+        setError(d.error || d.message || "This registration conflicts with an existing record")
       } else {
         setError(d.message || d.error || "Failed to register student")
       }
@@ -274,7 +298,10 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label htmlFor="schedulePreference">Schedule preference</Label><Input id="schedulePreference" placeholder="e.g. weekday-afternoon" value={form.schedulePreference} onChange={set("schedulePreference")} /></div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">When would the student like classes?</h4>
+              <SchedulePreferencesFields value={prefs} onChange={setPrefs} />
             </div>
             <div><Label htmlFor="goals">Goals</Label><Textarea id="goals" rows={2} value={form.goals} onChange={set("goals")} /></div>
             <div><Label htmlFor="musicExperience">Music experience</Label><Textarea id="musicExperience" rows={2} value={form.musicExperience} onChange={set("musicExperience")} /></div>
@@ -350,10 +377,11 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
           </section>
 
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          {coveredNote && <Alert><AlertDescription>{coveredNote}</AlertDescription></Alert>}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? "Registering…" : "Register Student"}</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{coveredNote ? "Close" : "Cancel"}</Button>
+            {!coveredNote && <Button type="submit" disabled={saving}>{saving ? "Registering…" : "Register Student"}</Button>}
           </DialogFooter>
         </form>
       </DialogContent>

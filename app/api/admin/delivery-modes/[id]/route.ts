@@ -50,6 +50,15 @@ export const DELETE = withAuth(async (req: NextRequest, admin, { params }: { par
       )
     }
 
+    // Offerings reference the mode with a restricting FK: say so instead of a 500.
+    const offeringsUsingMode = await prisma.courseOffering.count({ where: { deliveryModeId: id } })
+    if (offeringsUsingMode > 0) {
+      return createErrorResponse(
+        `Cannot delete delivery mode. It is used by ${offeringsUsingMode} course offering(s). Deactivate it instead.`,
+        409
+      )
+    }
+
     await prisma.deliveryMode.delete({
       where: { id },
     })

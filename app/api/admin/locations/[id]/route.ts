@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
-import { isNonNegativeInt, slugify, uniqueSlug } from '@/lib/admin-validation'
+import { isNonNegativeInt, isPositiveInt, slugify, uniqueSlug } from '@/lib/admin-validation'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -50,8 +50,8 @@ export const PATCH = withAuth(async (req: NextRequest, admin, context: Ctx) => {
       data.kind = body.kind
     }
     if (body.assessmentFee !== undefined) {
-      if (!isNonNegativeInt(body.assessmentFee)) {
-        return createErrorResponse('Assessment fee must be a non-negative whole number', 400)
+      if (!isPositiveInt(body.assessmentFee)) {
+        return createErrorResponse('Assessment fee must be a whole number of naira greater than 0', 400)
       }
       data.assessmentFee = body.assessmentFee
     }
@@ -104,14 +104,14 @@ export const DELETE = withAuth(async (req: NextRequest, admin, context: Ctx) => 
     const { id } = await context.params
     const location = await prisma.location.findUnique({
       where: { id },
-      include: { _count: { select: { offerings: true, enrollments: true } } },
+      include: { _count: { select: { offerings: true, enrollments: true, availability: true } } },
     })
     if (!location) return createErrorResponse('Location not found', 404)
 
-    const { offerings, enrollments } = location._count
-    if (offerings > 0 || enrollments > 0) {
+    const { offerings, enrollments, availability } = location._count
+    if (offerings > 0 || enrollments > 0 || availability > 0) {
       return createErrorResponse(
-        `Cannot delete: ${offerings} offering(s) and ${enrollments} enrollment(s) reference this location. Deactivate it instead.`,
+        `Cannot delete: ${offerings} offering(s), ${enrollments} enrollment(s) and ${availability} instructor availability window(s) reference this location. Deactivate it instead.`,
         409,
       )
     }

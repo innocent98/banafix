@@ -15,6 +15,7 @@ describe('enrollment status guard', () => {
     ['assessed', 'plan_agreed'],
     ['plan_agreed', 'enrolled'],
     ['assessed', 'assessment_scheduled'], // re-assessment (B5)
+    ['assessment_paid', 'assessed'], // reuse latest assessment (B16)
   ])('allows %s -> %s', (from, to) => {
     expect(canTransition(from, to)).toBe(true)
   })
@@ -29,6 +30,8 @@ describe('enrollment status guard', () => {
     ['pending', 'enrolled'],
     ['pending', 'plan_agreed'],
     ['assessment_paid', 'enrolled'],
+    ['assessment_paid', 'plan_agreed'],
+    ['pending', 'assessed'],
     ['assessed', 'pending'],
     ['assessed', 'enrolled'],
     ['plan_agreed', 'assessed'],

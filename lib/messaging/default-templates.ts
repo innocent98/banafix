@@ -29,6 +29,15 @@ ${SIGN_OFF}`,
     shortBody:
       'Banafix: we received your application for {{courseTitle}}. Please complete the assessment fee payment to book your assessment.',
   },
+  application_covered: {
+    subject: 'Application received: {{courseTitle}}',
+    body: `Hi {{firstName}},
+
+We have received an application for {{courseTitle}} using this email address.
+
+Our team will confirm it with you before anything else happens. If you have paid the assessment fee before, you will not be charged for it again. If this was not you, please contact us at {{supportEmail}}.`,
+    shortBody: 'Banafix: we received an application for {{courseTitle}}. Our team will confirm it with you. No new assessment fee is due if you have paid before.',
+  },
   assessment_paid: {
     subject: 'Assessment fee received - {{courseTitle}}',
     body: `Dear {{firstName}},

@@ -22,6 +22,7 @@ import {
   BadgeCheck,
   Download,
   UserPlus,
+  AlertTriangle,
 } from "lucide-react"
 import { TuitionPaymentModal } from "@/components/admin/tuition-payment-modal"
 import { StudentEditModal } from "@/components/admin/student-edit-modal"
@@ -29,8 +30,15 @@ import { StudentRegistrationModal } from "@/components/admin/student-registratio
 import { EnrollmentFilters } from "@/components/admin/enrollments/enrollment-filters"
 import { EnrollmentTable } from "@/components/admin/enrollments/enrollment-table"
 import { AssessmentPlanPanel } from "@/components/admin/enrollments/assessment-plan-panel"
-import { StatusBadge } from "@/components/admin/enrollments/status-badge"
-import { enrollmentLocationName, formatCurrency, type Enrollment } from "@/components/admin/enrollments/types"
+import { StatusBadge, PaymentStatusBadge } from "@/components/admin/enrollments/status-badge"
+import { RefundDialog } from "@/components/admin/enrollments/refund-dialog"
+import {
+  enrollmentLocationName,
+  formatCurrency,
+  needsRefund,
+  type ApplicationPayment,
+  type Enrollment,
+} from "@/components/admin/enrollments/types"
 
 interface EnrollmentStats {
   awaitingAssessment: number // assessment_paid + assessment_scheduled
@@ -82,6 +90,7 @@ export default function EnrollmentsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [panelEnrollmentId, setPanelEnrollmentId] = useState<string | null>(null)
   const [stats, setStats] = useState<EnrollmentStats>(EMPTY_STATS)
+  const [refundPayment, setRefundPayment] = useState<ApplicationPayment | null>(null)
 
   useEffect(() => {
     loadEnrollments()
@@ -138,6 +147,8 @@ export default function EnrollmentsPage() {
     [enrollments],
   )
 
+  const refundCount = useMemo(() => enrollments.filter(needsRefund).length, [enrollments])
+
   const filteredEnrollments = useMemo(() => {
     const term = searchTerm.toLowerCase()
     return enrollments.filter((enrollment) => {
@@ -165,6 +176,8 @@ export default function EnrollmentsPage() {
           return enrollment.tuitionPayments.some(p => p.status === 'completed')
         case "tuition_pending":
           return enrollment.applicationPaid && !enrollment.tuitionPayments.some(p => p.status === 'completed')
+        case "refund_needed":
+          return needsRefund(enrollment)
         default:
           return true
       }
@@ -177,7 +190,11 @@ export default function EnrollmentsPage() {
   }
 
   const handleMarkPaid = async (enrollment: Enrollment) => {
-    if (!confirm(`Mark the assessment fee as paid (cash) for ${enrollment.student.firstName} ${enrollment.student.lastName}? This moves the student to "Assessment paid".`)) return
+    const covered = Boolean(enrollment.feeCoveredByPaymentId)
+    const who = `${enrollment.student.firstName} ${enrollment.student.lastName}`
+    if (!confirm(covered
+      ? `${who} has already paid the assessment fee. Confirm this application? No second fee is recorded and the student moves to "Assessment paid". Only confirm if you recognise this application.`
+      : `Mark the assessment fee as paid (cash) for ${who}? This moves the student to "Assessment paid".`)) return
     try {
       const token = localStorage.getItem("admin_token")
       const res = await fetch(`/api/admin/enrollments/${enrollment.id}/mark-paid`, {
@@ -185,9 +202,12 @@ export default function EnrollmentsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ paymentMethod: "cash" }),
       })
-      if (res.ok) loadEnrollments()
-      else {
-        const d = await res.json().catch(() => ({}))
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        // A student who had already paid is covered, never charged twice: say so plainly.
+        if (d.feeCovered) alert(d.message)
+        loadEnrollments()
+      } else {
         alert(d.error || d.message || "Failed to mark fee paid")
       }
     } catch {
@@ -300,12 +320,29 @@ export default function EnrollmentsPage() {
           />
         </div>
 
+        {refundCount > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300">
+            <p className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {refundCount} {refundCount === 1 ? "application has" : "applications have"} a duplicate assessment-fee payment awaiting a refund.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaymentFilter(paymentFilter === "refund_needed" ? "all" : "refund_needed")}
+            >
+              {paymentFilter === "refund_needed" ? "Show all" : "Show refund needed"}
+            </Button>
+          </div>
+        )}
+
         <EnrollmentFilters
           searchTerm={searchTerm}
           statusFilter={statusFilter}
           paymentFilter={paymentFilter}
           locationFilter={locationFilter}
           locations={locationOptions}
+          refundCount={refundCount}
           onSearchChange={setSearchTerm}
           onStatusChange={setStatusFilter}
           onPaymentChange={setPaymentFilter}
@@ -324,6 +361,7 @@ export default function EnrollmentsPage() {
           onAssessment={(e) => setPanelEnrollmentId(e.id)}
           onPayments={handleAddPayment}
           onSendReceipt={sendReceipt}
+          onRefund={setRefundPayment}
         />
       </div>
 
@@ -385,9 +423,14 @@ export default function EnrollmentsPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                        <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
-                          {payment.status}
-                        </Badge>
+                        <PaymentStatusBadge status={payment.status} />
+                        {payment.status === 'duplicate' && (
+                          <div className="mt-1">
+                            <Button variant="outline" size="sm" className="!h-7" onClick={() => setRefundPayment(payment)}>
+                              Mark refunded
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -416,6 +459,15 @@ export default function EnrollmentsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <RefundDialog
+        payment={refundPayment}
+        onClose={() => setRefundPayment(null)}
+        onDone={() => {
+          setSelectedEnrollment(null)
+          loadEnrollments()
+        }}
+      />
 
       {/* Assessment & plan panel */}
       <AssessmentPlanPanel

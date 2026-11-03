@@ -7,13 +7,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { FEEDBACK_HONEYPOT_FIELD, validateFeedback } from '@/lib/feedback'
-import { clientIp, createThrottle } from '@/lib/throttle'
+import { isThrottled } from '@/lib/throttle'
 import { emitFeedbackNotice } from '@/lib/messaging/feedback-notice'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const isThrottled = createThrottle({ windowMs: 10 * 60 * 1000, max: 3 })
+const THROTTLE_WINDOW_MS = 10 * 60 * 1000
+const THROTTLE_MAX = 3
 
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
@@ -35,7 +36,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Throttle after validation so a typo is not punished, only submissions that would be stored.
-  if (isThrottled(clientIp(req))) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (isThrottled(`feedback:ip:${ip}`, THROTTLE_MAX, THROTTLE_WINDOW_MS)) {
     return createErrorResponse('You have sent a few messages already. Please try again in a few minutes.', 429)
   }
 

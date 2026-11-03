@@ -1,0 +1,57 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e1_1793741335532/plan",
+    "body": {
+      "offeringId": "t5_off_1793741335532",
+      "durationMins": 60,
+      "classesPerWeek": 2,
+      "plannedClasses": 8,
+      "materialIds": [
+        "t5_mato_1793741335532"
+      ]
+    }
+  },
+  "status": 200,
+  "response": {
+    "enrollment": {
+      "id": "t5_e1_1793741335532",
+      "courseId": "t5_course_1793741335532",
+      "studentId": "t5_stu_1793741335532",
+      "email": null,
+      "firstName": null,
+      "lastName": null,
+      "phone": null,
+      "dateOfBirth": null,
+      "guardianName": null,
+      "guardianPhone": null,
+      "guardianEmail": null,
+      "address": null,
+      "landmark": null,
+      "selectedMode": "T5 Mode",
+      "priorLevel": null,
+      "schedulePreference": null,
+      "preferredDays": [],
+      "musicExperience": null,
+      "goals": null,
+      "specialRequests": null,
+      "agreeToTerms": false,
+      "agreeToRefundPolicy": false,
+      "consentToEmails": false,
+      "applicationPaid": true,
+      "applicationFeeAmount": null,
+      "status": "plan_agreed",
+      "locationId": "t5_loc_1793741335532",
+      "offeringId": "t5_off_1793741335532",
+      "feeCoveredByPaymentId": null,
+      "durationMins": 60,
+      "classesPerWeek": 2,
+      "plannedClasses": 8,
+      "ratePerClass": 4000,
+      "couponCode": null,
+      "waitlistNotes": null,
+      "createdAt": "2026-11-03T22:28:55.785Z",
+      "updatedAt": "2026-11-03T21:28:55.860Z"
+    }
+  }
+}

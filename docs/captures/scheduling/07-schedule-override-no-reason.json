@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0wcbvy00020793wu5lwcpy/schedule",
+    "body": {
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
+      "startDate": "2026-11-09",
+      "overrideAvailability": true
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Say why the instructor is being booked outside their availability",
+    "code": "OVERRIDE_REASON_REQUIRED"
+  }
+}

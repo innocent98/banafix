@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/sessions/cmw0wcd2q000m0793qlq39son/reschedule",
+    "body": {
+      "startsAt": "2026-11-10T08:00:00.000Z",
+      "overrideAvailability": true,
+      "overrideReason": "Parent request"
+    }
+  },
+  "status": 200,
+  "response": {
+    "session": {
+      "id": "cmw0wcdmd000v0793zv3f3in8",
+      "enrollmentId": "cmw0wbw6f000k07xbsycnyyge",
+      "studentId": "cmw0wbw6f000i07xb16dwyhdw",
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
+      "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+      "mode": "CENTRE",
+      "startsAt": "2026-11-10T08:00:00.000Z",
+      "durationMins": 45,
+      "endsAt": "2026-11-10T08:45:00.000Z",
+      "status": "scheduled",
+      "sequence": 1,
+      "rescheduledFromId": "cmw0wcd2q000m0793qlq39son",
+      "notes": null,
+      "createdAt": "2026-11-03T16:22:50.101Z",
+      "updatedAt": "2026-11-03T16:22:50.101Z"
+    }
+  }
+}

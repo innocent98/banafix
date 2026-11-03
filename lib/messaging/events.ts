@@ -7,6 +7,7 @@ import type { Category, Channel } from './types'
  */
 export const TEMPLATE_KEYS = [
   'application_received',
+  'application_covered',
   'assessment_paid',
   'assessment_scheduled',
   'assessed',
@@ -25,6 +26,7 @@ export type TemplateKey = (typeof TEMPLATE_KEYS)[number]
 /** Enrollment lifecycle events the emitter understands (a subset of template keys). */
 export const ENROLLMENT_EVENTS = [
   'application_received',
+  'application_covered',
   'assessment_paid',
   'assessment_scheduled',
   'assessed',
@@ -54,6 +56,15 @@ export const EVENTS: Record<TemplateKey, EventDef> = {
     defaultChannels: ['EMAIL'],
     isActiveByDefault: true,
     fields: [...ENROLLMENT, 'assessmentFee'],
+  },
+  application_covered: {
+    name: 'Application received (fee already paid)',
+    description:
+      'Sent when a student who has already paid the assessment fee applies for another course. Nothing is charged; the team confirms it first. Goes to the applicant only.',
+    category: 'TRANSACTIONAL',
+    defaultChannels: ['EMAIL'],
+    isActiveByDefault: true,
+    fields: [...ENROLLMENT],
   },
   assessment_paid: {
     name: 'Assessment fee received',

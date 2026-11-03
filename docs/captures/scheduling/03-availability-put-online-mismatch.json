@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "PUT",
+    "path": "/api/admin/instructors/cmw0wbw64000907xbnqa1l35q/availability",
+    "body": {
+      "slots": [
+        {
+          "weekday": 2,
+          "start": "09:00",
+          "end": "10:00",
+          "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+          "mode": "ONLINE"
+        }
+      ]
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Lagos is a physical location: use At the centre or At home",
+    "code": "MODE_LOCATION_MISMATCH"
+  }
+}

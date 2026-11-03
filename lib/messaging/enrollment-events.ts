@@ -55,10 +55,12 @@ export async function emitEnrollmentEvent(db: EnrollmentEventDb, enrollmentId: s
 
   const allRecipients = enrollmentRecipients({
     studentId: enrollment.studentId,
-    firstName: enrollment.firstName ?? enrollment.student.firstName,
-    lastName: enrollment.lastName ?? enrollment.student.lastName,
-    email: enrollment.email ?? enrollment.student.email,
-    phone: enrollment.phone ?? enrollment.student.phone,
+    // The STORED student record is the identity: the enrollment's copies come from a public, unauthenticated
+    // form and these messages go to whatever address was typed in, so never greet by the request's name.
+    firstName: enrollment.student.firstName,
+    lastName: enrollment.student.lastName,
+    email: enrollment.student.email,
+    phone: enrollment.student.phone ?? enrollment.phone,
     guardianName: enrollment.guardianName,
     guardianEmail: enrollment.guardianEmail,
     guardianPhone: enrollment.guardianPhone,
@@ -67,7 +69,8 @@ export async function emitEnrollmentEvent(db: EnrollmentEventDb, enrollmentId: s
   // The public enrolment form is unauthenticated: before the fee is paid, the guardian address is just text
   // a stranger typed. Writing to it would turn the form into a mail relay, so the acknowledgement goes to the
   // applicant only (as it always did). The guardian is included from the paid stage onward.
-  const recipients = event === 'application_received' ? allRecipients.filter((r) => r.type === 'student') : allRecipients
+  const preAdmission = event === 'application_received' || event === 'application_covered'
+  const recipients = preAdmission ? allRecipients.filter((r) => r.type === 'student') : allRecipients
 
   const common = {
     ...baseVars(),

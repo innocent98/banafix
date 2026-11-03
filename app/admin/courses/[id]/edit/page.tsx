@@ -87,7 +87,7 @@ interface Course {
     id: string
     module: number
     title: string
-    weeks: string
+    weeks: string | null
     outcomes: string[]
     tasks: string[]
     order: number
@@ -329,8 +329,8 @@ export default function EditCoursePage() {
   }
 
   const addCurriculumModule = async () => {
-    if (!newCurriculumModule.title || !newCurriculumModule.weeks) {
-      setError("Module title and weeks are required")
+    if (!newCurriculumModule.title) {
+      setError("Module title is required")
       return
     }
 
@@ -1059,6 +1059,9 @@ export default function EditCoursePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Course Modules ({course.curriculum?.length || 0})</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    A course normally has 12 modules. That is a convention, not a limit.
+                  </p>
                 </CardHeader>
                 <CardContent>
                   {(!course.curriculum || course.curriculum.length === 0) ? (
@@ -1078,7 +1081,7 @@ export default function EditCoursePage() {
                               </Badge>
                               <div>
                                 <p className="font-medium">{module.title}</p>
-                                <p className="text-xs text-muted-foreground">{module.weeks}</p>
+                                {module.weeks ? <p className="text-xs text-muted-foreground">{module.weeks}</p> : null}
                               </div>
                             </div>
                           </AccordionTrigger>
@@ -1137,7 +1140,7 @@ export default function EditCoursePage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-sm font-semibold">Weeks</Label>
+                      <Label className="text-sm font-semibold">Timeframe (optional)</Label>
                       <Input
                         value={newCurriculumModule.weeks}
                         onChange={(e) => setNewCurriculumModule(prev => ({ ...prev, weeks: e.target.value }))}

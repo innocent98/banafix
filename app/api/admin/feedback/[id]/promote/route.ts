@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
-import { createTestimonial, TestimonialsNotAvailableError, toTestimonialInput } from '@/lib/feedback-promotion'
+import { createTestimonial, toTestimonialInput } from '@/lib/feedback-promotion'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -16,14 +16,7 @@ export const POST = withAuth(async (_req: NextRequest, admin, context: Ctx) => {
     if (!feedback.allowTestimonial) {
       return createErrorResponse('The author has not given permission to quote this feedback. Record their permission first.', 409)
     }
-    let testimonialId: string
-    try {
-      testimonialId = await createTestimonial(toTestimonialInput(feedback))
-    } catch (e) {
-      // TODO(stream-8): remove once the Testimonial model is in this branch's base (see lib/feedback-promotion.ts)
-      if (e instanceof TestimonialsNotAvailableError) return createErrorResponse(e.message, 501)
-      throw e
-    }
+    const testimonialId = await createTestimonial(toTestimonialInput(feedback))
     const updated = await prisma.feedback.update({ where: { id }, data: { testimonialId, status: 'reviewed' } })
     await logAdminAction({ adminId: admin.id, action: 'feedback.promote', entityType: 'feedback', entityId: id, metadata: { testimonialId } })
     return createResponse({ feedback: updated, testimonialId })

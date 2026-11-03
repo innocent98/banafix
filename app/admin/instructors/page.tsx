@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { GraduationCap, Plus, Pencil, Trash2, Search, BadgeCheck, Star } from "lucide-react"
+import { GraduationCap, Plus, Pencil, Trash2, Search, BadgeCheck, Star, CalendarClock } from "lucide-react"
 import { InstructorRosterModal } from "@/components/admin/instructor-roster-modal"
+import { AvailabilityEditor } from "@/components/admin/availability-editor"
 
 interface CourseLite {
   id: string
@@ -37,6 +38,7 @@ export default function InstructorsPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [availabilityFor, setAvailabilityFor] = useState<Instructor | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -189,6 +191,10 @@ export default function InstructorsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="outline" size="sm" onClick={() => setAvailabilityFor(i)} title="Weekly availability">
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Availability
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => { setEditId(i.id); setModalOpen(true) }} title="Edit">
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -212,6 +218,12 @@ export default function InstructorsPage() {
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditId(null) }}
         onSaved={load}
+      />
+
+      <AvailabilityEditor
+        instructor={availabilityFor}
+        isOpen={availabilityFor !== null}
+        onClose={() => setAvailabilityFor(null)}
       />
     </AdminLayout>
   )

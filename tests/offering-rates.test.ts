@@ -43,17 +43,18 @@ describe('buildPlanSnapshot', () => {
   })
 })
 
-import { expectedTuitionTotal } from '../lib/offering-rates'
+import { toWholeNumber, MAX_PLANNED_CLASSES } from '../lib/offering-rates'
 
-describe('expectedTuitionTotal', () => {
-  it('prefers the agreed plan snapshot over legacy pricing', () => {
-    expect(expectedTuitionTotal({ ratePerClass: 5000, plannedClasses: 8, selectedMode: 'On-site' }, { 'On-site': 99999 })).toBe(40000)
+describe('toWholeNumber / plannedClasses bounds', () => {
+  it('accepts integers and digit strings only', () => {
+    expect(toWholeNumber(8)).toBe(8)
+    expect(toWholeNumber(' 12 ')).toBe(12)
+    for (const bad of [true, null, undefined, 1.5, '1e3', '-2', 'abc', {}, []]) expect(Number.isNaN(toWholeNumber(bad))).toBe(true)
   })
-  it('falls back to legacy per-mode pricing for rows with no plan', () => {
-    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: null, selectedMode: 'On-site' }, { 'On-site': 25000 })).toBe(25000)
-  })
-  it('is undefined when nothing prices the enrollment (balance omitted, never blocks)', () => {
-    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: null, selectedMode: '' }, { 'On-site': 25000 })).toBeUndefined()
-    expect(expectedTuitionTotal({ ratePerClass: null, plannedClasses: 8, selectedMode: 'X' }, null)).toBeUndefined()
+  it('rejects a planned class count above the cap', () => {
+    const base = { rates: [{ durationMins: 60, pricePerClass: 5000 }], classesPerWeekOptions: [1], durationMins: 60, classesPerWeek: 1 }
+    expect(buildPlanSnapshot({ ...base, plannedClasses: MAX_PLANNED_CLASSES })).toMatchObject({ ok: true })
+    expect(buildPlanSnapshot({ ...base, plannedClasses: MAX_PLANNED_CLASSES + 1 })).toMatchObject({ ok: false })
+    expect(buildPlanSnapshot({ ...base, plannedClasses: 3e9 })).toMatchObject({ ok: false })
   })
 })

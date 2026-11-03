@@ -4,7 +4,19 @@ import { prisma } from '@/lib/prisma'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { logAdminAction } from '@/lib/audit'
 import { transitionEnrollment } from '@/lib/enrollment-transition'
+import {
+  coverApplication,
+  findCoveringFeePayment,
+  lockStudent,
+  recordCashAssessmentFee,
+  FeeAlreadyPaidError,
+  FeeNotSetError,
+  FeeStateChangedError,
+} from '@/lib/assessment-payment'
+
+class LiveApplicationError extends Error {}
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+import { validatePreferences } from '@/lib/scheduling/preferences'
 
 const parseDate = (v: unknown): Date | null => {
   if (typeof v !== 'string' || !v) return null
@@ -39,6 +51,10 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       priorLevel,
       schedulePreference,
       preferredDays,
+      preferredTimeBands,
+      preferredFromTime,
+      preferredToTime,
+      preferredClassesPerWeek,
       musicExperience,
       goals,
       specialRequests,
@@ -58,6 +74,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       return createErrorResponse('Invalid email format', 400)
     }
     if (!isArrangement(arrangement)) return createErrorResponse('arrangement must be HOME, CENTRE or ONLINE', 400)
+    // Structured scheduling preferences (days, time bands, optional from/to, classes per week).
+    const prefs = validatePreferences({ preferredDays, preferredTimeBands, preferredFromTime, preferredToTime, preferredClassesPerWeek })
+    if (!prefs.ok) return createErrorResponse(prefs.error, 400)
     if (preferredTimeBand && !isTimeBand(preferredTimeBand)) {
       return createErrorResponse('preferredTimeBand must be morning, afternoon, evening or flexible', 400)
     }
@@ -65,9 +84,6 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     if (preferredDate && !preferredOn) return createErrorResponse('preferredDate is not a valid date', 400)
     const scheduledAt = scheduleAssessmentAt ? parseDate(scheduleAssessmentAt) : null
     if (scheduleAssessmentAt && !scheduledAt) return createErrorResponse('scheduleAssessmentAt is not a valid date/time', 400)
-    if (scheduledAt && !feePaid) {
-      return createErrorResponse('Mark the assessment fee paid to schedule the assessment now', 400)
-    }
 
     const course = await prisma.course.findUnique({ where: { id: courseId } })
     if (!course) return createErrorResponse('Course not found', 404)
@@ -107,6 +123,15 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       },
     })
 
+    // Fee already paid by this student (once per student)? Then no fee is recorded or charged.
+    const preCovering = await findCoveringFeePayment(prisma, student.id)
+    if (preCovering && feePaid) {
+      return createErrorResponse('This student has already paid the assessment fee; a second fee cannot be recorded.', 409)
+    }
+    if (scheduledAt && !feePaid && !preCovering) {
+      return createErrorResponse('Mark the assessment fee paid to schedule the assessment now', 400)
+    }
+
     // Live application (any paid stage / enrolled) for this course? Block. Clear any stale pending first.
     const existingLive = await prisma.enrollment.findFirst({
       where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
@@ -123,16 +148,27 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     }
     const fee = { amount: feeAmount, currency: ASSESSMENT_FEE_CURRENCY }
 
-    // Stale unpaid application for this course is cancelled by this registration (not deleted: a
-    // payment still in flight must keep its record; see the public POST).
-    await prisma.enrollment.updateMany({
-      where: { studentId: student.id, courseId, status: 'pending' },
-      data: { status: 'cancelled' },
-    })
-
     // Enrollment + Assessment + (fee payment, status moves) in ONE transaction. The walk-in is
     // created `pending`, then moved by the guard so every step is a legal, compare-and-set move.
-    const { enrollment, assessment, finalStatus } = await prisma.$transaction(async (tx) => {
+    let created
+    try {
+      created = await prisma.$transaction(async (tx) => {
+      await lockStudent(tx, student.id)
+      const covering = await findCoveringFeePayment(tx, student.id)
+      if (covering && feePaid) throw new FeeAlreadyPaidError()
+      const live = await tx.enrollment.findFirst({
+        where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+        select: { id: true },
+      })
+      if (live) throw new LiveApplicationError()
+
+      // Stale unpaid application for this course is cancelled by this registration (not deleted: a
+      // payment still in flight must keep its record; see the public POST).
+      await tx.enrollment.updateMany({
+        where: { studentId: student.id, courseId, status: 'pending' },
+        data: { status: 'cancelled' },
+      })
+
       const enrollment = await tx.enrollment.create({
         data: {
           studentId: student.id,
@@ -142,7 +178,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
           selectedMode: offering?.deliveryMode.name ?? '',
           priorLevel,
           schedulePreference,
-          preferredDays: preferredDays || [],
+          ...prefs.value,
           musicExperience,
           goals,
           specialRequests,
@@ -169,37 +205,49 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       })
       let finalStatus = 'pending'
 
-      if (feePaid) {
-        // Record the cash/offline assessment-fee payment and move pending -> assessment_paid.
-        await tx.applicationPayment.create({
-          data: {
-            enrollmentId: enrollment.id,
-            amount: fee.amount,
-            currency: fee.currency,
-            paymentMethod: paymentMethod || 'cash',
-            paystackStatus: 'success',
-            status: 'completed',
-            paidAt: new Date(),
-            receiptNumber: `APP-${Date.now()}-${enrollment.id.slice(-6)}`,
-            billingEmail: normalizedEmail,
-            billingName: `${firstName} ${lastName}`,
-          },
-        })
-        if (!(await transitionEnrollment(tx, enrollment.id, 'pending', 'assessment_paid', { applicationPaid: true }))) {
-          throw new Error('STATE_CHANGED')
-        }
-        finalStatus = 'assessment_paid'
-
-        if (scheduledAt) {
-          assessment = await tx.assessment.update({ where: { id: assessment.id }, data: { status: 'scheduled', scheduledAt } })
-          if (!(await transitionEnrollment(tx, enrollment.id, 'assessment_paid', 'assessment_scheduled'))) {
-            throw new Error('STATE_CHANGED')
-          }
-          finalStatus = 'assessment_scheduled'
-        }
+      const billing = {
+        billingEmail: normalizedEmail,
+        billingName: `${firstName} ${lastName}`,
       }
-      return { enrollment: { ...enrollment, status: finalStatus, applicationPaid: Boolean(feePaid) }, assessment, finalStatus }
-    })
+      if (covering) {
+        // Fee already covered (once per student): no charge, the application starts at assessment_paid.
+        await coverApplication(tx, enrollment.id, covering.id)
+        finalStatus = 'assessment_paid'
+      } else if (feePaid) {
+        // Cash/offline fee: supersedes any pending Paystack payment, then pending -> assessment_paid.
+        await recordCashAssessmentFee(tx, {
+          enrollmentId: enrollment.id,
+          studentId: student.id,
+          amount: fee.amount,
+          currency: fee.currency,
+          paymentMethod: paymentMethod || 'cash',
+          ...billing,
+        })
+        finalStatus = 'assessment_paid'
+      }
+
+      if (scheduledAt && finalStatus === 'assessment_paid') {
+        assessment = await tx.assessment.update({ where: { id: assessment.id }, data: { status: 'scheduled', scheduledAt } })
+        if (!(await transitionEnrollment(tx, enrollment.id, 'assessment_paid', 'assessment_scheduled'))) {
+          throw new FeeStateChangedError()
+        }
+        finalStatus = 'assessment_scheduled'
+      }
+      return {
+        enrollment: { ...enrollment, status: finalStatus, applicationPaid: finalStatus !== 'pending' },
+        assessment,
+        finalStatus,
+        feeCovered: Boolean(covering),
+      }
+      })
+    } catch (e) {
+      if (e instanceof FeeAlreadyPaidError) return createErrorResponse(e.message, 409)
+      if (e instanceof FeeNotSetError) return createErrorResponse(e.message, 400)
+      if (e instanceof LiveApplicationError) return createErrorResponse('This student already has an application for this course', 400)
+      if (e instanceof FeeStateChangedError) return createErrorResponse('The enrollment changed while registering; refresh and try again', 409)
+      throw e
+    }
+    const { enrollment, assessment, finalStatus, feeCovered } = created
 
     await logAdminAction({
       adminId: admin.id,
@@ -211,8 +259,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         locationId,
         offeringId: offering?.id ?? null,
         feePaid: Boolean(feePaid),
-        paymentMethod: feePaid ? paymentMethod : null,
-        toStatus: feePaid ? 'assessment_paid' : 'pending',
+        feeCovered,
+        paymentMethod: feePaid && !feeCovered ? paymentMethod : null,
+        toStatus: finalStatus === 'pending' ? 'pending' : 'assessment_paid',
       },
     })
     if (scheduledAt) {
@@ -225,7 +274,10 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       })
     }
 
-    return createResponse({ enrollment, assessment, message: 'Student registered' }, 201)
+    return createResponse(
+      { enrollment, assessment, feeCovered, message: feeCovered ? 'Student registered; assessment fee already covered' : 'Student registered' },
+      201,
+    )
   } catch (error: any) {
     console.error('Admin register student error:', error)
     return createErrorResponse('Failed to register student', 500)

@@ -94,3 +94,9 @@ tuition) -> `enrolled`. Those steps live in the "Assessment & plan" panel; see t
 - A receipt email is still not sent on a cash payment (email delivery remains blocked on `RESEND_API_KEY`).
 - The walk-in course picker is not filtered to courses offered at the chosen location (admin may register before offerings exist, by design, B7).
 - Whether the assessment fee is once per student or once per course application is an open business rule; today it is once per application.
+
+## Update 2026-11-03 (Stream 4, scheduling)
+The free-text "Schedule preference" field in the walk-in modal is replaced by structured preferences (weekday chips, morning/afternoon/evening, optional earliest/latest time, 1 or 2 classes a week) sent as `preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime`, `preferredToTime`, `preferredClassesPerWeek`; invalid values are a 400 with a readable message. They feed the class generator when the student reaches `plan_agreed`. See `docs/sop/scheduling.md`.
+
+## Updated 2026-11-03 (fee once per student)
+The assessment fee is charged **once per student**. A walk-in for a student who has already paid it starts at `assessment_paid` with the fee marked covered (no payment recorded), and "schedule now" works without `feePaid`; ticking `feePaid` for such a student returns **409** (`This student has already paid the assessment fee; a second fee cannot be recorded.`). Cash mark-paid on a pending application of an already-paid student records no second fee and covers that application. A cash fee supersedes any pending Paystack payment for that enrollment; if that Paystack charge later succeeds it is stored as a `duplicate` and shown as **Refund needed** (refund by hand in Paystack, then Mark refunded). See `docs/sop/assessment-first-admission.md`.

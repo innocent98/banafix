@@ -1,0 +1,38 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/enrollments/cmw0wbw6f000k07xbsycnyyge/schedule"
+  },
+  "status": 200,
+  "response": {
+    "enrollment": {
+      "id": "cmw0wbw6f000k07xbsycnyyge",
+      "courseId": "cmw0wbw62000707xbk8i4py4i",
+      "status": "plan_agreed",
+      "plannedClasses": 6,
+      "durationMins": 45,
+      "classesPerWeek": 1,
+      "preferredDays": [
+        "Monday"
+      ],
+      "preferredTimeBands": [
+        "morning"
+      ],
+      "preferredFromTime": null,
+      "preferredToTime": null,
+      "preferredClassesPerWeek": 1,
+      "schedulePreference": null
+    },
+    "sessions": [],
+    "instructors": [
+      {
+        "id": "cmw0wbw64000907xbnqa1l35q",
+        "name": "Ada Okafor"
+      },
+      {
+        "id": "cmw0wbw65000a07xbyj0msmm2",
+        "name": "Tunde Bello"
+      }
+    ]
+  }
+}

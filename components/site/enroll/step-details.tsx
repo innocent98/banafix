@@ -16,7 +16,8 @@
  */
 
 import { NoteBlock, StepHeading, SubHeading, TextField, SelectField } from "./fields"
-import { PRIOR_LEVEL_OPTIONS, SCHEDULE_OPTIONS, type EnrollFormData } from "./types"
+import { SchedulePreferences } from "./schedule-preferences"
+import { PRIOR_LEVEL_OPTIONS, type EnrollFormData } from "./types"
 
 export function StepDetails({
   form,
@@ -101,15 +102,9 @@ export function StepDetails({
           value={form.priorLevel}
           onChange={(event) => onChange("priorLevel", event.target.value)}
         />
-        <SelectField
-          id="schedulePreference"
-          label="Preferred time"
-          placeholder="Select a time that suits you"
-          options={SCHEDULE_OPTIONS}
-          value={form.schedulePreference}
-          onChange={(event) => onChange("schedulePreference", event.target.value)}
-        />
       </div>
+
+      <SchedulePreferences form={form} onChange={onChange} />
 
       <NoteBlock>
         We use the date of birth to send a birthday note, and nothing else. If the student is under

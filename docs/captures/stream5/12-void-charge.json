@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e1_1793741335532/tuition/charges/cmw17a4cx001707y9vpry1qq2/void",
+    "body": {
+      "reason": "Student changed their mind"
+    }
+  },
+  "status": 200,
+  "response": {
+    "charge": {
+      "id": "cmw17a4cx001707y9vpry1qq2",
+      "enrollmentId": "t5_e1_1793741335532",
+      "kind": "CLASSES",
+      "origin": "ADJUSTMENT",
+      "quantity": 1,
+      "unitPrice": 5000,
+      "description": "1 x 60-minute classes (top-up)",
+      "materialId": null,
+      "createdBy": "t5_admin_1793741335532",
+      "createdAt": "2026-11-03T21:29:00.561Z",
+      "voidedAt": "2026-11-03T21:29:00.741Z",
+      "voidedBy": "t5_admin_1793741335532",
+      "voidReason": "Student changed their mind"
+    }
+  }
+}

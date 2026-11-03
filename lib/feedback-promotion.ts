@@ -1,14 +1,8 @@
+import { prisma } from '@/lib/prisma'
+
 /**
- * Promote feedback to a testimonial: ISOLATED on purpose.
- *
- * The `Testimonial` model belongs to Stream 8 (PR #11, branch `feature/site-content-admin`) and is NOT in
- * this branch's schema, so it is not recreated here. `toTestimonialInput` already produces the exact create
- * payload for that model's shape (`name, role, quote, permissionToPublish, isPublished`). The only thing
- * left once #11 is in the base is to implement `createTestimonial` below.
- *
- * TODO(stream-8): replace the body of `createTestimonial` with
- *   `const t = await prisma.testimonial.create({ data: input }); return t.id`
- * and delete the `NotAvailableError` branch in app/api/admin/feedback/[id]/promote/route.ts.
+ * Promote feedback to a testimonial. `toTestimonialInput` is the pure mapping (needs the author's permission,
+ * always UNPUBLISHED: a person still reviews it in /admin/testimonials); `createTestimonial` writes it.
  */
 export interface TestimonialInput {
   name: string
@@ -16,13 +10,6 @@ export interface TestimonialInput {
   quote: string
   permissionToPublish: true
   isPublished: false
-}
-
-export class TestimonialsNotAvailableError extends Error {
-  constructor() {
-    super('Testimonials are not available yet: the Testimonial model ships with the site-content stream.')
-    this.name = 'TestimonialsNotAvailableError'
-  }
 }
 
 /** Pure mapping. Needs the author's permission; always UNPUBLISHED (a person still reviews it on the testimonials page). */
@@ -42,7 +29,8 @@ export function toTestimonialInput(f: {
   }
 }
 
-/** Creates the unpublished Testimonial and returns its id. Stub until Stream 8's model is in the base. */
-export async function createTestimonial(_input: TestimonialInput): Promise<string> {
-  throw new TestimonialsNotAvailableError()
+/** Creates the unpublished Testimonial (Stream 8 model) and returns its id. */
+export async function createTestimonial(input: TestimonialInput): Promise<string> {
+  const t = await prisma.testimonial.create({ data: input, select: { id: true } })
+  return t.id
 }

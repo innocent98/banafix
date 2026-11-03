@@ -4,7 +4,7 @@
  */
 
 import { Resend } from 'resend'
-import { ApplicationFeeReceiptData, TuitionReceiptData } from './receipt'
+import { ApplicationFeeReceiptData, TuitionReceiptData, TuitionReceiptLedger } from './receipt'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -64,6 +64,7 @@ export async function sendTuitionReceipt(
   try {
     const { enrollment, course, payment } = data
 
+    // TODO(S7): route this send through the communications outbox
     const emailResult = await resend.emails.send({
       from: FROM_EMAIL,
       to: enrollment.email,
@@ -89,6 +90,7 @@ export async function sendTuitionReceipt(
     // student never sees the admin address). A failure here must not affect the
     // student send's success result.
     try {
+      // TODO(S7): route this send through the communications outbox
       const adminCopy = await resend.emails.send({
         from: FROM_EMAIL,
         to: ADMIN_EMAIL,
@@ -230,10 +232,155 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
   `
 }
 
+function naira(amount: number): string {
+  return `₦${amount.toLocaleString()}`
+}
+
+/**
+ * Per-class tuition receipt email (ledger enrollments). Every interpolated
+ * string is HTML-escaped.
+ */
+function generateLedgerTuitionEmailHTML(data: TuitionReceiptData, ledger: TuitionReceiptLedger): string {
+  const { enrollment, course, payment } = data
+  const balance = data.remainingBalance ?? 0
+  const paidInFull = data.paymentType === 'completed'
+  const dateText = new Date(payment.paidAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const lineRows = ledger.lines
+    .map(
+      (line) => `
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(line.description)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">${line.quantity} x ${naira(line.unitPrice)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap;">${naira(line.amount)}</td>
+                        </tr>`
+    )
+    .join('')
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tuition Payment Receipt</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f9fafb; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: #1e293b; color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+            .header p { margin: 5px 0 0; opacity: 0.9; }
+            .content { padding: 30px; }
+            .receipt-info { background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .receipt-info h3 { margin: 0 0 15px; color: #1e293b; }
+            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
+            .info-label { font-weight: bold; color: #64748b; }
+            .charges { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+            .charges th { text-align: left; padding: 8px; background: #f1f5f9; color: #1e293b; }
+            .amount-box { background: #10b981; color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .amount-box h3 { margin: 0 0 10px; font-size: 18px; }
+            .amount-box .amount { font-size: 24px; font-weight: bold; }
+            .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>BANAFIX</h1>
+                <p>Music Academy & Training Center</p>
+            </div>
+
+            <div class="content">
+                <h2>Tuition Payment Receipt</h2>
+                <p>Dear ${escapeHtml(enrollment.firstName)} ${escapeHtml(enrollment.lastName)},</p>
+                <p>Thank you for your tuition payment! This receipt confirms your payment for the ${escapeHtml(course.title)} course.</p>
+
+                <div class="receipt-info">
+                    <h3>Receipt Details</h3>
+                    <div class="info-row">
+                        <span class="info-label">Receipt Number:</span>
+                        <span>${escapeHtml(data.receiptNumber)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Payment Date:</span>
+                        <span>${dateText}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Payment Method:</span>
+                        <span>${escapeHtml(payment.paymentMethod.toUpperCase())}</span>
+                    </div>
+                    ${payment.description ? `
+                    <div class="info-row">
+                        <span class="info-label">Description:</span>
+                        <span>${escapeHtml(payment.description)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="receipt-info">
+                    <h3>Charges</h3>
+                    <table class="charges">
+                        <tr><th>Description</th><th>Qty x Rate</th><th style="text-align: right;">Amount</th></tr>${lineRows}
+                    </table>
+                    <div class="info-row">
+                        <span class="info-label">Total charged:</span>
+                        <span><strong>${naira(ledger.totalCharged)}</strong></span>
+                    </div>
+                </div>
+
+                <div class="amount-box">
+                    <h3>Amount Paid</h3>
+                    <div class="amount">${naira(payment.amount)}</div>
+                </div>
+
+                <div class="receipt-info">
+                    <h3>Payment Summary</h3>
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span><strong>${paidInFull ? 'Paid in full' : 'Part payment'}</strong></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total paid to date:</span>
+                        <span><strong>${naira(data.totalPaid)}</strong></span>
+                    </div>
+                    ${ledger.credit > 0 ? `
+                    <div class="info-row">
+                        <span class="info-label">Credit:</span>
+                        <span><strong>${naira(ledger.credit)}</strong></span>
+                    </div>
+                    ` : `
+                    <div class="info-row">
+                        <span class="info-label">Balance remaining:</span>
+                        <span><strong>${naira(balance)}</strong></span>
+                    </div>
+                    `}
+                    <div class="info-row">
+                        <span class="info-label">Classes covered:</span>
+                        <span><strong>${ledger.classesCovered} of ${ledger.classesPurchased}</strong></span>
+                    </div>
+                </div>
+
+                <p>Your payment has been recorded successfully. Continue practicing and we look forward to seeing your progress!</p>
+
+                <p>Please keep this receipt for your records. A PDF copy is attached to this email.</p>
+            </div>
+
+            <div class="footer">
+                <p>Questions? Contact us at ${escapeHtml(SUPPORT_EMAIL)}</p>
+                <p>Banafix Music Academy - Building Musical Excellence</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `
+}
+
 /**
  * Generate HTML email template for tuition payment receipt
  */
-function generateTuitionEmailHTML(data: TuitionReceiptData): string {
+export function generateTuitionEmailHTML(data: TuitionReceiptData): string {
+  if (data.ledger) return generateLedgerTuitionEmailHTML(data, data.ledger)
+
   const { enrollment, course, payment } = data
 
   return `
@@ -553,6 +700,220 @@ export async function sendBirthdayEmail(recipient: {
     return true
   } catch (error) {
     console.error('Error sending birthday email:', error)
+    return false
+  }
+}
+/**
+ * Best-effort notice to the admin inbox: money arrived for an assessment fee the student had already
+ * paid (or that a cash payment superseded). The refund is done by hand in the Paystack dashboard,
+ * then recorded in admin ("Mark refunded").
+ */
+// Escape interpolated values: the covered-fee email goes to an address typed into a public form.
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+export async function sendAdminDuplicatePaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  reference: string | null
+  enrollmentId: string
+  reason: 'already_covered' | 'superseded'
+}): Promise<boolean> {
+  try {
+    const why =
+      data.reason === 'superseded'
+        ? 'a cash/offline fee was recorded for this application first'
+        : 'the student had already paid the assessment fee'
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Refund needed: duplicate assessment fee (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A duplicate assessment fee payment needs a refund.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()} (Paystack reference ${escapeHtml(data.reference ?? 'n/a')}), but ${why}. The application was not changed.</p>
+        <p>Refund it by hand in the Paystack dashboard, then open the enrollment in admin and choose Mark refunded.</p>
+        <p>Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send duplicate-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending duplicate-payment notice:', error)
+    return false
+  }
+}
+
+export type TuitionAlertKind =
+  | 'amount_mismatch'
+  | 'metadata_mismatch'
+  | 'paid_unexpected_state'
+  | 'overpayment'
+  | 'refund_processed'
+  | 'dispute'
+
+const TUITION_ALERT_COPY: Record<TuitionAlertKind, { subject: string; body: string }> = {
+  amount_mismatch: {
+    subject: 'Tuition payment taken but NOT recorded: amount mismatch',
+    body: 'Paystack reports a different amount or currency than the payment link asked for, so the payment was <strong>not</strong> recorded. The student may have been charged. Check the transaction in the Paystack dashboard, then record the payment by hand or refund it.',
+  },
+  metadata_mismatch: {
+    subject: 'Tuition payment taken but NOT recorded: reference mismatch',
+    body: 'Paystack echoed details that do not match the payment link we created for this reference, so the payment was <strong>not</strong> recorded. Check the transaction in the Paystack dashboard before doing anything.',
+  },
+  paid_unexpected_state: {
+    subject: 'Tuition paid on an enrollment that is not active',
+    body: 'Money arrived for an enrollment that is cancelled (or otherwise not plan agreed / enrolled). The payment is recorded, the enrollment status was not changed and no receipt was sent. Decide whether to refund it (tuition refund policy is not built).',
+  },
+  overpayment: {
+    subject: 'Tuition overpayment: credit on account',
+    body: 'A payment brought this student above what is owed (for example a second payment link, or a link paid after cash). The extra amount is shown as credit on the Payments dashboard. Apply it to a top-up or refund it by hand.',
+  },
+  refund_processed: {
+    subject: 'Paystack processed a refund on a tuition payment',
+    body: 'Paystack reports a refund on this tuition payment. The student\'s balance was <strong>not</strong> changed automatically (refund policy is not built): review it and adjust the ledger by hand if needed.',
+  },
+  dispute: {
+    subject: 'Dispute opened on a tuition payment',
+    body: 'A card dispute was opened on this tuition payment. Review it in the Paystack dashboard.',
+  },
+}
+
+/**
+ * Best-effort alert to the admin inbox for a tuition payment that needs a human (money taken but not
+ * recorded, paid on a cancelled enrollment, credit, refund, dispute). An audit row is always written too.
+ * TODO(S7): route this send through the communications outbox instead of calling resend directly.
+ */
+export async function sendAdminTuitionAlert(data: {
+  kind: TuitionAlertKind
+  studentName: string
+  studentEmail: string
+  enrollmentId: string
+  paymentId?: string
+  reference?: string | null
+  amount?: number
+  detail?: string
+}): Promise<boolean> {
+  try {
+    const copy = TUITION_ALERT_COPY[data.kind]
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: copy.subject,
+      html: `
+        <p><strong>${escapeHtml(copy.subject)}</strong></p>
+        <p>${copy.body}</p>
+        <p>Student: ${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)})<br>
+        ${data.amount != null ? `Amount: ₦${data.amount.toLocaleString()}<br>` : ''}
+        Paystack reference: ${escapeHtml(data.reference ?? 'n/a')}<br>
+        ${data.detail ? `${escapeHtml(data.detail)}<br>` : ''}
+        Enrollment: ${escapeHtml(data.enrollmentId)}${data.paymentId ? `<br>Payment: ${escapeHtml(data.paymentId)}` : ''}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send tuition alert:', data.kind, emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending tuition alert:', data.kind, error)
+    return false
+  }
+}
+
+/**
+ * "Application received": sent instead of a payment receipt when a student who has already paid the
+ * (once per student, non-refundable) assessment fee applies again. The wording is deliberately
+ * neutral and confirms nothing beyond receipt, because it goes to whatever address was typed in.
+ */
+export async function sendApplicationFeeCovered(data: {
+  firstName: string
+  email: string
+  courseName: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: `Application received: ${data.courseName.replace(/[\r\n]+/g, ' ')}`,
+      html: `
+        <p>Hi ${escapeHtml(data.firstName)},</p>
+        <p>We have received an application for <strong>${escapeHtml(data.courseName)}</strong> using this email address.</p>
+        <p>Our team will confirm it with you before anything else happens. If you have paid the assessment fee before, you will not be charged for it again. If this was not you, please contact us at ${SUPPORT_EMAIL}.</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send fee-covered email:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending fee-covered email:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a fee was paid on an application that had already been cancelled. */
+export async function sendAdminCancelledPaymentNotice(data: {
+  studentName: string
+  studentEmail: string
+  amount: number
+  enrollmentId: string
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee paid on a cancelled application (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>An assessment fee arrived for a cancelled application.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}) paid ₦${data.amount.toLocaleString()}. The payment is recorded and covers this student's fee, but the application stays cancelled and no receipt was sent.</p>
+        <p>Open the student in admin to decide what to do (for example, register them again; the fee will not be charged twice). Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send cancelled-payment notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending cancelled-payment notice:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a successful Paystack charge did not match the fee we asked for. */
+export async function sendAdminAmountMismatchNotice(data: {
+  studentName: string
+  studentEmail: string
+  reference: string
+  enrollmentId: string
+  expectedNaira: number
+  paidKobo: number | null | undefined
+  requestedKobo: number | null | undefined
+  currency: string | null | undefined
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee charge did not match (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A Paystack charge succeeded but did not match the assessment fee, so the application was NOT updated.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}), reference ${escapeHtml(data.reference)}. We asked for ₦${data.expectedNaira.toLocaleString()}; Paystack reports amount ${data.paidKobo ?? 'n/a'} kobo, requested amount ${data.requestedKobo ?? 'n/a'} kobo, currency ${escapeHtml(data.currency ?? 'n/a')}.</p>
+        <p>Check the transaction in the Paystack dashboard, then use Mark fee paid on the enrollment if the fee was correctly paid, or refund it. Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send amount-mismatch notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending amount-mismatch notice:', error)
     return false
   }
 }

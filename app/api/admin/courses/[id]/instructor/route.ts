@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
+import { setCoursePrimaryInstructor } from '@/lib/instructor-courses'
 
 // PUT /api/admin/courses/[id]/instructor - set this course's instructor.
 // Accepts either `instructorId` (assign an existing roster instructor, or null to
@@ -16,7 +17,10 @@ export const PUT = withAuth(async (req: NextRequest, admin, context: { params: P
 
     // Explicit unassign.
     if (data.instructorId === null) {
-      await prisma.course.update({ where: { id }, data: { instructorId: null } })
+      await prisma.$transaction(async (tx) => {
+        await setCoursePrimaryInstructor(tx, id, null)
+        await tx.course.update({ where: { id }, data: { instructorId: null } })
+      })
       return createResponse({ instructor: null })
     }
 
@@ -24,7 +28,10 @@ export const PUT = withAuth(async (req: NextRequest, admin, context: { params: P
     if (typeof data.instructorId === 'string' && data.instructorId) {
       const exists = await prisma.instructor.findUnique({ where: { id: data.instructorId } })
       if (!exists) return createErrorResponse('Instructor not found', 404)
-      await prisma.course.update({ where: { id }, data: { instructorId: data.instructorId } })
+      await prisma.$transaction(async (tx) => {
+        await setCoursePrimaryInstructor(tx, id, data.instructorId)
+        await tx.course.update({ where: { id }, data: { instructorId: data.instructorId } })
+      })
       const instructor = await prisma.instructor.findUnique({
         where: { id: data.instructorId },
         include: { courses: { select: { id: true, title: true } } },
@@ -54,7 +61,10 @@ export const PUT = withAuth(async (req: NextRequest, admin, context: { params: P
     } else {
       const created = await prisma.instructor.create({ data: fields })
       instructorId = created.id
-      await prisma.course.update({ where: { id }, data: { instructorId } })
+      await prisma.$transaction(async (tx) => {
+        await setCoursePrimaryInstructor(tx, id, created.id)
+        await tx.course.update({ where: { id }, data: { instructorId: created.id } })
+      })
     }
 
     const instructor = await prisma.instructor.findUnique({

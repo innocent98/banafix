@@ -88,6 +88,7 @@ model Course {
   enrollments Enrollment[]
   offerings   CourseOffering[]
   materials   Material[]
+  instructors InstructorCourse[]
 
   @@index([instructorId])
   @@map("courses")
@@ -111,6 +112,11 @@ model Instructor {
   courses      Course[]
   assessments  Assessment[]
 
+  // Scheduling (Stream 4)
+  teaches       InstructorCourse[]
+  availabilityWindows InstructorAvailability[]
+  classSessions ClassSession[]
+
   @@map("instructors")
 }
 
@@ -120,7 +126,7 @@ model CurriculumModule {
   courseId String
   module   Int    // Module number
   title    String
-  weeks    String // "Weeks 1-2"
+  weeks    String? // Optional timeframe, e.g. "Weeks 1-2"
   outcomes String[] // Learning outcomes for this module
   tasks    String[] // Tasks/assignments
   order    Int    @default(0)
@@ -212,6 +218,72 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ---------------------------------------------------------------------------
+// Public-site content, managed from /admin. Everything defaults to unpublished
+// so nothing goes live until an admin publishes it; the public pages render
+// only published rows and never fall back to placeholder content.
+// ---------------------------------------------------------------------------
+
+model Testimonial {
+  id                  String   @id @default(cuid())
+  name                String
+  role                String? // relationship to Banafix, e.g. "Parent, piano student"
+  quote               String
+  videoUrl            String?
+  // Written consent to publish. isPublished can never be true without it.
+  permissionToPublish Boolean  @default(false)
+  isPublished         Boolean  @default(false)
+  order               Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("testimonials")
+}
+
+model TrustedPartner {
+  id          String   @id @default(cuid())
+  name        String
+  logoUrl     String?
+  linkUrl     String?
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("trusted_partners")
+}
+
+model SiteEvent {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  startsAt        DateTime
+  location        String
+  registrationUrl String?
+  isPublished     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isPublished, startsAt])
+  @@map("site_events")
+}
+
+model SiteStat {
+  id          String   @id @default(cuid())
+  label       String
+  value       String // free text so "3,200+" or "Since 2016" are both possible; real figures only
+  note        String?
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("site_stats")
+}
+
 // Enhanced enrollment tracking with comprehensive student information
 model Enrollment {
   id           String   @id @default(cuid())
@@ -238,7 +310,12 @@ model Enrollment {
   selectedMode       String   // Selected delivery mode
   priorLevel         String?  // complete-beginner, some-experience, intermediate, advanced
   schedulePreference String?  // weekday-morning, weekday-afternoon, etc.
-  preferredDays      String[] // Array of preferred days for home training
+  preferredDays      String[] // Preferred weekdays, canonical 'mon'..'sun' (legacy rows may hold 'Monday'; see lib/scheduling/preferences.ts)
+  // Structured scheduling preferences (Stream 4). schedulePreference above is legacy, read-only fallback.
+  preferredTimeBands     String[] @default([]) // morning | afternoon | evening
+  preferredFromTime      String?  // 'HH:MM' Lagos local, optional narrowing of the bands
+  preferredToTime        String?
+  preferredClassesPerWeek Int?    // 1 | 2 (the student's wish; the plan's classesPerWeek is what is agreed)
   musicExperience    String?
   goals              String?
   specialRequests    String?
@@ -261,6 +338,10 @@ model Enrollment {
   locationId   String?
   offeringId   String?
 
+  // The completed fee payment that covers this application when the student had already paid the
+  // assessment fee (charged ONCE PER STUDENT). Null for the application that paid it.
+  feeCoveredByPaymentId String?
+
   // Plan fields — set when the plan is agreed after assessment. ratePerClass is a SNAPSHOT:
   // later OfferingRate edits never move an existing student's price.
   durationMins   Int?
@@ -279,15 +360,20 @@ model Enrollment {
   // Relations
   course              Course              @relation(fields: [courseId], references: [id])
   student             Student             @relation(fields: [studentId], references: [id])
+  feeCoveredBy        ApplicationPayment? @relation("FeeCoverage", fields: [feeCoveredByPaymentId], references: [id], onDelete: SetNull)
   location            Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   offering            CourseOffering?     @relation("EnrollmentOffering", fields: [offeringId], references: [id], onDelete: SetNull)
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
+  tuitionCharges      TuitionCharge[]
   assessments         Assessment[]
+  classSessions       ClassSession[]
 
+  @@unique([id, studentId]) // target of ClassSession's composite FK (keeps session.studentId honest)
   @@index([studentId])
   @@index([locationId])
   @@index([offeringId])
+  @@index([feeCoveredByPaymentId])
   @@map("enrollments")
 }
 
@@ -307,8 +393,12 @@ model ApplicationPayment {
   authorizationCode String?
 
   // Payment Status
-  status            String   @default("pending") // pending, completed, failed, refunded
+  // pending, completed, failed; superseded = a cash/offline fee covered the application first;
+  // duplicate = money received on top of an already-paid fee (needs a manual refund); refunded.
+  status            String   @default("pending")
   paidAt            DateTime?
+  refundedAt        DateTime? // set when an admin records the duplicate as refunded (refund done by hand in Paystack)
+  refundedBy        String?   // Admin id
 
   // Receipt Information
   receiptNumber     String   @unique
@@ -328,6 +418,7 @@ model ApplicationPayment {
 
   // Relations
   enrollment        Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  coveredEnrollments Enrollment[] @relation("FeeCoverage")
 
   @@map("application_payments")
 }
@@ -352,6 +443,12 @@ model TuitionPayment {
   receiptGenerated Boolean @default(false)
   receiptSent   Boolean  @default(false)
 
+  // Online (Paystack) tuition: admin-generated payment link. Manual rows leave these null.
+  // Counted statuses are completed + partial; pending (link not yet paid), failed, cancelled are not.
+  paystackReference String? @unique
+  paystackChannel   String?
+  paymentUrl        String?
+
   // Admin Information
   recordedBy    String?  // Admin ID who recorded the payment
   adminNotes    String?
@@ -364,6 +461,31 @@ model TuitionPayment {
   enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("tuition_payments")
+}
+
+// One line of what a student owes (Stream 5, D12). Total owed = sum of non-voided quantity x unitPrice.
+// unitPrice is a SNAPSHOT (rate per class, or material price); never rewritten. Voided, never deleted.
+model TuitionCharge {
+  id           String    @id @default(cuid())
+  enrollmentId String
+  kind         String    // CLASSES | MATERIAL
+  origin       String    @default("ADJUSTMENT") // PLAN (created with / replaced by the plan) | ADJUSTMENT (added later)
+  quantity     Int
+  unitPrice    Int       // whole naira
+  description  String
+  materialId   String?
+  createdBy    String?   // admin id; null = system
+  createdAt    DateTime  @default(now())
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  material     Material?  @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId])
+  @@index([materialId])
+  @@map("tuition_charges")
 }
 
 enum LocationKind {
@@ -386,6 +508,8 @@ model Location {
 
   offerings     CourseOffering[]
   enrollments   Enrollment[]
+  availability  InstructorAvailability[]
+  classSessions ClassSession[]
 
   @@map("locations")
 }
@@ -440,6 +564,7 @@ model Material {
   updatedAt DateTime @updatedAt
 
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tuitionCharges TuitionCharge[]
 
   @@index([courseId])
   @@map("materials")
@@ -470,6 +595,78 @@ model Assessment {
 
   @@index([enrollmentId])
   @@map("assessments")
+}
+
+// ---------------------------------------------------------------------------
+// Scheduling (Stream 4). Spec: docs/superpowers/specs/2026-11-03-scheduling-design.md
+// Raw-SQL constraints (btree_gist exclusion, CHECKs, partial unique) live in the migration
+// and are NOT modelled here; Prisma ignores them.
+// ---------------------------------------------------------------------------
+
+// Which courses an instructor teaches (M:N). Course.instructorId stays as the public /tutors "primary".
+model InstructorCourse {
+  instructorId String
+  courseId     String
+  createdAt    DateTime @default(now())
+
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([instructorId, courseId])
+  @@index([courseId])
+  @@map("instructor_courses")
+}
+
+// "On this weekday, between these local times, at this place, in this mode."
+// weekday ISO 1..7 (Mon..Sun); minutes from Lagos local midnight. DB prevents overlapping windows per instructor+weekday.
+model InstructorAvailability {
+  id           String   @id @default(cuid())
+  instructorId String
+  weekday      Int
+  startMinute  Int
+  endMinute    Int
+  locationId   String
+  mode         String   // CENTRE | HOME | ONLINE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  location     Location   @relation(fields: [locationId], references: [id])
+
+  @@index([instructorId, weekday])
+  @@index([locationId])
+  @@map("instructor_availability")
+}
+
+// One booked class. No money here (D12): Stream 5 joins on (enrollmentId, sequence).
+// Active (blocks time) = scheduled | held; the exclusion constraints in the migration enforce it per instructor and per student.
+model ClassSession {
+  id               String   @id @default(cuid())
+  enrollmentId     String
+  studentId        String   // denormalised for the student exclusion constraint; composite FK keeps it equal to the enrollment's
+  instructorId     String
+  locationId       String?
+  mode             String   // CENTRE | HOME | ONLINE
+  startsAt         DateTime @db.Timestamptz(3)
+  durationMins     Int      // 45 | 60 (CHECK)
+  endsAt           DateTime @db.Timestamptz(3) // = startsAt + durationMins (CHECK); stored because timestamptz + interval is not indexable
+  status           String   @default("scheduled") // scheduled | held | missed | rescheduled | cancelled
+  sequence         Int      // class slot 1..n within the enrollment
+  rescheduledFromId String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollment       Enrollment   @relation(fields: [enrollmentId, studentId], references: [id, studentId], onDelete: Restrict)
+  instructor       Instructor   @relation(fields: [instructorId], references: [id], onDelete: Restrict)
+  location         Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  rescheduledFrom  ClassSession?  @relation("Reschedule", fields: [rescheduledFromId], references: [id], onDelete: SetNull)
+  rescheduledTo    ClassSession[] @relation("Reschedule")
+
+  @@index([instructorId, startsAt])
+  @@index([enrollmentId, sequence])
+  @@index([studentId, startsAt])
+  @@map("class_sessions")
 }
 
 // System Settings for global configuration
