@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/tuition-payments/cmw167t6p001m073mzktu8g6i/cancel",
+    "path": "/api/admin/tuition-payments/cmw17a4tn001m07y94f0ydtzi/cancel",
     "body": {}
   },
   "status": 200,

@@ -1,14 +1,14 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/enrollments/t5_e4_1793739529508/tuition",
+    "path": "/api/admin/enrollments/t5_e4_1793741335532/tuition",
     "body": null
   },
   "status": 200,
   "response": {
     "mode": "legacy",
     "enrollment": {
-      "id": "t5_e4_1793739529508",
+      "id": "t5_e4_1793741335532",
       "status": "enrolled",
       "applicationPaid": true,
       "selectedMode": "On-site",
@@ -19,24 +19,24 @@
     "charges": [],
     "payments": [
       {
-        "id": "cmw167szx001b073m10vhetzj",
-        "enrollmentId": "t5_e4_1793739529508",
+        "id": "cmw17a4lk001b07y99iepqzay",
+        "enrollmentId": "t5_e4_1793741335532",
         "amount": 20000,
         "currency": "NGN",
         "paymentMethod": "bank-transfer",
         "description": null,
         "status": "partial",
-        "paidAt": "2026-11-03T20:59:12.909Z",
-        "receiptNumber": "TUI-1793739552907-Y91B",
+        "paidAt": "2026-11-03T21:29:00.872Z",
+        "receiptNumber": "TUI-1793741340868-EUG9",
         "receiptGenerated": false,
         "receiptSent": false,
         "paystackReference": null,
         "paystackChannel": null,
         "paymentUrl": null,
-        "recordedBy": "t5_admin_1793739529508",
+        "recordedBy": "t5_admin_1793741335532",
         "adminNotes": null,
-        "createdAt": "2026-11-03T20:59:12.910Z",
-        "updatedAt": "2026-11-03T20:59:12.910Z"
+        "createdAt": "2026-11-03T21:29:00.873Z",
+        "updatedAt": "2026-11-03T21:29:00.873Z"
       }
     ],
     "summary": {
