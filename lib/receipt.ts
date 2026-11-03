@@ -56,6 +56,26 @@ export interface TuitionReceiptData {
   totalPaid: number
   remainingBalance?: number
   paymentType?: string // 'full' | 'partial' | 'completed' — shown as a label on the receipt
+  /** Per-class ledger breakdown (Stream 5). Absent for legacy enrollments, which keep the old layout. */
+  ledger?: TuitionReceiptLedger
+}
+
+export interface TuitionReceiptLine {
+  kind: 'CLASSES' | 'MATERIAL'
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+export interface TuitionReceiptLedger {
+  lines: TuitionReceiptLine[]
+  materialsTotal: number
+  totalCharged: number
+  classesPurchased: number
+  classesCovered: number
+  /** Paid beyond what is owed, as of this payment. */
+  credit: number
 }
 
 /**

@@ -14,6 +14,9 @@ describe('toCsv', () => {
   it('neutralises spreadsheet formulas', () => {
     expect(toCsv([['=SUM(A1)', '+1', '-1', '@x', 'ok']])).toBe("'=SUM(A1),'+1,'-1,'@x,ok")
   })
+  it('neutralises formulas hidden behind leading whitespace, tab or CR', () => {
+    expect(toCsv([[' =1+1', '\t=1', '\r+1']])).toBe("' =1+1,'\t=1,\"'\r+1\"")
+  })
   it('does not treat negative numbers typed as numbers as formulas', () => {
     expect(toCsv([[-500]])).toBe('-500')
   })

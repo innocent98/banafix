@@ -14,7 +14,7 @@ describe('isLedgerEnrollment', () => {
     expect(isLedgerEnrollment(legacyEnr, 0)).toBe(false)
   })
   it('only half of the plan fields -> legacy', () => {
-    expect(isLedgerEnrollment({ ratePerClass: 4000, plannedClasses: null, selectedMode: 'x' }, 0)).toBe(false)
+    expect(isLedgerEnrollment({ ratePerClass: 4000, plannedClasses: null }, 0)).toBe(false)
   })
 })
 
