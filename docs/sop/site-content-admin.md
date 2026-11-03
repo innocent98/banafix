@@ -51,8 +51,15 @@ old copy as "starter" rows (it is exactly the content John wants gone).
 - Roll back: revert the PR; the four tables are unused by anything else and can be left or dropped.
 - Local install gotcha: `npm install` runs `postinstall: prisma migrate deploy`. With a `.env` pointing at production use `npm install --ignore-scripts` then `npx prisma generate`.
 
+## Staff review mode (`SITE_NOINDEX`)
+John wants Banafix staff to review the site before rollout. Decision (2026-11-03): two ways, both safe.
+- **Vercel preview URL:** previews are already noindex. The preview must use a **non-production `DATABASE_URL`**, or content entered during review lands in production.
+- **Production domain:** set `SITE_NOINDEX=true` in Vercel and redeploy. Effect: `X-Robots-Tag: noindex, nofollow` on every response (pages, `/admin`, `/api`), `<meta name="robots" content="noindex, nofollow">`, and a disallow-all `robots.txt`. Remove the variable at launch and redeploy. It is read at build and request time, so it needs a redeploy to change. Only an explicit `true`/`1` turns it on; a typo leaves the site indexable.
+- With the flag off, `robots.txt` allows `/` and disallows `/admin` and `/api` (nothing indexed those before, but there was no `robots.txt` at all).
+- Files: `lib/site-noindex.ts` (+ test), `app/robots.ts`, `app/layout.tsx`, `next.config.ts` (`headers()`).
+- Verified by `next build` + `next start` in both modes: header, meta tag and `robots.txt` present with the flag on, absent (default `robots.txt`) with it off.
+
 ## Follow-ups
-- Confirm "SINCE 2016" (hero pill, `components/site/site-footer.tsx`, legacy `components/footer.tsx`) and "A Lagos music academy teaching one student at a time since 2016" with John; left untouched (outside this stream's files).
+- "SINCE 2016" (hero pill, footers) is confirmed correct by Adebayo (2026-11-03); no change needed. The "A Lagos music academy teaching one student at a time since 2016" line rests on the same fact.
 - Legacy unused components still hold unbacked claims (`components/sections/curated-picks.tsx` "1,200+", `enrollment-card.tsx` "Lifetime alumni network access"). They are not imported anywhere; delete or fix in a cleanup.
 - Page-level order is manual (`order` field); no drag-and-drop.
-- Team review: see the noindex recommendation in the PR description (Vercel previews are already noindex; production-domain review needs a flag).
