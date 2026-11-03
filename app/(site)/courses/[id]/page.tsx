@@ -20,7 +20,7 @@ import {
 } from "@/components/site/courses/course-panels"
 import { CourseTabs, type CourseTab } from "@/components/site/courses/course-tabs"
 import { EnrolAside } from "@/components/site/courses/enrol-aside"
-import { parseWeeks, pricedModes, toPricing } from "@/components/site/courses/course-data"
+import { pricedModes, toPricing } from "@/components/site/courses/course-data"
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, PillLink } from "@/components/site/primitives"
 import { calculateApplicationFee } from "@/lib/application-fee"
@@ -83,7 +83,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     tabs.push({
       key: "curriculum",
       label: "Curriculum",
-      panel: <CurriculumPanel modules={course.curriculum} duration={course.duration} />,
+      panel: <CurriculumPanel modules={course.curriculum} />,
     })
   }
 
@@ -189,7 +189,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           courseId={course.id}
           duration={course.duration}
           modes={modes}
-          weeks={parseWeeks(course.duration)}
           applicationFee={calculateApplicationFee(course.location).amount}
           seatsLeft={course.seatsLeft}
           totalSeats={course.totalSeats}

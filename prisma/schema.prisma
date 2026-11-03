@@ -113,7 +113,7 @@ model CurriculumModule {
   courseId String
   module   Int    // Module number
   title    String
-  weeks    String // "Weeks 1-2"
+  weeks    String? // Optional timeframe, e.g. "Weeks 1-2"
   outcomes String[] // Learning outcomes for this module
   tasks    String[] // Tasks/assignments
   order    Int    @default(0)

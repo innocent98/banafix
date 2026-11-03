@@ -235,8 +235,8 @@ export default function CreateCoursePage() {
   })
 
   const addCurriculumModule = () => {
-    if (!newCurriculumModule.title || !newCurriculumModule.weeks) {
-      setError("Module title and weeks are required")
+    if (!newCurriculumModule.title) {
+      setError("Module title is required")
       return
     }
 
@@ -365,8 +365,8 @@ export default function CreateCoursePage() {
     // Optional validation for curriculum modules
     for (let i = 0; i < formData.curriculum.length; i++) {
       const module = formData.curriculum[i]
-      if (!module.title || !module.weeks) {
-        setError(`Module ${i + 1} is incomplete. Please provide title and weeks.`)
+      if (!module.title) {
+        setError(`Module ${i + 1} is incomplete. Please provide a title.`)
         return false
       }
     }
@@ -440,7 +440,7 @@ export default function CreateCoursePage() {
       case "instructor":
         return !!formData.instructor
       case "curriculum":
-        return formData.curriculum.length > 0 && formData.curriculum.every(m => m.title && m.weeks)
+        return formData.curriculum.length > 0 && formData.curriculum.every(m => m.title)
       case "faqs":
         return formData.faqs.length > 0 && formData.faqs.every(f => f.question && f.answer)
       default:
@@ -1037,6 +1037,9 @@ export default function CreateCoursePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Existing Modules</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  A course normally has 12 modules. That is a convention, not a limit.
+                </p>
               </CardHeader>
               <CardContent>
                 {formData.curriculum.length === 0 ? (
@@ -1054,7 +1057,7 @@ export default function CreateCoursePage() {
                             </Badge>
                             <div>
                               <p className="font-medium">{module.title}</p>
-                              <p className="text-xs text-muted-foreground">{module.weeks}</p>
+                              {module.weeks ? <p className="text-xs text-muted-foreground">{module.weeks}</p> : null}
                             </div>
                           </div>
                         </AccordionTrigger>
@@ -1113,7 +1116,7 @@ export default function CreateCoursePage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-semibold">Weeks</Label>
+                    <Label className="text-sm font-semibold">Timeframe (optional)</Label>
                     <Input
                       value={newCurriculumModule.weeks}
                       onChange={(e) => setNewCurriculumModule(prev => ({ ...prev, weeks: e.target.value }))}

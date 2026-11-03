@@ -20,11 +20,11 @@ export const metadata: Metadata = {
  * /admissions — re-skinned into the handoff's language.
  *
  * Content note: everything on this page is STATIC MARKETING COPY. There is no
- * Admission, Intake or Tuition model in Prisma, so the student count, the four
- * process steps, the requirements, the intake dates and the three tuition
- * tiers below are all hardcoded page copy carried over from the previous
- * design. Real per-course prices live on /courses and are read from
- * `course.pricing`; the tiers here are indicative only and say so.
+ * Admission or Intake model in Prisma, so the student count, the four process
+ * steps, the requirements and the intake dates below are all hardcoded page
+ * copy carried over from the previous design. Prices are not shown here: the
+ * old indicative per-month tiers contradicted the real data, and lessons are
+ * now charged per class, so the cost section points to /courses.
  *
  * Two dead affordances were dropped rather than restyled: a "Download
  * Brochure" button (there is no brochure file in the repo) and a "Learn About
@@ -91,34 +91,6 @@ const INTAKES = [
   { name: "Spring semester", deadline: "2025-01-15" },
   { name: "Summer intensive", deadline: "2025-04-30" },
   { name: "Fall semester", deadline: "2025-08-15" },
-]
-
-/**
- * Static copy — indicative tiers, NOT the live prices. Real prices come from
- * `course.pricing[mode]` on /courses and vary per course and per format.
- */
-const TUITION = [
-  {
-    name: "One-on-one",
-    blurb: "Private tutor, your schedule",
-    from: "₦25,000",
-    points: ["Four sessions a month", "Curriculum built around you", "Flexible rescheduling"],
-    featured: false,
-  },
-  {
-    name: "At the studio",
-    blurb: "Weekly slot in Lekki",
-    from: "₦15,000",
-    points: ["Four sessions a month", "Instruments and practice rooms", "End-of-term recital"],
-    featured: true,
-  },
-  {
-    name: "Online",
-    blurb: "Live video with your tutor",
-    from: "₦12,000",
-    points: ["Four sessions a month", "Lessons recorded for replay", "Digital sheet music"],
-    featured: false,
-  },
 ]
 
 function isPast(isoDate: string) {
@@ -309,69 +281,22 @@ export default function AdmissionsPage() {
         </div>
       </section>
 
-      {/* Tuition */}
+      {/* Cost: no figures here, the course pages carry the real per-class rates. */}
       <section className="border-y border-[#EEE6DA] bg-white">
         <div className="bfx-shell py-[88px]">
-          <div className="mb-11 max-w-[620px]">
-            <Eyebrow>WHAT IT COSTS</Eyebrow>
-            <Display as="h2" className="mb-4 text-[clamp(32px,4vw,50px)] leading-[1.08]">
-              Fees, roughly
-            </Display>
-            <p className="bfx-pretty text-[17px] leading-[1.65] text-bfx-body">
-              Every course prices its own formats, so treat these as a starting range rather than a
-              quote. The course page shows the exact figure for the format you pick.
-            </p>
-          </div>
-
-          <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr))]">
-            {TUITION.map((tier) => (
-              <div
-                key={tier.name}
-                className={`relative flex flex-col rounded-[22px] bg-bfx-surface px-7 py-8 ${
-                  tier.featured
-                    ? "border-[1.5px] border-bfx-ink shadow-[0_22px_44px_-24px_rgba(16,26,40,0.3)]"
-                    : "border border-bfx-border"
-                }`}
-              >
-                {tier.featured ? (
-                  <span className="absolute -top-3 left-7 rounded-full bg-bfx-amber px-[11px] py-1.5 text-[11.5px] font-bold tracking-[0.03em] text-bfx-ink">
-                    Most chosen
-                  </span>
-                ) : null}
-                <h3 className="text-[21px] font-bold tracking-[-0.015em]">{tier.name}</h3>
-                <p className="mt-1 mb-5 text-[14px] font-semibold text-bfx-muted">{tier.blurb}</p>
-                <div className="mb-6 flex items-baseline gap-2">
-                  <span className="text-[12px] font-semibold text-bfx-muted-2">from</span>
-                  <span className="font-display text-[38px] leading-none tracking-[-0.02em]">
-                    {tier.from}
-                  </span>
-                  <span className="text-[13.5px] font-semibold text-bfx-muted">/ month</span>
-                </div>
-                <ul className="m-0 flex list-none flex-col gap-[11px] p-0">
-                  {tier.points.map((point) => (
-                    <li key={point} className="flex items-center gap-[10px] text-[14.5px] text-bfx-strong">
-                      <span
-                        aria-hidden
-                        className="grid h-4 w-4 flex-none place-items-center rounded-full bg-bfx-ink text-[9px] text-bfx-amber"
-                      >
-                        ✓
-                      </span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-5 rounded-[18px] border border-bfx-note-border bg-bfx-note-bg px-6 py-5">
-            <p className="bfx-pretty m-0 max-w-[560px] text-[14.5px] leading-[1.6] text-bfx-note-text">
-              These are indicative. Real prices are set per course and per format, and a ₦5,000
-              registration fee holds your spot at enrolment. Sibling discounts and split payments
-              are available. Just ask.
-            </p>
-            <PillLink variant="ink" size="md" href="/courses">
-              See real prices →
+          <div className="flex flex-wrap items-center justify-between gap-8 rounded-[22px] border border-bfx-note-border bg-bfx-note-bg px-[clamp(24px,4vw,48px)] py-10">
+            <div className="max-w-[620px]">
+              <Eyebrow>WHAT IT COSTS</Eyebrow>
+              <Display as="h2" className="mb-4 text-[clamp(32px,4vw,50px)] leading-[1.08]">
+                Priced per class
+              </Display>
+              <p className="bfx-pretty m-0 text-[17px] leading-[1.65] text-bfx-body">
+                You pay for the classes you take, not a monthly plan. The rate depends on the course
+                and the format you pick, and each course page shows it.
+              </p>
+            </div>
+            <PillLink variant="ink" size="xl" href="/courses">
+              See courses and prices →
             </PillLink>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth } from '@/lib/middleware'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
+import { normalizeWeeks } from '@/lib/course-utils'
 
 // PUT /api/admin/courses/[id]/curriculum/[moduleId] - Update curriculum module
 export const PUT = withAuth(async (req: NextRequest, admin, { params }: { params: { id: string, moduleId: string } }) => {
@@ -14,7 +15,7 @@ export const PUT = withAuth(async (req: NextRequest, admin, { params }: { params
     const updateData: any = {}
     if (module !== undefined) updateData.module = module
     if (title !== undefined) updateData.title = title
-    if (weeks !== undefined) updateData.weeks = weeks
+    if (weeks !== undefined) updateData.weeks = normalizeWeeks(weeks)
     if (outcomes !== undefined) updateData.outcomes = outcomes
     if (tasks !== undefined) updateData.tasks = tasks
     if (order !== undefined) updateData.order = order

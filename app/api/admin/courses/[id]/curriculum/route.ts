@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth } from '@/lib/middleware'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
+import { normalizeWeeks } from '@/lib/course-utils'
 
 // GET /api/admin/courses/[id]/curriculum - Get course curriculum
 export const GET = withAuth(async (req: NextRequest, admin, { params }: { params: { id: string } }) => {
@@ -28,8 +29,8 @@ export const POST = withAuth(async (req: NextRequest, admin, { params }: { param
 
     const { module, title, weeks, outcomes, tasks, order } = data
 
-    if (!title || !weeks) {
-      return createErrorResponse('Title and weeks are required', 400)
+    if (!title) {
+      return createErrorResponse('Title is required', 400)
     }
 
     // Get the next order number if not provided
@@ -47,7 +48,7 @@ export const POST = withAuth(async (req: NextRequest, admin, { params }: { param
         courseId: id,
         module: module || moduleOrder,
         title,
-        weeks,
+        weeks: normalizeWeeks(weeks),
         outcomes: outcomes || [],
         tasks: tasks || [],
         order: moduleOrder,
