@@ -42,7 +42,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] Admin pipeline view (stage filters, schedule + result + plan forms, confirm/cancel); walk-in per spec
 - SOP: [`docs/sop/assessment-first-admission.md`](../sop/assessment-first-admission.md) · Plan/ledger: `docs/superpowers/plans/2026-11-03-streams-2-3-assessment-first.md`
 
-### Stream 4 — Scheduling  ✅ built 2026-11-03, branch `feature/scheduling-availability` (PR open, stacked on #12, not merged)
+### Stream 4 — Scheduling  ✅ built 2026-11-03, branch `feature/scheduling-availability` (PR #15 open against `banafix`, unmerged; migration not yet applied to production)
 - [x] Structured instructor availability (weekly windows per weekday × location × mode CENTRE/HOME/ONLINE) + `InstructorCourse` many-to-many (backfilled; `Course.instructorId` kept for `/tutors`); availability editor on the instructor page
 - [x] `ClassSession` (enrollment, instructor, start/end, 45|60, status, `sequence`, no money columns, D12) with **database-enforced** conflict prevention: `btree_gist` exclusion constraints per instructor and per student over scheduled/held; friendly 409; real-DB concurrency tests (10-way races) pass
 - [x] Student preferences: days, morning/afternoon/evening, optional from/to, 1 or 2 classes a week (wizard + walk-in); recurring-session generator honouring preferences, availability and busy time; unplaced classes reported
