@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { AdminLayout } from "@/components/admin/admin-layout"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -595,12 +595,14 @@ export default function AnnouncementsPage() {
                                 Send now
                               </Button>
                             )}
-                            <Button variant="ghost" size="sm" asChild>
-                              <a href={`/admin/messages?batchId=${a.id}`} title="View messages">
-                                <ExternalLink className="mr-1 h-4 w-4" />
-                                Messages
-                              </a>
-                            </Button>
+                            <a
+                              href={`/admin/messages?batchId=${a.id}`}
+                              title="View messages"
+                              className={buttonVariants({ variant: "ghost", size: "sm" })}
+                            >
+                              <ExternalLink className="mr-1 h-4 w-4" />
+                              Messages
+                            </a>
                           </div>
                         </TableCell>
                       </TableRow>
