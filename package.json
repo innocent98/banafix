@@ -12,6 +12,7 @@
     "db:studio": "npx prisma studio",
     "test": "vitest run",
     "test:webhook": "node scripts/test-webhook.mjs",
+    "test:scheduling-db": "scripts/test-scheduling-db.sh",
     "test:emails": "tsx scripts/test-enrollment-emails.ts"
   },
   "dependencies": {
