@@ -1,0 +1,49 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e4_1793741335532/tuition",
+    "body": {
+      "amount": 20000,
+      "paymentMethod": "bank-transfer",
+      "paymentType": "partial",
+      "sendReceipt": false
+    }
+  },
+  "status": 201,
+  "response": {
+    "payment": {
+      "id": "cmw17a4lk001b07y99iepqzay",
+      "enrollmentId": "t5_e4_1793741335532",
+      "amount": 20000,
+      "currency": "NGN",
+      "paymentMethod": "bank-transfer",
+      "description": null,
+      "status": "partial",
+      "paidAt": "2026-11-03T21:29:00.872Z",
+      "receiptNumber": "TUI-1793741340868-EUG9",
+      "receiptGenerated": false,
+      "receiptSent": false,
+      "paystackReference": null,
+      "paystackChannel": null,
+      "paymentUrl": null,
+      "recordedBy": "t5_admin_1793741335532",
+      "adminNotes": null,
+      "createdAt": "2026-11-03T21:29:00.873Z",
+      "updatedAt": "2026-11-03T21:29:00.873Z",
+      "enrollment": {
+        "student": {
+          "firstName": "Ada",
+          "lastName": "Placeholder",
+          "email": "t5stu1793741335532@example.com"
+        }
+      }
+    },
+    "summary": {
+      "mode": "legacy",
+      "expectedTotal": 50000,
+      "paid": 20000,
+      "outstanding": 30000
+    },
+    "message": "Tuition payment recorded successfully"
+  }
+}

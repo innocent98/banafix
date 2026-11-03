@@ -36,7 +36,11 @@ export interface PaystackVerifyResponse {
         variable_name: string
         value: string
       }>
-    }
+      // Echoed back from initialize. A cross-check only; the reference lookup decides what a payment is.
+      enrollment_id?: string
+      payment_type?: string
+      tuition_payment_id?: string
+    } | null
     log: {
       start_time: number
       time_spent: number
@@ -279,5 +283,38 @@ export function createApplicationFeePayment(enrollmentData: {
       student_name: `${enrollmentData.firstName} ${enrollmentData.lastName}`,
     },
     channels: ['card', 'bank', 'ussd', 'bank_transfer'], // Paystack-supported channels only
+  }
+}
+
+/**
+ * Tuition payment link data (admin-generated, shared by hand). The row `tuitionPaymentId` already
+ * exists as `pending` with this `reference` before Paystack is called, so any payable reference has a record.
+ */
+export function createTuitionPayment(data: {
+  email: string
+  firstName: string
+  lastName: string
+  enrollmentId: string
+  courseId: string
+  tuitionPaymentId: string
+  amount: number // whole naira
+  reference: string
+}): PaystackTransaction {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL
+  return {
+    email: data.email,
+    amount: data.amount,
+    currency: 'NGN',
+    reference: data.reference,
+    // Static thank-you page; it reads nothing and changes nothing. Money is settled only by the webhook.
+    ...(baseUrl ? { callback_url: `${baseUrl}/pay/tuition-thanks` } : {}),
+    metadata: {
+      enrollment_id: data.enrollmentId,
+      course_id: data.courseId,
+      tuition_payment_id: data.tuitionPaymentId,
+      payment_type: 'tuition',
+      student_name: `${data.firstName} ${data.lastName}`,
+    },
+    channels: ['card', 'bank', 'ussd', 'bank_transfer'],
   }
 }

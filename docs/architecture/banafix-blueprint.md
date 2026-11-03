@@ -36,7 +36,9 @@
 | Admin "new paid assessment application" notice | 🟡 Code | Webhook → `ADMIN_EMAIL`/`SUPPORT_EMAIL` (subject `New paid assessment application: …`) |
 | **Email delivery (all of the above)** | ⚠️ **Blocked** | `RESEND_API_KEY` is a placeholder (401); `banafix.com` sender domain unverified — **unchanged by this shipment** |
 | Walk-in registration + cash fee | 🟡 Code | `POST /api/admin/enrollments` now picks location → course → optional offering; `feePaid` moves `pending → assessment_paid` (not `enrolled`). See `docs/sop/walk-in-registration.md` |
-| Tuition payment (admin-recorded) + student receipt | 🟡 Code | `POST /api/admin/enrollments/[id]/tuition`; on a `plan_agreed` enrollment it also moves it to `enrolled`. Balance: plan rows use `ratePerClass × plannedClasses`; **legacy rows still use `Course.pricing[selectedMode]`** until Stream 5 |
+| **Per-class tuition ledger** (Stream 5) | 🟡 Code | `TuitionCharge` rows per enrollment (classes at the rate snapshot + required/optional materials + later top-ups; voided, never deleted). Balance = charges − counted payments; `classesCovered` derived by a pure helper. Created when the plan is agreed. Migration `20261103180000_per_class_tuition` proven on an ephemeral Postgres 🟢. **Legacy rows (no plan, no charges) keep the old `Course.pricing` balance** (`lib/tuition-balance.ts`) |
+| Tuition payment: manual (cash / transfer / POS / card / cheque / mobile money / other) + **online Paystack link** + receipts | 🟡 Code | `POST …/tuition` (manual, partial payments, overpayment guard), `POST …/tuition/payment-link` (admin shares the link), Paystack webhook `tuition` branch (idempotent, amount verified). Per-class PDF/email receipts, student copy + admin copy, point-in-time. Proven on the **local Paystack mock** 🟢 (73 checks); **real Paystack test charge NOT done** |
+| Admin payments dashboard | 🟡 Code | `/admin/payments`: payments (filters: location, method, status, search, dates), outstanding view, CSV export; `GET /api/admin/payments` |
 | Migration 2 — drop dormant `Enrollment` identity columns | ❌ **Deferred** | Unchanged: nullable, unread, still in DB and `schema.prisma` |
 | Migration 3 — drop deprecated `Course` price/format/location/seat columns | ❌ **Deferred** | New follow-up (staged-migration precedent). Columns now carry DB defaults (B13) so new courses can be created without them |
 | Edit student record (admin) | 🟡 Code | `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled |
@@ -133,6 +135,44 @@ sequenceDiagram
 
 **A second money path was removed 🟡:** the unauthenticated manual verify `POST /api/enrollments/[id]` used to write the retired `application_paid` status and decrement seats, and sent no emails or audit. Nothing called it, so it was deleted; the webhook (via `settleAssessmentFee`, `lib/assessment-payment.ts`) is the only settle path. A stale `pending` application is **cancelled, not deleted** (and only after the new payment initialised), when the student re-applies, so a payment still in flight keeps its record.
 
+
+### 3b. After the plan: tuition (Stream 5) 🟡
+
+```mermaid
+sequenceDiagram
+    actor A as Admin
+    participant API as Admin routes
+    participant DB as Postgres
+    participant PS as Paystack
+    participant WH as Webhook
+    actor S as Student
+
+    A->>API: POST …/plan (offering, duration, classes/week, planned classes, optional materialIds)
+    API->>DB: ONE transaction: assessed → plan_agreed (+ rate snapshot)<br/>+ TuitionCharge: CLASSES (n × rate) + required materials + chosen optional ones
+    Note over A,DB: editing a plan_agreed plan voids the PLAN charges and recreates them (enrollment row lock first)
+
+    alt paid in person
+      A->>API: POST …/tuition {amount, method: cash|bank-transfer|pos|…}
+      API->>DB: amount ≤ outstanding (or allowOverpayment) → TuitionPayment completed<br/>+ plan_agreed → enrolled (compare-and-set) in one transaction
+    else paid online
+      A->>API: POST …/tuition/payment-link {amount?} (default = outstanding, never more)
+      API->>DB: TuitionPayment pending + reference FIRST
+      API->>PS: initialize (metadata: enrollment, payment_type=tuition)
+      API-->>A: payment URL (shared by hand: WhatsApp / email)
+      A-->>S: link
+      S->>PS: pays
+      PS->>WH: charge.success
+      WH->>PS: verify(reference)
+      WH->>DB: lookup by REFERENCE (tuition row) → metadata cross-check → amount/currency must equal the row<br/>→ ONE transaction: claim (pending|failed|cancelled → completed) + plan_agreed → enrolled
+    end
+    API-->>S: receipt PDF + email (student copy + admin copy), best-effort; AuditLog on every step
+    Note over A,DB: top-up classes (today's rate) / material / void a charge: POST …/tuition/charges[/…/void]
+```
+
+**Open links count against the balance:** a new link may ask for at most `outstanding − Σ open pending links` (else `409`); a cancelled link that is paid anyway is recorded and flagged; credit and tuition paid on cancelled enrollments show on `/admin/payments` (Credits); admin alert emails for mismatch / cancelled / overpayment / refund / dispute; `refund.processed` is flagged, never applied. The webhook looks the reference up in `application_payments`, then `tuition_payments` (no prefix routing).
+
+**Derived, not stored:** `outstanding = max(0, Σ active charges − Σ completed+partial payments)`; paying beyond that shows as `credit`; `classesCovered` pays materials first, then classes in charge order, each at its own rate (a part-paid class does not count). **Edge cases proven on the mock 🟢:** replay, 3 concurrent deliveries, amount/currency mismatch, wrong metadata, unknown reference, late payment on a cancelled enrollment (recorded, status untouched, no student receipt, audit `tuition.paid_unexpected_state`), `charge.failed` after success, failed row later paid. Refunds are not built (John's policy).
+
 ---
 
 ## 4. Enrollment status state machine
@@ -195,6 +235,8 @@ erDiagram
     Instructor ||--o{ Assessment : "assessor (nullable)"
     Enrollment ||--o{ ApplicationPayment : has
     Enrollment ||--o{ TuitionPayment : has
+    Enrollment ||--o{ TuitionCharge : "owes (ledger)"
+    Material ||--o{ TuitionCharge : "snapshotted from"
 
     Student {
       string id PK
@@ -280,9 +322,21 @@ erDiagram
     TuitionPayment {
       string id PK
       int amount
-      string status "completed|partial"
+      string status "completed|partial (counted) · pending|failed|cancelled (not counted)"
+      string paymentMethod "cash|bank-transfer|pos|card|cheque|mobile-money|other|paystack"
+      string paystackReference UK "online links only"
+      string paymentUrl "online links only"
       string recordedBy "admin id"
       string receiptNumber UK
+    }
+    TuitionCharge {
+      string id PK
+      string kind "CLASSES|MATERIAL"
+      string origin "PLAN|ADJUSTMENT"
+      int quantity
+      int unitPrice "snapshot, naira"
+      string description
+      datetime voidedAt "nullable — voided, never deleted"
     }
     AuditLog {
       string id PK
@@ -315,7 +369,11 @@ erDiagram
 - `Student.email` is the unique, immutable, lowercased identity key. On re-enrolment the public `POST /api/enrollments` does **not** overwrite an existing student's fields (`upsert … update: {}`, O4 reconciled with the edit-student module); the admin walk-in route **does** refresh provided fields (admin is authoritative). *The 2026-08-31 text here said re-enrol refreshes fields; that was stale since req #2 shipped.*
 - `Enrollment.email`/`firstName`/… dormant identity columns: unchanged (Migration 2 deferred).
 - `Enrollment.status` is an untyped `String` (no DB enum/check): the guard is a code guarantee, not a schema-enforced one. Postgres enum is used only for `LocationKind`.
-- `TuitionPayment.status` is `completed` (full) or `partial`; the tuition route maps the admin's `paymentType`. No `Assessment`-fee refund flow exists.
+- **Tuition ledger vs legacy:** an enrollment is in *ledger mode* when it has any `TuitionCharge` row, or an agreed plan (`ratePerClass` + `plannedClasses`) with no rows yet (synthetic, never persisted). Otherwise it is *legacy* and keeps `Course.pricing[selectedMode] − paid`. `GET …/tuition` returns `mode` and a differently shaped `summary` for each (`{charged,paid,outstanding,credit,materials,classesPurchased,classesCovered}` vs `{expectedTotal?,paid,outstanding?}`).
+- `TuitionPayment.status` counted values are `completed` and `partial`; `pending` (an unpaid link), `failed`, `cancelled` never count. In ledger mode a recorded payment is always `completed` (the Full/Part marker is legacy-only) and the receipt wording follows the balance.
+- `TuitionPayment.paymentMethod` is `paystack` for online payments (the Paystack channel is in `paystackChannel`); the manual route refuses `paystack`.
+- Charges are **voided, never deleted**; a voided charge below what was paid shows as `credit`, never a negative balance. Receipts are point-in-time (charges and payments as of that payment).
+- PDF receipts write amounts as `NGN 20,000` (helvetica has no ₦ glyph); emails and the admin UI use ₦. No assessment-fee refund flow exists, and no tuition refund flow either.
 
 ### 5.2 Planned additions 🔵
 
@@ -337,17 +395,22 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | GET | `/api/enrollments/verify` | public | Confirm payment for success page (read-only) | 🟡 |
 | POST | `/api/admin/application-payments/[id]/refund` | JWT | Records a `duplicate` fee payment as refunded (the refund itself is done in the Paystack dashboard). Audit `application.duplicate_refunded` | 🟡 |
 | POST | `/api/admin/enrollments/[id]/assessment/reuse` | JWT | Copies the student's latest completed assessment (or the given `sourceAssessmentId`) and moves `assessment_paid → assessed`. Audit `assessment.reuse` | 🟡 |
-| POST | `/api/webhooks/paystack` | signature | `charge.success` → `pending → assessment_paid` + audit + emails | 🟢 mock + sig / ⚠️ real Paystack not exercised (§10) |
+| POST | `/api/webhooks/paystack` | signature | `charge.success` → assessment fee (`pending → assessment_paid`) **or online tuition** (looked up by reference; `plan_agreed → enrolled`) + audit + emails | 🟢 mock + sig / ⚠️ real Paystack not exercised (§10) |
 | POST | `/api/admin/enrollments` | JWT | Walk-in registration: `locationId` + `courseId` required, `offeringId` optional (must match course + location), `arrangement` default `CENTRE`, `feePaid`, optional `scheduleAssessmentAt` (needs `feePaid`). Audit `enrollment.admin_create` (+ `assessment.schedule`) | 🟡 |
 | GET | `/api/admin/enrollments/[id]` | JWT | Everything the "Assessment & plan" panel needs: `{enrollment, assessments[] (newest first), offerings[] with rates}`; legacy rows return empty/null, not an error | 🟡 |
 | POST | `/api/admin/enrollments/[id]/mark-paid` | JWT | Cash fee for a `pending` enrollment → `assessment_paid` + completed `ApplicationPayment` in one transaction. 400 `Assessment fee is already marked paid`. Audit `application.cash_paid` | 🟡 |
 | POST | `/api/admin/enrollments/[id]/assessment` | JWT | Schedule: `{scheduledAt, arrangement?, assessorId?, address?, landmark?}`. `assessment_paid` → `assessment_scheduled` (reuses the `requested` row); `assessed` → `assessment_scheduled` (new row); `assessment_scheduled` → reschedule in place; `enrolled`/`plan_agreed` → record-only row. Audit `assessment.schedule` / `assessment.reschedule` / `assessment.schedule_record_only` | 🟡 |
 | PATCH | `/api/admin/enrollments/[id]/assessment` | JWT | Record result `{resultLevel, resultNotes?, recommendedOfferingId?, assessorId?, completedAt?, assessmentId?}`: `assessment_scheduled` → `assessed`; completed result edited in place (audit `assessment.edit_result` with before/after); legacy `enrolled` → `assessment.result_record_only`. Audit `assessment.result` | 🟡 |
-| POST | `/api/admin/enrollments/[id]/plan` | JWT | `{offeringId, durationMins, classesPerWeek, plannedClasses}`: `assessed` → `plan_agreed` (snapshots rate); also edits a `plan_agreed` plan in place. 400 with the builder's error string for an invalid plan. Audit `plan.agree` / `plan.edit` | 🟡 |
+| POST | `/api/admin/enrollments/[id]/plan` | JWT | `{offeringId, durationMins, classesPerWeek, plannedClasses, materialIds?}`: `assessed` → `plan_agreed` (snapshots rate) and creates the tuition charges in the same transaction; also edits a `plan_agreed` plan in place (voids + recreates the PLAN charges). 400 with the builder's error string for an invalid plan. Audit `plan.agree` / `plan.edit` | 🟡 |
 | POST | `/api/admin/enrollments/[id]/confirm` | JWT | `plan_agreed` → `enrolled`. Audit `enrollment.confirm` | 🟡 |
 | POST | `/api/admin/enrollments/[id]/cancel` | JWT | any non-terminal → `cancelled` (`{reason?}`); payments untouched. Audit `enrollment.cancel` | 🟡 |
-| POST | `/api/admin/enrollments/[id]/tuition` | JWT | Record tuition + student receipt + `AuditLog`; on `plan_agreed` also → `enrolled` (audit `enrollment.enrolled_by_tuition`). Requires `applicationPaid` | 🟡 |
-| GET | `/api/admin/enrollments/[id]/tuition` | JWT | List tuition payments | 🟡 |
+| POST | `/api/admin/enrollments/[id]/tuition` | JWT | Record a payment taken in person `{amount, paymentMethod, description?, allowOverpayment?, sendReceipt?, paymentType? (legacy only)}`; whole naira, method from the manual list, amount ≤ outstanding unless `allowOverpayment`; on `plan_agreed` also → `enrolled` (audit `enrollment.enrolled_by_tuition`). Requires `applicationPaid`. Audit `tuition.record` (+ `tuition.overpayment`) | 🟢 mock harness |
+| GET | `/api/admin/enrollments/[id]/tuition` | JWT | The ledger screen: `{mode, enrollment, charges[], payments[], summary}` | 🟢 |
+| POST | `/api/admin/enrollments/[id]/tuition/payment-link` | JWT | `{amount?}` (default outstanding; ≤ outstanding) → `{payment:{id,amount,paymentUrl,reference}, reused}`; pending row created before Paystack init; 10-minute reuse window. Ledger enrollments only. Audit `tuition.link_create` | 🟢 mock |
+| POST | `/api/admin/enrollments/[id]/tuition/charges` | JWT | `{kind:'CLASSES', quantity}` (today's rate for the offering + duration) or `{kind:'MATERIAL', materialId}`. Audit `tuition.charge_add` | 🟢 |
+| POST | `/api/admin/enrollments/[id]/tuition/charges/[chargeId]/void` | JWT | `{reason}`; voided, never deleted. Audit `tuition.charge_void` | 🟢 |
+| POST | `/api/admin/tuition-payments/[id]/cancel` | JWT | Withdraw a **pending** link. Audit `tuition.payment_cancel` | 🟢 |
+| GET | `/api/admin/payments` | JWT | Dashboard: `{payments[], outstanding[], credits[], totals{collected,pendingOnline,outstanding,credit}, truncated{payments,outstanding,outstandingScan,credits}}`; filters `locationId, method, status, q, from, to` | 🟢 |
 | GET/POST | `/api/admin/locations` | JWT | List (inactive included, with usage counts) / create `{name, kind, assessmentFee, isActive?, order?, address?}`; slug derived, collision-safe. Audit `location.create` | 🟡 |
 | GET/PATCH/DELETE | `/api/admin/locations/[id]` | JWT | PATCH keeps the slug on rename unless `regenerateSlug: true` (`location.update`). DELETE refused with 409 while any offering/enrollment references it (`location.delete`) | 🟡 |
 | GET/POST | `/api/admin/courses/[id]/offerings` | JWT | List with rates / create `{locationId, deliveryModeId, classesPerWeekOptions?}`; always created inactive; 409 on duplicate course × location × format. Audit `offering.create` | 🟡 |
@@ -356,7 +419,7 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | GET/POST | `/api/admin/courses/[id]/materials` | JWT | List / create `{name, price, required?, isActive?}`. Audit `material.create` | 🟡 |
 | PATCH/DELETE | `/api/admin/courses/[id]/materials/[materialId]` | JWT | Audit `material.update` / `material.delete` | 🟡 |
 | GET/PATCH/DELETE etc. | `/api/admin/courses*` | JWT | Course CRUD. `POST` no longer requires `location`/`pricing`/`availableModes` (DB defaults); list `_count.offerings` counts **offerable** offerings only | 🟡 |
-| GET/POST | `/api/admin/tuition-payments/[id]/receipt` | JWT | Regenerate/resend tuition receipt | 🟡 |
+| GET/POST | `/api/admin/tuition-payments/[id]/receipt` | JWT | Regenerate/download (`?download=true`) / resend (student + admin copy) the per-class receipt; point-in-time | 🟢 |
 | GET | `/api/receipts/application-fee/[enrollmentId]` | JWT | Regenerate/resend the **assessment-fee** receipt (route name kept; download filename now `assessment-fee-receipt-<no>.pdf`) | 🟡 |
 | PATCH | `/api/admin/students/[id]`, `/api/admin/parents*`, `/api/admin/instructors*`, `GET /api/cron/birthdays` | JWT / `CRON_SECRET` | Unchanged by this shipment (student edit, parents, roster, birthdays) | 🟡 |
 
@@ -369,7 +432,7 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 Reqs #1–#4 and the audit-log foundation are built (see §1); their design notes live in their SOPs (`docs/sop/tuition-receipts.md`, `student-edit.md`, `parents-module.md`, `birthday-automation.md`). Still planned, from the 2026-11-03 meeting (see `docs/checklist/master-checklist.md`):
 
 - **Stream 4 — Scheduling:** `ClassSession` (→ `Enrollment`, `Instructor`), structured instructor availability, `InstructorCourse` m-n (today `Course.instructorId` allows one instructor per course), conflict prevention.
-- **Stream 5 — Per-class tuition:** invoices from `plannedClasses × ratePerClass` plus `Material`; online tuition; removes the last reader of `Course.pricing` (legacy tuition balance). May tighten "when does `plan_agreed` become `enrolled`" (today: any tuition payment, or the audited Confirm — a builder's call in the spec).
+- **Stream 5 — Per-class tuition:** ✅ built (see §3b, §5, §6). Not built: refunds (John's policy), instalment plans, coupons, student portal, routing receipts through the S7 outbox (`TODO(S7)` markers at three send sites).
 - **Stream 6/7/8:** parent capture at registration, messaging outbox (D10) consuming the status transitions as triggers, site content.
 
 ---
@@ -380,7 +443,8 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | --- | --- | --- | --- |
 | **D1** | What should `enrolled` mean? | ⚠️ **SUPERSEDED by D6 (2026-11-03)** | Was: paying **is** enrollment (webhook wrote `enrolled`). Now `enrolled` is reached only after assessment + plan (§4). Legacy `enrolled` rows are grandfathered |
 | **D2** | What is a "student"? | ✅ DECIDED + BUILT | `Student` entity keyed by unique immutable lowercased email. Migration 2 (drop dormant `Enrollment` identity columns) deferred |
-| **D3** | Source of "expected total tuition"? | ✅ Decided, **partly superseded** | `course.pricing[selectedMode]` survives **only for legacy rows**. Rows with a plan use `ratePerClass × plannedClasses` (`planTotal`). Stream 5 replaces both with invoices |
+| **D3** | Source of "expected total tuition"? | ⚠️ **SUPERSEDED by D12 (Stream 5)** | Expected total is now the sum of the enrollment's `TuitionCharge` rows. `Course.pricing[selectedMode]` survives **only for legacy rows** that have no plan and no charges, in separate, tested code (`lib/tuition-balance.ts`) |
+| **D12** | How is per-class tuition tracked? | ✅ DECIDED + BUILT | Charge ledger; paid status is **derived** (no per-class stored flag); `classesCovered` is a pure helper S4 can reuse. Builder calls T1–T16 in `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` |
 | **D4** | Birthday scheduler? | ✅ DECIDED | Vercel Cron |
 | **D5** | Public enrollment read endpoints unauthenticated | 🟡 **Partly closed:** `GET /api/enrollments` and `GET /api/enrollments/[id]` are `withAuth` (commit `e7160eb`); the public manual-verify POST was deleted. Still public: `GET /api/receipts/application-fee/[enrollmentId]` | Review that route |
 | **D6** | Does paying the fee enrol the student? | ✅ DECIDED + BUILT | No. The fee buys an **assessment**; admission follows. Supersedes D1. Fee stays non-refundable. Legacy `enrolled` rows stay `enrolled`; legacy `pending` stays `pending` |
@@ -407,7 +471,8 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | Admin courses list "Seats Utilization" stat is meaningful | `app/admin/courses/page.tsx` | Still computed from `totalSeats − seatsLeft`, which nothing updates any more, so it is a stale vanity number | ⚠️ drift (display only; remove with Migration 3) |
 | `lib/application-fee.ts` computes the fee | old blueprint §3 "location-based fee" | File deleted; fee is `Location.assessmentFee` | ❌ retired (D11) |
 | Legacy `enrolled` rows look like new ones | — | They have **null** `durationMins/classesPerWeek/plannedClasses/ratePerClass` and usually no `Assessment`; the panel opens read-only with an optional "add assessment record" | ⚠️ by design; every consumer must be null-safe |
-| **Tuition balance for legacy rows** | `tuition-receipts.md` | Tuition route: plan rows ⇒ `planTotal(ratePerClass, plannedClasses)`; otherwise `Course.pricing[selectedMode]` (omitted when absent, e.g. walk-ins with `selectedMode ''`) | ⚠️ unchanged for legacy until Stream 5 |
+| **Tuition balance for plan rows** | `tuition-receipts.md` (S2+3 text), D3 | Ledger: `Σ charges − Σ counted payments` (`computeTuitionBalance`); `ratePerClass × plannedClasses` is only the initial CLASSES charge. `expectedTuitionTotal` was removed | ❌ superseded by D12 |
+| **Tuition balance for legacy rows** | `tuition-receipts.md` | Unchanged: `Course.pricing[selectedMode] − paid`, omitted when absent; the only reader of `Course.pricing` left (`lib/tuition-balance.ts`) | ✅ still true, isolated and tested |
 | "Admin approval gate after payment is not needed" | D1 | The pipeline is exactly an admin-driven gate (schedule → result → plan → confirm) | ❌ superseded |
 | "Re-enroll refreshes the student's fields (O4)" | this blueprint §5 (2026-08-31) | Public re-enrol does **not** overwrite (`update: {}`); walk-in does | ✅ corrected here (stale since req #2) |
 | Enrollment emails are sent | SOP `enrollment-emails.md` | code sends 🟡 but `RESEND_API_KEY` is a placeholder → 401 🟢 | ⚠️ wired, **not delivering** — pre-existing, unchanged |
@@ -435,6 +500,10 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **Real Paystack test-mode charge** (webhook with a real reference, receipt/ack emails) | — | ⚠️ **NOT DONE** |
 | Email delivery | send functions read; delivery blocked on Resend key (pre-existing) | 🟡 CODE / ⚠️ UNVERIFIED |
 | Migration 2 (drop dormant `Enrollment` identity columns) / Migration 3 (drop deprecated `Course` columns) | not built | 🔵 INTENT (deferred) |
+| **Migration `20261103180000_per_class_tuition`** — legacy rows untouched, plan rows backfilled with one CLASSES charge each, balance preserved, backfill idempotent, no schema drift | `scripts/verify-tuition-migration.sh` (ephemeral Postgres, legacy fixture) | 🟢 LIVE (local) |
+| **Tuition: plan → charges, manual partial payments, overpayment guard, online link → webhook, replay, 3 concurrent, amount/currency/metadata mismatch, unknown reference, late payment on cancelled, failed→paid, top-up at today's rate, void, legacy untouched, point-in-time receipt, dashboard filters, 401s** | `scripts/test-tuition-e2e.mjs` against the real routes + local Paystack mock (73 checks); captures in `docs/captures/stream5/` | 🟢 mock / ⚠️ not real Paystack |
+| Ledger maths (classes covered, credit, as-of, amount check, legacy parity, CSV injection) | `npm test` | 🟢 LIVE |
+| **Real Paystack test-mode charge for tuition** | — | ⚠️ **NOT DONE** (John's keys) |
 | Streams 4–8 | not built | 🔵 INTENT |
 
 ---
@@ -445,7 +514,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 - **Browser verification** of the new public and admin flows is not recorded in this document.
 - Migration 2 (dormant `Enrollment` identity columns) and **Migration 3** (deprecated `Course` price/format/location/seat columns) — both deferred.
 - **Rates are not entered:** all migrated offerings are inactive with no rates, so every course shows "Enrolment opening soon" until an admin sets rates (no pricing data came from John yet).
-- Class scheduling, instructor availability/conflicts (Stream 4); tuition invoicing, online tuition, materials in billing (Stream 5); parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
+- Class scheduling, instructor availability/conflicts (Stream 4); parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
 - A student login/dashboard, refunds, coupons. Policy text still contradicts the non-refundable fee (refund schedule in `components/site/enroll/policy-dialog.tsx`; `/policies` dashboard/PayPal/instalment claims) — deliberately **not edited** here, needs the client's review.
 - Per-student vs per-application fee rule (open business question, §8).
 - `GET /api/receipts/application-fee/[enrollmentId]` is still unauthenticated (pre-existing); the webhook cannot detect a cash fee recorded while a Paystack charge is in flight (double fee needs an admin refund decision).

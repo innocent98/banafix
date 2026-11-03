@@ -482,11 +482,17 @@ export const GET = withAuth(async (req: NextRequest) => {
           },
           tuitionPayments: {
             select: {
+              id: true,
               amount: true,
               status: true,
+              paymentMethod: true,
               receiptNumber: true,
               paidAt: true,
             },
+          },
+          // Needed by the admin table for the per-class balance (voided rows included: the balance helper ignores them).
+          tuitionCharges: {
+            select: { id: true, kind: true, quantity: true, unitPrice: true, createdAt: true, voidedAt: true },
           },
         },
         orderBy: { createdAt: 'desc' },

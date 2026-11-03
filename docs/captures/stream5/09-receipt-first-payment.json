@@ -1,0 +1,64 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/tuition-payments/cmw17a0x7000b07y9t6k0drxx/receipt",
+    "body": null
+  },
+  "status": 200,
+  "response": {
+    "receiptData": {
+      "receiptNumber": "TUI-1793741336103-9EPY",
+      "enrollment": {
+        "id": "t5_e1_1793741335532",
+        "firstName": "Ada",
+        "lastName": "Placeholder",
+        "email": "t5stu1793741335532@example.com"
+      },
+      "course": {
+        "title": "T5 Guitar",
+        "instrument": "Guitar",
+        "level": "Beginner"
+      },
+      "payment": {
+        "amount": 20000,
+        "paidAt": "2026-11-03T21:28:56.106Z",
+        "description": "First part",
+        "paymentMethod": "cash"
+      },
+      "totalPaid": 20000,
+      "remainingBalance": 24500,
+      "paymentType": "partial",
+      "ledger": {
+        "lines": [
+          {
+            "kind": "CLASSES",
+            "description": "10 x 60-minute classes",
+            "quantity": 10,
+            "unitPrice": 4000,
+            "amount": 40000
+          },
+          {
+            "kind": "MATERIAL",
+            "description": "Theory workbook",
+            "quantity": 1,
+            "unitPrice": 3000,
+            "amount": 3000
+          },
+          {
+            "kind": "MATERIAL",
+            "description": "Metronome",
+            "quantity": 1,
+            "unitPrice": 1500,
+            "amount": 1500
+          }
+        ],
+        "materialsTotal": 4500,
+        "totalCharged": 44500,
+        "classesPurchased": 10,
+        "classesCovered": 3,
+        "credit": 0
+      }
+    },
+    "message": "Receipt data retrieved successfully"
+  }
+}

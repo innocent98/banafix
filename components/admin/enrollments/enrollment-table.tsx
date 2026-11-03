@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Users, Filter, Eye, CreditCard, Mail, Pencil, BadgeCheck, ClipboardList } from "lucide-react"
-import { planTotal } from "@/lib/offering-rates"
+import { computeTuitionBalance, type TuitionBalance } from "@/lib/tuition-balance"
+import { COUNTED_STATUSES, toLedgerCharges } from "@/lib/tuition-ledger"
 import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "./status-badge"
 import {
@@ -27,21 +28,27 @@ interface Props {
   onRefund: (payment: ApplicationPayment) => void
 }
 
-const totalTuitionPaid = (e: Enrollment) =>
-  e.tuitionPayments
-    .filter((p) => p.status === "completed" || p.status === "partial")
-    .reduce((sum, p) => sum + p.amount, 0)
+const balanceOf = (e: Enrollment): TuitionBalance =>
+  computeTuitionBalance(
+    { ratePerClass: e.ratePerClass ?? null, plannedClasses: e.plannedClasses ?? null, selectedMode: e.selectedMode },
+    toLedgerCharges(e.tuitionCharges ?? []),
+    e.tuitionPayments,
+    e.course.pricing ?? null,
+  )
 
-// Remaining balance: the agreed plan total when there is one (snapshot rate), else the legacy
-// course price for the selected mode; undefined when neither exists (not tracked).
-const tuitionBalance = (e: Enrollment): number | undefined => {
-  const expected =
-    e.ratePerClass != null && e.plannedClasses != null
-      ? planTotal(e.ratePerClass, e.plannedClasses)
-      : e.course.pricing?.[e.selectedMode]
-  if (typeof expected !== "number") return undefined
-  return Math.max(0, expected - totalTuitionPaid(e))
-}
+/** The "Tuition paid" stage label: ledger rows derive it from a zero balance; legacy rows keep the old rule. */
+const isPaidInFull = (e: Enrollment, balance: TuitionBalance): boolean =>
+  balance.mode === "ledger"
+    ? balance.charged > 0 && balance.outstanding === 0
+    : e.tuitionPayments.some((p) => p.status === "completed")
+
+const canManagePayments = (e: Enrollment) =>
+  e.applicationPaid && (e.status === "plan_agreed" || e.status === "enrolled")
+
+const paymentsDisabledReason = (e: Enrollment) =>
+  !e.applicationPaid
+    ? "Manage payments (the assessment fee is not paid yet)"
+    : "Manage payments (available once the plan is agreed)"
 
 export function EnrollmentTable({
   enrollments,
@@ -93,7 +100,8 @@ export function EnrollmentTable({
                 {filtered.map((enrollment) => {
                   const locationName = enrollmentLocationName(enrollment)
                   const format = enrollment.offering?.deliveryMode.name || enrollment.selectedMode
-                  const balance = tuitionBalance(enrollment)
+                  const balance = balanceOf(enrollment)
+                  const countedPayments = enrollment.tuitionPayments.filter((p) => COUNTED_STATUSES.includes(p.status)).length
                   const latest = enrollment.assessments?.[0]
                   return (
                     <TableRow key={enrollment.id}>
@@ -121,7 +129,7 @@ export function EnrollmentTable({
                       <TableCell>
                         <StatusBadge
                           status={enrollment.status}
-                          tuitionPaid={enrollment.tuitionPayments?.some((p) => p.status === "completed")}
+                          paidInFull={isPaidInFull(enrollment, balance)}
                         />
                         {(needsRefund(enrollment) || enrollment.feeCoveredByPaymentId) && (
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -205,10 +213,18 @@ export function EnrollmentTable({
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm font-medium">{formatCurrency(totalTuitionPaid(enrollment))}</p>
-                          <p className="text-xs text-muted-foreground">{enrollment.tuitionPayments.length} payment(s)</p>
-                          {balance !== undefined && balance > 0 && (
-                            <p className="text-xs text-orange-600">{formatCurrency(balance)} balance</p>
+                          <p className="text-sm font-medium">{formatCurrency(balance.paid)}</p>
+                          <p className="text-xs text-muted-foreground">{countedPayments} payment(s)</p>
+                          {balance.mode === "ledger" && balance.classesPurchased > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {balance.classesCovered} of {balance.classesPurchased} classes covered
+                            </p>
+                          )}
+                          {balance.outstanding !== undefined && balance.outstanding > 0 && (
+                            <p className="text-xs text-orange-600">{formatCurrency(balance.outstanding)} balance</p>
+                          )}
+                          {balance.mode === "ledger" && balance.credit > 0 && (
+                            <p className="text-xs text-blue-600">{formatCurrency(balance.credit)} credit</p>
                           )}
                         </div>
                       </TableCell>
@@ -247,8 +263,9 @@ export function EnrollmentTable({
                             size="sm"
                             className="!h-8 !w-8 !p-0"
                             onClick={() => onPayments(enrollment)}
-                            title="Manage payments"
-                            disabled={!enrollment.applicationPaid}
+                            title={canManagePayments(enrollment) ? "Manage payments" : paymentsDisabledReason(enrollment)}
+                            aria-label="Manage payments"
+                            disabled={!canManagePayments(enrollment)}
                           >
                             <CreditCard className="h-4 w-4" />
                           </Button>

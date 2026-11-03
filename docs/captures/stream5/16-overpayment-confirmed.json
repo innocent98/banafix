@@ -1,0 +1,53 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e5_1793741335532/tuition",
+    "body": {
+      "amount": 12000,
+      "paymentMethod": "pos",
+      "allowOverpayment": true,
+      "sendReceipt": false
+    }
+  },
+  "status": 201,
+  "response": {
+    "payment": {
+      "id": "cmw17a4pl001h07y91embbvqx",
+      "enrollmentId": "t5_e5_1793741335532",
+      "amount": 12000,
+      "currency": "NGN",
+      "paymentMethod": "pos",
+      "description": null,
+      "status": "completed",
+      "paidAt": "2026-11-03T21:29:01.016Z",
+      "receiptNumber": "TUI-1793741341012-99IE",
+      "receiptGenerated": false,
+      "receiptSent": false,
+      "paystackReference": null,
+      "paystackChannel": null,
+      "paymentUrl": null,
+      "recordedBy": "t5_admin_1793741335532",
+      "adminNotes": null,
+      "createdAt": "2026-11-03T21:29:01.017Z",
+      "updatedAt": "2026-11-03T21:29:01.017Z",
+      "enrollment": {
+        "student": {
+          "firstName": "Ada",
+          "lastName": "Placeholder",
+          "email": "t5stu1793741335532@example.com"
+        }
+      }
+    },
+    "summary": {
+      "mode": "ledger",
+      "charged": 10000,
+      "paid": 12000,
+      "outstanding": 0,
+      "credit": 2000,
+      "materials": 0,
+      "classesPurchased": 2,
+      "classesCovered": 2
+    },
+    "message": "Tuition payment recorded successfully"
+  }
+}

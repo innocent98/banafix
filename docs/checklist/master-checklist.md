@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 built (PR open, unmerged)**, others planned
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 and 5 built (PRs open, unmerged)**, others planned
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -47,10 +47,20 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] `ClassSession` (enrollment, instructor, start, duration, status) + transactional conflict prevention
 - [ ] Student preferences: days, time bands, frequency; admin timetable + assignment
 
-### Stream 5 — Per-class tuition
-- [ ] Invoice = classes × rate snapshot; paid status per class; partial payments
-- [ ] Manual recording (cash/transfer/POS) kept; online tuition via Paystack; materials as line items
-- [ ] Receipts + balance rewritten (replaces D3)
+### Stream 5 — Per-class tuition  ✅ built 2026-11-03, branch `feature/per-class-tuition` (PR open against `feature/assessment-first-admission`, unmerged)
+- [x] Charge ledger `TuitionCharge` (CLASSES + MATERIAL, price snapshot, voided never deleted); created with the plan; top-ups at today's rate; derived balance + `classesCovered` (pure, unit-tested; S4 can reuse)
+- [x] Partial payments (balance = charges − counted payments; credit on overpayment; overpayment needs confirmation); legacy enrollments keep the old `Course.pricing` balance, isolated and tested
+- [x] Manual recording kept (cash / bank transfer / POS / card / cheque / mobile money / other)
+- [x] Online tuition: admin generates a Paystack link (default = outstanding), webhook `tuition` branch (replay, concurrent, amount/currency/metadata mismatch, unknown reference, late payment on cancelled), proven against the **local Paystack mock**
+- [~] **Real Paystack test-mode charge for tuition NOT DONE** (needs John's keys)
+- [x] Materials as charges (required auto-added at the plan step, optional picked); required/optional set in the Materials tab (S3)
+- [x] Per-class receipts (PDF + email, student copy + admin copy, point-in-time); PDFs print `NGN` (helvetica has no ₦)
+- [x] Admin: ledger modal on the enrollment screen, `/admin/payments` (payments + outstanding, filters, CSV)
+- [~] Browser QA of the admin flow at 1280px: see the SOP verification table for what was and was not exercised
+- [x] Independent-review round 2 (open links vs the cap, credit/refund-needed visible on `/admin/payments`, admin alert emails, `refund.processed` flagged, URL-less rows, honest outstanding scan); [x] PR #12's `chargeMatches` change (`requested_amount ?? amount`) merged (`878b425`) and re-tested on the mock (110 + 33 checks)
+- [ ] **Deploy gate:** snapshot prod, direct DB URL, migrate `20261103180000_per_class_tuition` after `20261103150000_assessment_first_admission`
+- [ ] John decides: **tuition refund policy** (not built); whether `plan_agreed → enrolled` should wait for the first class to be paid (built: any counted payment)
+- SOP: [`docs/sop/per-class-tuition.md`](../sop/per-class-tuition.md) · Spec: `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream5-per-class-tuition.md` · API guide: [`docs/fe-integration-guide-per-class-tuition.md`](../fe-integration-guide-per-class-tuition.md)
 
 ### Stream 6 — Registration + parents
 - [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
@@ -269,7 +279,8 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [x] **D11** — all commercial config (fees, offerings, rates, materials, availability) is admin-editable data, never hardcoded
 - [x] **D2** — introduce `Student` person entity (unique email)
 - [x] **D4** — Vercel Cron for birthdays
-- [x] **D3** — expected-total-tuition = `course.pricing[mode]` (decided; consumed by the future tuition module)
+- [x] **D3** — expected-total-tuition = `course.pricing[mode]` — **⚠️ SUPERSEDED by D12 (Stream 5):** now legacy rows only
+- [x] **D12** — per-class tuition is a charge ledger; paid status derived, never stored per class
 - [ ] **D5** — harden public enrollment read endpoints behind admin auth
 
 ## Backlog / upcoming

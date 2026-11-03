@@ -43,6 +43,13 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
       orderBy: [{ location: { name: 'asc' } }, { deliveryMode: { name: 'asc' } }],
     })
 
+    // Materials for the plan step: required ones are always charged, optional ones can be picked.
+    const materials = await prisma.material.findMany({
+      where: { courseId: enrollment.courseId, isActive: true },
+      select: { id: true, name: true, price: true, required: true },
+      orderBy: { createdAt: 'asc' },
+    })
+
     // The student's latest completed assessment (any application), offered for "reuse" on an
     // application that is awaiting its assessment.
     const reusable = await prisma.assessment.findFirst({
@@ -57,7 +64,7 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
     })
 
     const { assessments, ...rest } = enrollment
-    return createResponse({ enrollment: rest, assessments, offerings, reusableAssessment: reusable })
+    return createResponse({ enrollment: rest, assessments, offerings, reusableAssessment: reusable, materials })
   } catch (error) {
     console.error('Get admin enrollment error:', error)
     return createErrorResponse('Failed to fetch enrollment', 500)
