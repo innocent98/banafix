@@ -63,7 +63,11 @@ const server = http.createServer((req, res) => {
           domain: 'test',
           status: ok ? 'success' : 'failed',
           reference,
-          amount: override.amount ?? amounts.get(reference) ?? 500000,
+          // `PASSTHRU` in the reference simulates "pass charges to customer": amount = base + fees.
+          // `override.amount` (test hook) replaces the BASE amount, so a mismatch override moves both fields.
+          amount: (override.amount ?? amounts.get(reference) ?? 500000) + (reference.includes('PASSTHRU') ? 7500 : 0),
+          requested_amount: override.amount ?? amounts.get(reference) ?? 500000,
+          fees: reference.includes('PASSTHRU') ? 7500 : 0,
           metadata: 'metadata' in override ? override.metadata : metadatas.get(reference) ?? null,
           message: null,
           gateway_response: ok ? 'Successful' : 'Declined',

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
-import { isNonNegativeInt, slugify, uniqueSlug } from '@/lib/admin-validation'
+import { isNonNegativeInt, isPositiveInt, slugify, uniqueSlug } from '@/lib/admin-validation'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -50,8 +50,8 @@ export const PATCH = withAuth(async (req: NextRequest, admin, context: Ctx) => {
       data.kind = body.kind
     }
     if (body.assessmentFee !== undefined) {
-      if (!isNonNegativeInt(body.assessmentFee)) {
-        return createErrorResponse('Assessment fee must be a non-negative whole number', 400)
+      if (!isPositiveInt(body.assessmentFee)) {
+        return createErrorResponse('Assessment fee must be a whole number of naira greater than 0', 400)
       }
       data.assessmentFee = body.assessmentFee
     }

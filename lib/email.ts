@@ -825,8 +825,9 @@ export async function sendAdminTuitionAlert(data: {
 }
 
 /**
- * "Application received, fee already covered": sent instead of a receipt when a student who has
- * already paid the (once per student, non-refundable) assessment fee applies again.
+ * "Application received": sent instead of a payment receipt when a student who has already paid the
+ * (once per student, non-refundable) assessment fee applies again. The wording is deliberately
+ * neutral and confirms nothing beyond receipt, because it goes to whatever address was typed in.
  */
 export async function sendApplicationFeeCovered(data: {
   firstName: string
@@ -840,8 +841,8 @@ export async function sendApplicationFeeCovered(data: {
       subject: `Application received: ${data.courseName.replace(/[\r\n]+/g, ' ')}`,
       html: `
         <p>Hi ${escapeHtml(data.firstName)},</p>
-        <p>We have received your application for <strong>${escapeHtml(data.courseName)}</strong>. You have already paid the assessment fee, so there is nothing to pay now.</p>
-        <p>We will be in touch to arrange your assessment. Questions? Contact us at ${SUPPORT_EMAIL}.</p>
+        <p>We have received an application for <strong>${escapeHtml(data.courseName)}</strong> using this email address.</p>
+        <p>Our team will confirm it with you before anything else happens. If you have paid the assessment fee before, you will not be charged for it again. If this was not you, please contact us at ${SUPPORT_EMAIL}.</p>
       `,
     })
     if (emailResult.error) {
@@ -880,6 +881,39 @@ export async function sendAdminCancelledPaymentNotice(data: {
     return true
   } catch (error) {
     console.error('Error sending cancelled-payment notice:', error)
+    return false
+  }
+}
+
+/** Best-effort admin notice: a successful Paystack charge did not match the fee we asked for. */
+export async function sendAdminAmountMismatchNotice(data: {
+  studentName: string
+  studentEmail: string
+  reference: string
+  enrollmentId: string
+  expectedNaira: number
+  paidKobo: number | null | undefined
+  requestedKobo: number | null | undefined
+  currency: string | null | undefined
+}): Promise<boolean> {
+  try {
+    const emailResult = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Assessment fee charge did not match (${data.studentName.replace(/[\r\n]+/g, ' ')})`,
+      html: `
+        <p><strong>A Paystack charge succeeded but did not match the assessment fee, so the application was NOT updated.</strong></p>
+        <p>${escapeHtml(data.studentName)} (${escapeHtml(data.studentEmail)}), reference ${escapeHtml(data.reference)}. We asked for ₦${data.expectedNaira.toLocaleString()}; Paystack reports amount ${data.paidKobo ?? 'n/a'} kobo, requested amount ${data.requestedKobo ?? 'n/a'} kobo, currency ${escapeHtml(data.currency ?? 'n/a')}.</p>
+        <p>Check the transaction in the Paystack dashboard, then use Mark fee paid on the enrollment if the fee was correctly paid, or refund it. Enrollment: ${escapeHtml(data.enrollmentId)}</p>
+      `,
+    })
+    if (emailResult.error) {
+      console.error('Failed to send amount-mismatch notice:', emailResult.error)
+      return false
+    }
+    return true
+  } catch (error) {
+    console.error('Error sending amount-mismatch notice:', error)
     return false
   }
 }

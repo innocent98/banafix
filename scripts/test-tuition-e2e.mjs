@@ -360,6 +360,20 @@ check('refund.processed: audit row tuition.refund_processed, balance NOT changed
 check('refund.processed for an unknown reference is a quiet 200', (await webhook('refund.processed', { transaction_reference: `t5_nope_${t}` })) === 200 && audits(`t5_nope_${t}`, 'tuition.refund_processed') === 0)
 check('charge.dispute.create on a tuition payment is audited', (await webhook('charge.dispute.create', { id: 'dsp_1', reason: 'fraud', amount: 100, transaction: { reference: link1.reference } })) === 200 && audits(link1.id, 'tuition.dispute') === 1)
 
+// ───────────── 11. Paystack "pass charges to customer": amount includes the fee, requested_amount is the base ─────────────
+const E14 = enrollment({ status: 'plan_agreed' })
+addCharge(E14, 1, 5000, 't5_c14')
+const refPass = `t5_ref_PASSTHRU_${t}`
+psql(`insert into tuition_payments (id,"enrollmentId",amount,"paymentMethod",status,"receiptNumber","paystackReference","paymentUrl","updatedAt") values ('t5_p14_${t}','${E14}',5000,'paystack','pending','TUI-t5-14-${t}','${refPass}','http://example.invalid/pay',now())`)
+await webhook('charge.success', { reference: refPass }) // mock: amount 507500 (base + 7500 fee), requested_amount 500000
+check('PASSTHRU: a charge with Paystack fees on top settles on requested_amount (recorded 5000, enrolled)', psql(`select status||':'||amount from tuition_payments where id='t5_p14_${t}'`) === 'completed:5000' && psql(`select status from enrollments where id='${E14}'`) === 'enrolled' && audits(`t5_p14_${t}`, 'tuition.amount_mismatch') === 0)
+const E15b = enrollment({ status: 'plan_agreed' })
+addCharge(E15b, 1, 5000, 't5_c15b')
+const refPass2 = `t5_ref_PASSTHRU2_${t}`
+psql(`insert into tuition_payments (id,"enrollmentId",amount,"paymentMethod",status,"receiptNumber","paystackReference","paymentUrl","updatedAt") values ('t5_p15b_${t}','${E15b}',4000,'paystack','pending','TUI-t5-15b-${t}','${refPass2}','http://example.invalid/pay',now())`)
+await webhook('charge.success', { reference: refPass2 }) // base asked 4000 but Paystack says the base was 5000: still a mismatch
+check('PASSTHRU: a wrong BASE amount is still refused even with fees present', psql(`select status from tuition_payments where id='t5_p15b_${t}'`) === 'pending' && audits(`t5_p15b_${t}`, 'tuition.amount_mismatch') === 1)
+
 for (const [name, c] of Object.entries(captures)) writeFileSync(`${captureDir}/${name}.json`, JSON.stringify(c, null, 2) + '\n')
 const failed = results.filter((x) => !x).length
 console.log(`\n${results.length - failed}/${results.length} checks passed; captures in ${captureDir}`)

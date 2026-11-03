@@ -294,6 +294,11 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [ ] Drop deprecated `Course` columns + dormant `Enrollment` identity columns; remove `lib/locations.ts`, stale "Seats Utilization" stat, Basic-tab `location` select
 - [ ] Parent child-picker lists only `enrolled` students; admin "Record tuition" button shows on rows the server refuses
 
+- [ ] Real Paystack test charge with "pass charges to customer" ON and OFF: confirms `requested_amount` semantics used by the fee amount check (independent review H1; fixed from the spec, proven on the mock only)
+- [ ] Same-day runbook after deploy: enter per-class rates in `/admin` (online intake is closed until then): `docs/sop/assessment-first-admission.md`
+- [ ] Review follow-ups: server-side "refund needed" count/filter (L8); cash mark-paid for an already-covered student tracks no cash (L7); explicit BEGIN/COMMIT for migrations in a later migration (L4)
+- [x] Independent review of PR #12 fixed: H1 amount check, M1 two-tab fee, M3 covered path now pending + admin confirm, L1/L2/L6/L9/L10
+
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types
 - [ ] Confirm `FROM_EMAIL` domain verified in Resend before production

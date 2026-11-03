@@ -1,5 +1,10 @@
 // Pure validators shared by the admin location/offering/material routes.
 
+/** A whole number of naira greater than zero (an assessment fee of 0 would grant permanent coverage). */
+export function isPositiveInt(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0
+}
+
 export function isNonNegativeInt(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0
 }
