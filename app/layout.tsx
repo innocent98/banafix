@@ -7,6 +7,7 @@ import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
+import { isNoindex } from "@/lib/site-noindex"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -42,6 +43,8 @@ export const metadata: Metadata = {
   description:
     "One-on-one music tuition with performing musicians in Lekki, Lagos. Learn at our studio, at your home, or online. Browse the courses and enrol on the format that fits your week.",
   keywords: ["music academy", "violin lessons", "guitar lessons", "music school nigeria", "online music classes"],
+  // Staff-review mode: see lib/site-noindex.ts. Absent (indexable) by default.
+  ...(isNoindex() ? { robots: { index: false, follow: false } } : {}),
 }
 
 export default function RootLayout({

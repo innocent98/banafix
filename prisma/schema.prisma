@@ -205,6 +205,72 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ---------------------------------------------------------------------------
+// Public-site content, managed from /admin. Everything defaults to unpublished
+// so nothing goes live until an admin publishes it; the public pages render
+// only published rows and never fall back to placeholder content.
+// ---------------------------------------------------------------------------
+
+model Testimonial {
+  id                  String   @id @default(cuid())
+  name                String
+  role                String? // relationship to Banafix, e.g. "Parent, piano student"
+  quote               String
+  videoUrl            String?
+  // Written consent to publish. isPublished can never be true without it.
+  permissionToPublish Boolean  @default(false)
+  isPublished         Boolean  @default(false)
+  order               Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("testimonials")
+}
+
+model TrustedPartner {
+  id          String   @id @default(cuid())
+  name        String
+  logoUrl     String?
+  linkUrl     String?
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("trusted_partners")
+}
+
+model SiteEvent {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  startsAt        DateTime
+  location        String
+  registrationUrl String?
+  isPublished     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isPublished, startsAt])
+  @@map("site_events")
+}
+
+model SiteStat {
+  id          String   @id @default(cuid())
+  label       String
+  value       String // free text so "3,200+" or "Since 2016" are both possible; real figures only
+  note        String?
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, order])
+  @@map("site_stats")
+}
+
 // Enhanced enrollment tracking with comprehensive student information
 model Enrollment {
   id           String   @id @default(cuid())
