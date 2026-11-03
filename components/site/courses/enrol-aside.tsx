@@ -9,8 +9,6 @@
  *
  * Substitutions against the handoff, all of them to stay honest to data:
  *   • "Total for 12 weeks" uses the course's own `duration`.
- *   • The per-lesson caption is only rendered when `duration` parses to a week
- *     count; the handoff divides by a hardcoded 12.
  *   • The handoff's flat "₦5,000" is `calculateApplicationFee(course.location)`,
  *     which is ₦2,000 or ₦8,000 outside Lagos/Abuja/Online.
  *   • The handoff's second CTA offered something Banafix does not run, so it
@@ -39,7 +37,6 @@ export function EnrolAside({
   courseId,
   duration,
   modes,
-  weeks,
   applicationFee,
   seatsLeft,
   totalSeats,
@@ -48,7 +45,6 @@ export function EnrolAside({
   courseId: string
   duration: string
   modes: ModeOption[]
-  weeks: number | null
   applicationFee: number
   seatsLeft: number
   totalSeats: number
@@ -66,12 +62,6 @@ export function EnrolAside({
         <span className="font-display text-[46px] font-normal leading-none tracking-[-0.02em] text-bfx-ink">
           {selected ? formatNaira(selected.price) : "Price on request"}
         </span>
-        {/* Only shown when `duration` actually parses to a number of weeks. */}
-        {selected && weeks ? (
-          <span className="text-sm font-semibold text-bfx-muted">
-            · {formatNaira(selected.price / weeks)} a lesson
-          </span>
-        ) : null}
       </div>
 
       {modes.length > 0 ? (

@@ -52,20 +52,6 @@ export function pricedModes(
     .map((mode) => ({ mode, price: pricing[mode] as number }))
 }
 
-/**
- * `duration` is free text ("12 weeks", "8 weeks", "3 months"). Only a value
- * that actually parses to a week count may drive the per-lesson caption — the
- * handoff divides by a hardcoded 12, which would be wrong for every course
- * that is not twelve weeks long.
- */
-export function parseWeeks(duration: string | null | undefined): number | null {
-  if (!duration) return null
-  const match = /(\d+)\s*weeks?\b/i.exec(duration)
-  if (!match?.[1]) return null
-  const weeks = Number.parseInt(match[1], 10)
-  return Number.isFinite(weeks) && weeks > 0 ? weeks : null
-}
-
 /** "1 course" / "6 courses", "1 format" / "4 formats". */
 export function plural(count: number, singular: string, pluralWord = `${singular}s`) {
   return `${count} ${count === 1 ? singular : pluralWord}`

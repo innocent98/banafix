@@ -69,3 +69,13 @@ export function getCourseStatus(course: {
     status: expired ? 'expired' : course.isPublished ? 'published' : 'draft'
   }
 }
+/**
+ * Normalise a curriculum module's optional timeframe ("Weeks 1-2"). Blank,
+ * missing or non-string input is stored as null so the public curriculum can
+ * simply omit the label instead of rendering an empty one.
+ */
+export function normalizeWeeks(input: unknown): string | null {
+  if (typeof input !== "string") return null
+  const trimmed = input.trim()
+  return trimmed === "" ? null : trimmed
+}
