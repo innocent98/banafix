@@ -21,6 +21,11 @@ import { TrustedBy } from "@/components/site/home/trusted-by"
 import { WhyBanafix } from "@/components/site/home/why-banafix"
 import { getCourseExpirationCutoff } from "@/lib/course-utils"
 import { prisma } from "@/lib/prisma"
+import {
+  getPublishedPartners,
+  getPublishedStats,
+  getPublishedTestimonials,
+} from "@/lib/site-content-queries"
 
 /**
  * Courses expire on a rolling 30-day window and admins publish at will, so the
@@ -112,7 +117,13 @@ async function getActiveDeliveryModes(): Promise<ModeRow[]> {
 
 export default async function HomePage() {
   // Independent queries, so they run together rather than in a waterfall.
-  const [courses, modes] = await Promise.all([getPublishedCourses(), getActiveDeliveryModes()])
+  const [courses, modes, stats, partners, testimonials] = await Promise.all([
+    getPublishedCourses(),
+    getActiveDeliveryModes(),
+    getPublishedStats(),
+    getPublishedPartners(),
+    getPublishedTestimonials(),
+  ])
 
   const featured: FeaturedCourse[] = courses.slice(0, FEATURED_COUNT).map((course) => ({
     id: course.id,
@@ -124,12 +135,12 @@ export default async function HomePage() {
 
   return (
     <>
-      <HomeHero />
-      <TrustedBy />
+      <HomeHero stats={stats} />
+      <TrustedBy partners={partners} />
       <FeaturedCourses courses={featured} total={courses.length} />
       <WhyBanafix />
       <HowYouLearn formats={buildFormats(modes, courses)} />
-      <Testimonials />
+      <Testimonials testimonials={testimonials} />
       <CtaBand />
     </>
   )
