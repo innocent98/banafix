@@ -104,12 +104,17 @@ async function e2e() {
   const ids = { course: `e2e_c_${t}`, loc: `e2e_l_${t}`, student: `e2e_s_${t}` }
   psql(`insert into locations (id,name,slug,"assessmentFee","updatedAt") values ('${ids.loc}','E2E ${t}','e2e-${t}',5000,now())`)
   psql(`insert into courses (id,title,instrument,level,"seatsLeft","totalSeats","updatedAt") values ('${ids.course}','E2E','Guitar','Beginner',5,20,now())`)
-  psql(`insert into students (id,email,"firstName","lastName","updatedAt") values ('${ids.student}','e2e${t}@example.com','E','E',now())`)
-  const mk = (suffix, status, paid) => {
+  // One student PER case: the fee is charged once per student, so cases must not share a student.
+  const mkStudent = (suffix) => {
+    const id = `e2e_s_${suffix}_${t}`
+    psql(`insert into students (id,email,"firstName","lastName","updatedAt") values ('${id}','e2e${suffix}${t}@example.com','E','E',now())`)
+    return id
+  }
+  const mk = (suffix, status, paid, studentId = mkStudent(suffix)) => {
     const id = `e2e_e_${suffix}_${t}`, ref = `e2e_ref_${suffix}_${t}`
-    psql(`insert into enrollments (id,"courseId","studentId","locationId","selectedMode",status,"applicationPaid","updatedAt") values ('${id}','${ids.course}','${ids.student}','${ids.loc}','On-site','${status}',${paid},now())`)
-    psql(`insert into application_payments (id,"enrollmentId",amount,"paymentMethod","paystackReference","paystackStatus",status,"receiptNumber","billingEmail","billingName","updatedAt") values ('ap_${id}','${id}',5000,'pending','${ref}','pending','pending','APP-${suffix}-${t}','e2e${t}@example.com','E E',now())`)
-    return { id, ref }
+    psql(`insert into enrollments (id,"courseId","studentId","locationId","selectedMode",status,"applicationPaid","updatedAt") values ('${id}','${ids.course}','${studentId}','${ids.loc}','On-site','${status}',${paid},now())`)
+    psql(`insert into application_payments (id,"enrollmentId",amount,"paymentMethod","paystackReference","paystackStatus",status,"receiptNumber","billingEmail","billingName","updatedAt") values ('ap_${id}','${id}',5000,'pending','${ref}','pending','pending','APP-${suffix}-${t}','e2e${suffix}${t}@example.com','E E',now())`)
+    return { id, ref, studentId }
   }
   const fresh = mk('fresh', 'pending', false)
   const cancelled = mk('cancelled', 'cancelled', false)
@@ -158,6 +163,46 @@ async function e2e() {
   // charge.failed after success must not overwrite a completed payment.
   await postEvent('charge.failed', { reference: fresh.ref })
   check('late charge.failed does not overwrite a completed payment', psql(`select status from application_payments where "enrollmentId"='${fresh.id}'`) === 'completed')
+
+  // ── once per student: a second fee payment is recorded as a DUPLICATE (needs refund), nothing else moves ──
+  const first = mk('dupA', 'pending', false)
+  const second = mk('dupB', 'pending', false, first.studentId) // same student, second application in flight
+  await postEvent('charge.success', { reference: first.ref })
+  check('dup: first payment settles normally', q(first.id, 'status') === 'assessment_paid')
+  await postEvent('charge.success', { reference: second.ref })
+  check('dup: second payment of the SAME student flagged duplicate', psql(`select status from application_payments where "enrollmentId"='${second.id}'`) === 'duplicate')
+  check('dup: second enrollment NOT moved (still pending, not paid)', q(second.id, 'status') === 'pending' && q(second.id, 'applicationPaid') === 'f')
+  check('dup: application.duplicate_payment audit row written', Number(psql(`select count(*) from audit_logs where "entityId"='ap_${second.id}' and action='application.duplicate_payment'`)) === 1)
+  check('dup: no assessment_paid audit for the duplicate', audits(second.id, 'enrollment.assessment_paid') === 0)
+  await postEvent('charge.success', { reference: second.ref })
+  check('dup: replay of a duplicate is a no-op (one audit row)', Number(psql(`select count(*) from audit_logs where "entityId"='ap_${second.id}' and action='application.duplicate_payment'`)) === 1)
+
+  // A payment superseded by a cash fee that still succeeds later is a duplicate too.
+  const sup = mk('sup', 'assessment_paid', true)
+  psql(`update application_payments set status='superseded' where "enrollmentId"='${sup.id}'`)
+  await postEvent('charge.success', { reference: sup.ref })
+  check('superseded payment that later succeeds => duplicate, enrollment untouched', psql(`select status from application_payments where "enrollmentId"='${sup.id}'`) === 'duplicate' && q(sup.id, 'status') === 'assessment_paid')
+
+  // ── public covered path: a student who already paid applies for ANOTHER course, twice at once ──
+  const cov = mk('cov', 'assessment_paid', true)
+  psql(`update application_payments set status='completed', "paidAt"=now() where "enrollmentId"='${cov.id}'`)
+  const course2 = `e2e_c2_${t}`
+  psql(`insert into courses (id,title,instrument,level,"isActive","isPublished","updatedAt") values ('${course2}','E2E two','Piano','Beginner',true,true,now())`)
+  const dmId = psql(`select id from delivery_modes where name='On-site' limit 1`)
+  const off2 = `e2e_o2_${t}`
+  psql(`insert into course_offerings (id,"courseId","locationId","deliveryModeId","isActive","updatedAt") values ('${off2}','${course2}','${ids.loc}','${dmId}',true,now())`)
+  psql(`insert into offering_rates (id,"offeringId","durationMins","pricePerClass","updatedAt") values ('e2e_r2_${t}','${off2}',60,5000,now())`)
+  const applyBody = JSON.stringify({ firstName: 'Ignored', lastName: 'Ignored', email: `e2ecov${t}@example.com`, courseId: course2, offeringId: off2, arrangement: 'HOME', address: '1 Attacker Street', agreeToTerms: true, agreeToRefundPolicy: true })
+  const apply = () => fetch(`${base}/api/enrollments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: applyBody }).then(async (r) => ({ status: r.status, body: await r.json() }))
+  const applied = await Promise.all([apply(), apply()])
+  const created = applied.filter((r) => r.status === 201)
+  check('covered double-submit: exactly one application created (other refused 400)', created.length === 1 && applied.some((r) => r.status === 400), JSON.stringify(applied.map((r) => r.status)))
+  check('covered: response says feeCovered, no Paystack payment object', created[0]?.body?.feeCovered === true && !created[0]?.body?.payment)
+  check('covered: enrollment at assessment_paid with coverage link, no new payment row',
+    psql(`select status||':'||("feeCoveredByPaymentId" is not null) from enrollments where "courseId"='${course2}'`) === 'assessment_paid:true'
+    && psql(`select count(*) from application_payments p join enrollments e on e.id=p."enrollmentId" where e."courseId"='${course2}'`) === '0')
+  check('covered: request address NOT stored (admin confirms the address when scheduling)',
+    psql(`select coalesce(a.address,'(none)') from assessments a join enrollments e on e.id=a."enrollmentId" where e."courseId"='${course2}'`) === '(none)')
 
   const conc = mk('conc', 'pending', false)
   const statuses = await Promise.all([1, 2, 3].map(() => postEvent('charge.success', { reference: conc.ref })))

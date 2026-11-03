@@ -6,7 +6,7 @@ export interface EnrollmentWriter {
   enrollment: {
     updateMany(args: {
       where: Prisma.EnrollmentWhereInput
-      data: Prisma.EnrollmentUpdateManyMutationInput
+      data: Prisma.EnrollmentUncheckedUpdateManyInput
     }): Promise<{ count: number }>
   }
 }
@@ -21,7 +21,7 @@ export async function transitionEnrollment(
   id: string,
   from: EnrollmentStatus,
   to: EnrollmentStatus,
-  data: Prisma.EnrollmentUpdateManyMutationInput = {},
+  data: Prisma.EnrollmentUncheckedUpdateManyInput = {},
 ): Promise<boolean> {
   assertTransition(from, to)
   const result = await tx.enrollment.updateMany({

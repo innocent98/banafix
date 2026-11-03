@@ -4,8 +4,9 @@
  *   pending -> assessment_paid -> assessment_scheduled -> assessed -> plan_agreed -> enrolled
  *   any non-terminal -> cancelled
  *
- * Builder addition (B5): `assessed -> assessment_scheduled` for a re-assessment (a new
- * Assessment row). `enrolled` and `cancelled` are terminal. Legacy `enrolled`/`pending`
+ * Builder additions: (B5) `assessed -> assessment_scheduled` for a re-assessment (a new
+ * Assessment row); (B16) `assessment_paid -> assessed` for reusing a student's latest completed
+ * assessment on a fee-covered application. `enrolled` and `cancelled` are terminal. Legacy `enrolled`/`pending`
  * rows keep their values; anything else (e.g. the retired `application_paid`) is unknown.
  */
 export type EnrollmentStatus =
@@ -19,7 +20,9 @@ export type EnrollmentStatus =
 
 export const ALLOWED_TRANSITIONS: Record<EnrollmentStatus, readonly EnrollmentStatus[]> = {
   pending: ['assessment_paid', 'cancelled'],
-  assessment_paid: ['assessment_scheduled', 'cancelled'],
+  // assessment_paid -> assessed only via "reuse latest assessment" for a student whose fee (and a
+  // completed assessment) already exist from an earlier application (B16).
+  assessment_paid: ['assessment_scheduled', 'assessed', 'cancelled'],
   assessment_scheduled: ['assessed', 'cancelled'],
   assessed: ['plan_agreed', 'assessment_scheduled', 'cancelled'],
   plan_agreed: ['enrolled', 'cancelled'],

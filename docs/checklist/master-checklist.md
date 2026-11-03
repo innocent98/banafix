@@ -37,7 +37,8 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] `Assessment` entity: arrangement, preferred date + time band, scheduled slot, assessor, result (level, notes, recommended offering), editable + audited
 - [x] Plan step: offering, duration, classes/week, planned classes, rate snapshot (later rate edits never move it); tuition on `plan_agreed` or audited "Confirm enrolment" → `enrolled`
 - [x] Rename "application fee" → "assessment fee" in UI, emails, receipts (copy only; DB names stay)
-- [~] Policy text (`policy-dialog.tsx`, `policies.ts`) **not edited** — 20 contradictions listed for John (refund schedule vs non-refundable fee, dashboard, PayPal, instalments, seats)
+- [x] Assessment fee charged **once per student** (decided 2026-11-03): covered applications start at `assessment_paid`, no Paystack; duplicate/superseded payments flagged `duplicate` for a manual refund (admin Refund needed badge/filter, audited Mark refunded); cash supersedes Paystack; reuse latest assessment; real-Postgres concurrency test
+- [~] Policy text rewritten (`policy-dialog.tsx`, `policies.ts`, last updated Nov 3, 2026) with no invented numbers: **John must review** `docs/john-review/policy-changes.md` (13 decisions)
 - [x] Admin pipeline view (stage filters, schedule + result + plan forms, confirm/cancel); walk-in per spec
 - SOP: [`docs/sop/assessment-first-admission.md`](../sop/assessment-first-admission.md) · Plan/ledger: `docs/superpowers/plans/2026-11-03-streams-2-3-assessment-first.md`
 
@@ -281,9 +282,9 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 
 ## Deferred follow-ups — Streams 2+3
 - [ ] Real Paystack test-mode charge (John's keys) — closes the live-webhook gap for `assessment_paid`
-- [ ] John decides: is the assessment fee once per student or once per course application? (built: per application)
-- [ ] John reviews the policy-text contradictions (shared notes `policy-contradictions.md`)
-- [ ] Cash fee recorded while a Paystack charge is in flight ⇒ double fee (audited only)
+- [ ] John reviews and answers `docs/john-review/policy-changes.md` (tuition refunds, cancellation, missed assessment, late arrival, rental, materials, sibling discounts, when tuition is due, instalments, refund payout, removal refunds, out-of-area home visits, session recordings)
+- [ ] Duplicate assessment-fee payments are refunded by hand in Paystack (then Mark refunded in admin); pre-deploy: count students with `applicationPaid` but no completed fee payment (see SOP)
+- [ ] Wave 2 tuition must route the Paystack webhook by reference prefix (`app_fee_`) before the ApplicationPayment lookup
 - [ ] `GET /api/receipts/application-fee/[enrollmentId]` still unauthenticated; D5 otherwise partly closed
 - [ ] Drop deprecated `Course` columns + dormant `Enrollment` identity columns; remove `lib/locations.ts`, stale "Seats Utilization" stat, Basic-tab `location` select
 - [ ] Parent child-picker lists only `enrolled` students; admin "Record tuition" button shows on rows the server refuses

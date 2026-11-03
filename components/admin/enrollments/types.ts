@@ -1,4 +1,14 @@
 /** Shapes returned by GET /api/enrollments (admin list). Legacy rows have null plan/location fields. */
+export interface ApplicationPayment {
+  id: string
+  amount: number
+  /** completed | pending | failed | superseded | duplicate | refunded */
+  status: string
+  receiptNumber: string
+  paidAt?: string
+  refundedAt?: string | null
+}
+
 export interface Enrollment {
   id: string
   student: {
@@ -13,6 +23,8 @@ export interface Enrollment {
   selectedMode: string
   status: string
   applicationPaid: boolean
+  /** Set when this application's fee is covered by an earlier payment of the same student. */
+  feeCoveredByPaymentId?: string | null
   createdAt: string
   locationId?: string | null
   location?: { id: string; name: string } | null
@@ -41,13 +53,7 @@ export interface Enrollment {
       name: string
     }
   }
-  applicationPayments: Array<{
-    id: string
-    amount: number
-    status: string
-    receiptNumber: string
-    paidAt?: string
-  }>
+  applicationPayments: ApplicationPayment[]
   tuitionPayments: Array<{
     id: string
     amount: number
@@ -60,6 +66,10 @@ export interface Enrollment {
 
 /** Location shown for a row: the enrollment's own location, else the course's legacy text. */
 export const enrollmentLocationName = (e: Enrollment): string => e.location?.name || e.course.location || ""
+
+/** Duplicate fee payments: money received twice, awaiting a manual refund. */
+export const duplicatePayments = (e: Enrollment) => e.applicationPayments.filter((p) => p.status === "duplicate")
+export const needsRefund = (e: Enrollment) => duplicatePayments(e).length > 0
 
 export const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount)
