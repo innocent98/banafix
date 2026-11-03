@@ -166,6 +166,10 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       },
     })
 
+    if (course.instructorId) {
+      await prisma.instructorCourse.createMany({ data: [{ instructorId: course.instructorId, courseId: course.id }], skipDuplicates: true })
+    }
+
     // No existing instructor chosen but inline instructor details were entered:
     // create a roster instructor and assign it to this course.
     if (!instructorId && instructor && instructor.name) {
@@ -185,6 +189,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         where: { id: course.id },
         data: { instructorId: createdInstructor.id },
       })
+      await prisma.instructorCourse.create({ data: { instructorId: createdInstructor.id, courseId: course.id } })
     }
 
     const fullCourse = await prisma.course.findUnique({

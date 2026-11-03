@@ -74,6 +74,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       description: "Student enrollments & payments"
     },
     {
+      id: "schedule",
+      label: "Schedule",
+      icon: CalendarDays,
+      href: "/admin/schedule",
+      description: "Class timetable by instructor"
+    },
+    {
       id: "payments",
       label: "Payments",
       icon: DollarSign,
@@ -302,10 +309,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 lg:ml-0">
+        <div className="flex-1 min-w-0 lg:ml-0">
           {/* Top Bar */}
           <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border sticky top-0 z-30">
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="lg:hidden w-10" /> {/* Spacer for mobile menu button */}
@@ -315,7 +322,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <input
                         type="text"
                         placeholder="Search..."
-                        className="bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground"
+                        className="bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground w-24 sm:w-auto"
                       />
                     </div>
                   </div>
@@ -329,7 +336,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
                   <div className="h-6 w-px bg-border" />
 
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="hidden sm:flex items-center gap-2 text-sm">
                     <span className="text-muted-foreground">Welcome back,</span>
                     <span className="font-medium">{admin?.name?.split(' ')[0] || "Admin"}</span>
                   </div>

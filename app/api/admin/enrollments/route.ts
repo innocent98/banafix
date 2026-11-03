@@ -16,6 +16,7 @@ import {
 
 class LiveApplicationError extends Error {}
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+import { validatePreferences } from '@/lib/scheduling/preferences'
 
 const parseDate = (v: unknown): Date | null => {
   if (typeof v !== 'string' || !v) return null
@@ -50,6 +51,10 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       priorLevel,
       schedulePreference,
       preferredDays,
+      preferredTimeBands,
+      preferredFromTime,
+      preferredToTime,
+      preferredClassesPerWeek,
       musicExperience,
       goals,
       specialRequests,
@@ -69,6 +74,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       return createErrorResponse('Invalid email format', 400)
     }
     if (!isArrangement(arrangement)) return createErrorResponse('arrangement must be HOME, CENTRE or ONLINE', 400)
+    // Structured scheduling preferences (days, time bands, optional from/to, classes per week).
+    const prefs = validatePreferences({ preferredDays, preferredTimeBands, preferredFromTime, preferredToTime, preferredClassesPerWeek })
+    if (!prefs.ok) return createErrorResponse(prefs.error, 400)
     if (preferredTimeBand && !isTimeBand(preferredTimeBand)) {
       return createErrorResponse('preferredTimeBand must be morning, afternoon, evening or flexible', 400)
     }
@@ -170,7 +178,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
           selectedMode: offering?.deliveryMode.name ?? '',
           priorLevel,
           schedulePreference,
-          preferredDays: preferredDays || [],
+          ...prefs.value,
           musicExperience,
           goals,
           specialRequests,

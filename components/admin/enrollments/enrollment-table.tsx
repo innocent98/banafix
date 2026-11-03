@@ -1,7 +1,8 @@
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Users, Filter, Eye, CreditCard, Mail, Pencil, BadgeCheck, ClipboardList } from "lucide-react"
+import { Users, Filter, Eye, CreditCard, Mail, Pencil, BadgeCheck, ClipboardList, CalendarPlus } from "lucide-react"
 import { computeTuitionBalance, type TuitionBalance } from "@/lib/tuition-balance"
 import { COUNTED_STATUSES, toLedgerCharges } from "@/lib/tuition-ledger"
 import { Badge } from "@/components/ui/badge"
@@ -246,6 +247,16 @@ export function EnrollmentTable({
                           >
                             <ClipboardList className="h-4 w-4" />
                           </Button>
+                          {(enrollment.status === "plan_agreed" || enrollment.status === "enrolled") && (
+                            <Link
+                              href={`/admin/schedule?enrollmentId=${enrollment.id}`}
+                              title="Schedule classes"
+                              aria-label="Schedule classes"
+                              className={`${buttonVariants({ variant: "ghost", size: "sm" })} !h-8 !w-8 !p-0`}
+                            >
+                              <CalendarPlus className="h-4 w-4" />
+                            </Link>
+                          )}
                           {!enrollment.applicationPaid && enrollment.status === "pending" && (
                             <Button
                               variant="ghost"

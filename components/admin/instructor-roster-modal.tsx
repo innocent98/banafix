@@ -228,7 +228,7 @@ export function InstructorRosterModal({ instructorId, isOpen, onClose, onSaved }
               </div>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
-              Assigning a course here replaces its current instructor (a course has one instructor).
+              An instructor can teach several courses, and a course can have several instructors.
             </p>
           </div>
 

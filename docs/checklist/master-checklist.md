@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 and 5 built (PRs open, unmerged)**, others planned
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3, 4 and 5 built (PRs open, unmerged)**, others planned
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -42,10 +42,16 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] Admin pipeline view (stage filters, schedule + result + plan forms, confirm/cancel); walk-in per spec
 - SOP: [`docs/sop/assessment-first-admission.md`](../sop/assessment-first-admission.md) · Plan/ledger: `docs/superpowers/plans/2026-11-03-streams-2-3-assessment-first.md`
 
-### Stream 4 — Scheduling
-- [ ] Structured instructor availability (weekly slots per location/online) + `InstructorCourse` many-to-many
-- [ ] `ClassSession` (enrollment, instructor, start, duration, status) + transactional conflict prevention
-- [ ] Student preferences: days, time bands, frequency; admin timetable + assignment
+### Stream 4 — Scheduling  ✅ built 2026-11-03, branch `feature/scheduling-availability` (PR #15 open against `banafix`, unmerged; migration not yet applied to production)
+- [x] Structured instructor availability (weekly windows per weekday × location × mode CENTRE/HOME/ONLINE) + `InstructorCourse` many-to-many (backfilled; `Course.instructorId` kept for `/tutors`); availability editor on the instructor page
+- [x] `ClassSession` (enrollment, instructor, start/end, 45|60, status, `sequence`, no money columns, D12) with **database-enforced** conflict prevention: `btree_gist` exclusion constraints per instructor and per student over scheduled/held; friendly 409; real-DB concurrency tests (10-way races) pass
+- [x] Student preferences: days, morning/afternoon/evening, optional from/to, 1 or 2 classes a week (wizard + walk-in); recurring-session generator honouring preferences, availability and busy time; unplaced classes reported
+- [x] Admin: `/admin/schedule` week timetable per instructor, assign + dry-run preview + generate from the plan, reschedule, held/missed/cancelled; availability override needs a reason and is audited; every mutation audited inside its transaction
+- [~] Browser QA: timetable, assign flow, wizard preferences (1280px; 375px agenda + wizard) done; availability editor, reschedule/status dialogs and walk-in modal preferences **not clicked through**
+- [ ] **Deploy gate:** snapshot prod, direct DB URL, confirm `btree_gist` is creatable; then enter each instructor's availability and courses in `/admin`; check one live 409 through Accelerate
+- [ ] Ask John: does a `missed` class count as delivered (built: yes)? 30-minute classes (built: 45|60 only)? travel time between locations (built: none)?
+- [ ] Follow-ups: S7 notification hooks (`TODO(S7)` in `lib/scheduling/hooks.ts`); `/tutors` should read the many-to-many list; cancelled enrollments should cancel their classes
+- SOP: [`docs/sop/scheduling.md`](../sop/scheduling.md) · FE guide: [`docs/fe-integration-guide-scheduling.md`](../fe-integration-guide-scheduling.md) · Spec/plan: `docs/superpowers/specs/2026-11-03-scheduling-design.md`, `docs/superpowers/plans/2026-11-03-stream4-scheduling.md`
 
 ### Stream 5 — Per-class tuition  ✅ built 2026-11-03, branch `feature/per-class-tuition` (PR open against `feature/assessment-first-admission`, unmerged)
 - [x] Charge ledger `TuitionCharge` (CLASSES + MATERIAL, price snapshot, voided never deleted); created with the plan; top-ups at today's rate; derived balance + `classesCovered` (pure, unit-tested; S4 can reuse)

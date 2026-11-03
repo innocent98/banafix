@@ -1,0 +1,52 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/cmw0wcbvy00020793wu5lwcpy/schedule",
+    "body": {
+      "instructorId": "cmw0wbw64000907xbnqa1l35q",
+      "startDate": "2026-11-09",
+      "dryRun": true
+    }
+  },
+  "status": 200,
+  "response": {
+    "plan": {
+      "enrollmentId": "cmw0wcbvy00020793wu5lwcpy",
+      "instructor": {
+        "id": "cmw0wbw64000907xbnqa1l35q",
+        "name": "Ada Okafor"
+      },
+      "student": {
+        "id": "cmw0wcbve00000793v0iha876",
+        "name": "Walk In"
+      },
+      "mode": "CENTRE",
+      "locationId": "loc_7ae3435f147e4f255ccaaca3b2d40d5e",
+      "durationMins": 60,
+      "classesPerWeek": 2,
+      "plannedClasses": 4,
+      "alreadyScheduled": 0,
+      "placed": [],
+      "unplaced": [
+        {
+          "sequence": 1,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 2,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 3,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        },
+        {
+          "sequence": 4,
+          "reason": "No free time found within 52 weeks of 2026-11-09 that fits the student's preferences"
+        }
+      ],
+      "outsideAvailability": [],
+      "overrideAvailability": false
+    }
+  }
+}

@@ -43,7 +43,10 @@
 | Migration 3 — drop deprecated `Course` price/format/location/seat columns | ❌ **Deferred** | New follow-up (staged-migration precedent). Columns now carry DB defaults (B13) so new courses can be created without them |
 | Edit student record (admin) | 🟡 Code | `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled |
 | Parent records + parent↔child mapping | 🟡 Code | `Parent` model + m-n `_ParentChildren`; `/admin/parents` CRUD |
-| Instructor roster (reusable, many courses) | 🟡 Code | `Instructor` one-to-many (`Course.instructorId`); `/admin/instructors`. Now also `Assessment.assessorId → Instructor` |
+| Instructor roster (reusable, many courses) | 🟡 Code | `Instructor` one-to-many (`Course.instructorId`); `/admin/instructors`. Now also `Assessment.assessorId → Instructor`, and many-to-many `InstructorCourse` (Stream 4) |
+| **Scheduling** (Stream 4): instructor availability, `ClassSession`, conflict prevention | 🟡 Code | `InstructorAvailability` (weekday × location × mode), `ClassSession` with `btree_gist` **exclusion constraints** per instructor and per student (active = scheduled/held), generator from the plan + student preferences, audited availability override. Migration `20261103170000_scheduling` verified on an ephemeral Postgres 🟢; concurrent bookings proven on a real DB 🟢 (§10). Detail: `docs/sop/scheduling.md`, FE contract `docs/fe-integration-guide-scheduling.md` |
+| Admin: availability editor, `/admin/schedule` timetable, assign / reschedule / mark held-missed-cancelled | 🟡 Code | Week grid (desktop) / agenda (phone); every mutation writes an `AuditLog` row inside its transaction. Some dialogs not browser-checked (§10) |
+| Student scheduling preferences | 🟡 Code | `Enrollment.preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime/ToTime`, `preferredClassesPerWeek`; captured by the wizard and walk-in modal |
 | Birthday automation (students + parents) | 🟡 Code | Vercel Cron → `/api/cron/birthdays`; delivery pending real `RESEND_API_KEY` |
 
 ---
@@ -377,7 +380,17 @@ erDiagram
 
 ### 5.2 Planned additions 🔵
 
-Only seams for later streams remain planned: `ClassSession` + instructor availability + `InstructorCourse` m-n (Stream 4, scheduling); invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5); a messaging outbox keyed off the status transitions (Stream 7, D10). None are built.
+Only seams for later streams remain planned: invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5); a messaging outbox keyed off the status transitions (Stream 7, D10). None are built.
+
+### 5.3 Scheduling tables (Stream 4) 🟡
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| `instructor_courses` | PK `(instructorId, courseId)` | M:N teaches list; backfilled from `Course.instructorId`, which stays the public `/tutors` primary |
+| `instructor_availability` | `instructorId`, `weekday` (ISO 1..7), `startMinute`/`endMinute` (Lagos local), `locationId`, `mode` CENTRE/HOME/ONLINE | DB: CHECKs + exclusion constraint (no overlapping windows per instructor and weekday) |
+| `class_sessions` | `enrollmentId`, `studentId`, `instructorId`, `locationId?`, `mode`, `startsAt`/`endsAt` (`timestamptz`), `durationMins` 45\|60, `status`, `sequence`, `rescheduledFromId?`, `notes?` | **No money columns (D12).** Composite FK `(enrollmentId, studentId) → enrollments(id, studentId)`. DB: exclusion constraints `class_sessions_instructor_no_overlap` / `class_sessions_student_no_overlap` over `tstzrange(startsAt, endsAt, '[)')` where status in (scheduled, held); partial unique `(enrollmentId, sequence)` where status in (scheduled, held, missed); `endsAt = startsAt + durationMins` CHECK. These constraints are raw SQL in the migration, invisible to Prisma |
+
+**Traps 🟡:** instants are UTC, the academy is Africa/Lagos (UTC+1, no DST); `missed` keeps its class number, `cancelled` frees it; a reschedule makes a **new** session row with the same `sequence`; legacy `preferredDays` may hold `Monday`-style names.
 
 ---
 
@@ -421,6 +434,11 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 | GET/PATCH/DELETE etc. | `/api/admin/courses*` | JWT | Course CRUD. `POST` no longer requires `location`/`pricing`/`availableModes` (DB defaults); list `_count.offerings` counts **offerable** offerings only | 🟡 |
 | GET/POST | `/api/admin/tuition-payments/[id]/receipt` | JWT | Regenerate/download (`?download=true`) / resend (student + admin copy) the per-class receipt; point-in-time | 🟢 |
 | GET | `/api/receipts/application-fee/[enrollmentId]` | JWT | Regenerate/resend the **assessment-fee** receipt (route name kept; download filename now `assessment-fee-receipt-<no>.pdf`) | 🟡 |
+| GET/PUT | `/api/admin/instructors/[id]/availability` | JWT | Weekly availability; PUT replaces the whole week (`{slots:[{weekday,start,end,locationId,mode}]}`). Audit `availability.update` | 🟢 live (errors) |
+| GET | `/api/admin/schedule?from&to&instructorId` | JWT | Timetable read model: sessions, availability, needs-scheduling list | 🟢 live |
+| GET/POST | `/api/admin/enrollments/[id]/schedule` | JWT | GET plan + preferences + teaching instructors; POST assign + generate (`dryRun`, `allowPartial`, `overrideAvailability` + `overrideReason`). 409 `INSTRUCTOR_BUSY`/`STUDENT_BUSY` never overridable; 422 `UNPLACEABLE`. Audit `schedule.generate`, `schedule.availability_override` | 🟢 live |
+| POST | `/api/admin/sessions/[id]/reschedule` | JWT | New row, same `sequence`, old row `rescheduled`. Audit `session.reschedule` | 🟢 live |
+| POST | `/api/admin/sessions/[id]/status` | JWT | held / missed / cancelled / revert. Audit `session.status` | 🟢 live |
 | PATCH | `/api/admin/students/[id]`, `/api/admin/parents*`, `/api/admin/instructors*`, `GET /api/cron/birthdays` | JWT / `CRON_SECRET` | Unchanged by this shipment (student edit, parents, roster, birthdays) | 🟡 |
 
 \* D5: public read endpoints for enrollment detail/list were unauthenticated at HEAD `713a3b2`; see §8.
@@ -431,7 +449,7 @@ Only seams for later streams remain planned: `ClassSession` + instructor availab
 
 Reqs #1–#4 and the audit-log foundation are built (see §1); their design notes live in their SOPs (`docs/sop/tuition-receipts.md`, `student-edit.md`, `parents-module.md`, `birthday-automation.md`). Still planned, from the 2026-11-03 meeting (see `docs/checklist/master-checklist.md`):
 
-- **Stream 4 — Scheduling:** `ClassSession` (→ `Enrollment`, `Instructor`), structured instructor availability, `InstructorCourse` m-n (today `Course.instructorId` allows one instructor per course), conflict prevention.
+- ~~**Stream 4 — Scheduling**~~ built; see §1, §5.3 and `docs/sop/scheduling.md`. Stream 5 joins `ClassSession` on `(enrollmentId, sequence)` for paid-class derivation (D12); Stream 7 wires the `TODO(S7)` hooks in `lib/scheduling/hooks.ts`.
 - **Stream 5 — Per-class tuition:** ✅ built (see §3b, §5, §6). Not built: refunds (John's policy), instalment plans, coupons, student portal, routing receipts through the S7 outbox (`TODO(S7)` markers at three send sites).
 - **Stream 6/7/8:** parent capture at registration, messaging outbox (D10) consuming the status transitions as triggers, site content.
 
@@ -500,11 +518,15 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **Real Paystack test-mode charge** (webhook with a real reference, receipt/ack emails) | — | ⚠️ **NOT DONE** |
 | Email delivery | send functions read; delivery blocked on Resend key (pre-existing) | 🟡 CODE / ⚠️ UNVERIFIED |
 | Migration 2 (drop dormant `Enrollment` identity columns) / Migration 3 (drop deprecated `Course` columns) | not built | 🔵 INTENT (deferred) |
+| **Scheduling migration `20261103170000_scheduling`** on ephemeral Postgres with the legacy fixture: zero row loss, backfill, exclusion/CHECK/partial-unique behaviour in raw SQL, no schema drift | `scripts/verify-scheduling-migration.sh`: 40 assertions pass | 🟢 LIVE (scratch DB) |
+| **Concurrent bookings cannot double-book**: 10-way instructor race, 10 racing plans, student race, reschedule vs booking race; override audited and never bypasses a conflict | `scripts/test-scheduling-db.sh`: 21 real-Postgres tests (3 runs stable) | 🟢 LIVE (scratch DB, direct connection; **not** via Prisma Accelerate) |
+| Scheduling admin API incl. conflict 409 / 422 / validation errors | `scripts/dev/capture-scheduling.sh`: 22 captures in `docs/captures/scheduling/` | 🟢 LIVE |
+| Timetable, assign flow, wizard preference block (1280px, 375px agenda) | browser on a scratch DB | 🟢 LIVE; availability editor / reschedule / status dialogs / walk-in preferences 🟡 CODE |
 | **Migration `20261103180000_per_class_tuition`** — legacy rows untouched, plan rows backfilled with one CLASSES charge each, balance preserved, backfill idempotent, no schema drift | `scripts/verify-tuition-migration.sh` (ephemeral Postgres, legacy fixture) | 🟢 LIVE (local) |
 | **Tuition: plan → charges, manual partial payments, overpayment guard, online link → webhook, replay, 3 concurrent, amount/currency/metadata mismatch, unknown reference, late payment on cancelled, failed→paid, top-up at today's rate, void, legacy untouched, point-in-time receipt, dashboard filters, 401s** | `scripts/test-tuition-e2e.mjs` against the real routes + local Paystack mock (73 checks); captures in `docs/captures/stream5/` | 🟢 mock / ⚠️ not real Paystack |
 | Ledger maths (classes covered, credit, as-of, amount check, legacy parity, CSV injection) | `npm test` | 🟢 LIVE |
 | **Real Paystack test-mode charge for tuition** | — | ⚠️ **NOT DONE** (John's keys) |
-| Streams 4–8 | not built | 🔵 INTENT |
+| Streams 6–8 | not built | 🔵 INTENT |
 
 ---
 
@@ -514,7 +536,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 - **Browser verification** of the new public and admin flows is not recorded in this document.
 - Migration 2 (dormant `Enrollment` identity columns) and **Migration 3** (deprecated `Course` price/format/location/seat columns) — both deferred.
 - **Rates are not entered:** all migrated offerings are inactive with no rates, so every course shows "Enrolment opening soon" until an admin sets rates (no pricing data came from John yet).
-- Class scheduling, instructor availability/conflicts (Stream 4); parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
+- Notifications for scheduled/rescheduled classes (Stream 7 hooks are no-ops); a student-facing schedule view; travel-time between locations; parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
 - A student login/dashboard, refunds, coupons. Policy text still contradicts the non-refundable fee (refund schedule in `components/site/enroll/policy-dialog.tsx`; `/policies` dashboard/PayPal/instalment claims) — deliberately **not edited** here, needs the client's review.
 - Per-student vs per-application fee rule (open business question, §8).
 - `GET /api/receipts/application-fee/[enrollmentId]` is still unauthenticated (pre-existing); the webhook cannot detect a cash fee recorded while a Paystack charge is in flight (double fee needs an admin refund decision).

@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/schedule?from=2026-11-15&to=2026-11-09"
+  },
+  "status": 400,
+  "response": {
+    "error": "from and to must be dates (YYYY-MM-DD) with to on or after from",
+    "code": "BAD_RANGE"
+  }
+}
