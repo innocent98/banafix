@@ -124,3 +124,10 @@ loadTuitionReceiptData(db, paymentId: string): Promise<TuitionReceiptData | null
 ## Ledger (decisions, findings, status)
 - Branch renamed from `feature/per-class-tuition-57dadb` to `feature/per-class-tuition` before any commit.
 - Scratch Postgres: port 5480, dir `/private/tmp/claude-501/banafix-s5-pg`.
+
+### Outcome (2026-11-03)
+- Tasks 1-8 done; PR https://github.com/innocent98/banafix/pull/14 (base `feature/assessment-first-admission`). Verification and review results: `docs/sop/per-class-tuition.md`.
+- Builder calls beyond the spec: whole-naira + cap on every amount and class count; link creation rejects (409) while an identical link is still being created; `GET …/tuition` returns `paymentUrl` only for pending rows; receipts print `NGN` in PDFs (fixes a pre-existing `:` for ₦ on legacy receipts too).
+- Merge note: the base moved (`9d10d08`, fee once per student, duplicate fees, policy copy) after the first push; merged in, 5 conflicts resolved keeping both sides, migration name left as `20261103180000_per_class_tuition` (a Vercel preview had applied it; renaming makes Prisma re-run the DDL).
+- **For the lead:** Vercel preview deployments run `prisma migrate deploy` (via `postinstall`). The preview applied this migration to whatever DB the Vercel Preview env points at. If that is the production DB, the additive Stream 2+3 and Stream 5 migrations are already applied there; worth confirming before the "snapshot first" deploy gate.
+- Open for John/Adebayo: tuition refund policy; first-class-paid gate for `enrolled`; real Paystack test charge.
