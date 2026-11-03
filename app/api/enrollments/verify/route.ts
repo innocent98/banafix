@@ -39,19 +39,33 @@ export async function GET(req: NextRequest) {
       return createErrorResponse('Payment record not found', 404)
     }
 
-    // Trust the DB if the webhook already marked it complete; otherwise ask Paystack.
-    let status = applicationPayment.status
-    if (status !== 'completed' && status !== 'failed') {
-      const result = await verifyPayment(reference)
-      if (result.status && result.data.status === 'success') {
+    // The webhook is the only writer of payment/enrollment state, so this route reports what the DB
+    // says. `completed` only for a payment that really completed; a payment recorded as a
+    // duplicate or superseded (money received, admin follows up) is `received`, never `completed`.
+    // A payment still pending in the DB is `pending` even if Paystack already says success: the
+    // webhook has not settled it yet (or the amount did not match), so it is not confirmed here.
+    let status: 'completed' | 'pending' | 'failed' | 'received'
+    switch (applicationPayment.status) {
+      case 'completed':
         status = 'completed'
-      } else if (result.data?.status === 'failed') {
+        break
+      case 'failed':
         status = 'failed'
+        break
+      case 'duplicate':
+      case 'superseded':
+      case 'refunded':
+        status = 'received'
+        break
+      default: {
+        status = 'pending'
+        const result = await verifyPayment(reference)
+        if (result.data?.status === 'failed') status = 'failed'
       }
     }
 
     return createResponse({
-      status, // 'completed' | 'pending' | 'failed'
+      status, // 'completed' | 'pending' | 'failed' | 'received'
       amount: applicationPayment.amount,
       receiptNumber: applicationPayment.receiptNumber,
       enrollment: {

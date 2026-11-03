@@ -164,6 +164,11 @@ async function e2e() {
   await postEvent('charge.failed', { reference: fresh.ref })
   check('late charge.failed does not overwrite a completed payment', psql(`select status from application_payments where "enrollmentId"='${fresh.id}'`) === 'completed')
 
+  // "Pass charges to customer": the mock reports amount = fee + Paystack fees but requested_amount = fee.
+  const pass = mk('PASSTHRU', 'pending', false)
+  await postEvent('charge.success', { reference: pass.ref })
+  check('pass-through fees: amount includes fees but requested_amount matches => settles', q(pass.id, 'status') === 'assessment_paid')
+
   // ── once per student: a second fee payment is recorded as a DUPLICATE (needs refund), nothing else moves ──
   const first = mk('dupA', 'pending', false)
   const second = mk('dupB', 'pending', false, first.studentId) // same student, second application in flight
@@ -193,16 +198,28 @@ async function e2e() {
   psql(`insert into course_offerings (id,"courseId","locationId","deliveryModeId","isActive","updatedAt") values ('${off2}','${course2}','${ids.loc}','${dmId}',true,now())`)
   psql(`insert into offering_rates (id,"offeringId","durationMins","pricePerClass","updatedAt") values ('e2e_r2_${t}','${off2}',60,5000,now())`)
   const applyBody = JSON.stringify({ firstName: 'Ignored', lastName: 'Ignored', email: `e2ecov${t}@example.com`, courseId: course2, offeringId: off2, arrangement: 'HOME', address: '1 Attacker Street', agreeToTerms: true, agreeToRefundPolicy: true })
-  const apply = () => fetch(`${base}/api/enrollments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: applyBody }).then(async (r) => ({ status: r.status, body: await r.json() }))
+  // A distinct fake client IP per run keeps the route's per-IP throttle (10 / 10 min) from tripping on repeated runs.
+  const fakeIp = `10.${t % 250}.${Math.floor(t / 250) % 250}.7`
+  const apply = () => fetch(`${base}/api/enrollments`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-forwarded-for': fakeIp }, body: applyBody }).then(async (r) => ({ status: r.status, body: await r.json() }))
   const applied = await Promise.all([apply(), apply()])
-  const created = applied.filter((r) => r.status === 201)
-  check('covered double-submit: exactly one application created (other refused 400)', created.length === 1 && applied.some((r) => r.status === 400), JSON.stringify(applied.map((r) => r.status)))
-  check('covered: response says feeCovered, no Paystack payment object', created[0]?.body?.feeCovered === true && !created[0]?.body?.payment)
-  check('covered: enrollment at assessment_paid with coverage link, no new payment row',
-    psql(`select status||':'||("feeCoveredByPaymentId" is not null) from enrollments where "courseId"='${course2}'`) === 'assessment_paid:true'
-    && psql(`select count(*) from application_payments p join enrollments e on e.id=p."enrollmentId" where e."courseId"='${course2}'`) === '0')
+  const bodies = applied.map((r) => r.body)
+  check('covered double-submit: both answered 201 and reuse ONE waiting application (no spam rows)',
+    applied.every((r) => r.status === 201) && bodies[0].enrollment.id === bodies[1].enrollment.id
+      && psql(`select count(*) from enrollments where "courseId"='${course2}' and "studentId"='${cov.studentId}'`) === '1', JSON.stringify(applied.map((r) => r.status)))
+  check('covered: created PENDING (never assessment_paid on an email alone), coverage link set, no payment row',
+    psql(`select status||':'||("feeCoveredByPaymentId" is not null)||':'||"applicationPaid" from enrollments where "courseId"='${course2}' and "studentId"='${cov.studentId}'`) === 'pending:true:false'
+    && psql(`select count(*) from application_payments p join enrollments e on e.id=p."enrollmentId" where e."courseId"='${course2}' and e."studentId"='${cov.studentId}'`) === '0')
+  // Same response SHAPE as a normal (fee due) application: no feeCovered flag, same keys, a redirect URL.
+  const fresh2 = await fetch(`${base}/api/enrollments`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-forwarded-for': fakeIp }, body: JSON.stringify({ firstName: 'New', lastName: 'Person', email: `e2enew${t}@example.com`, courseId: course2, offeringId: off2, arrangement: 'CENTRE', agreeToTerms: true, agreeToRefundPolicy: true }) }).then(async (r) => ({ status: r.status, body: await r.json() }))
+  const keys = (o) => Object.keys(o ?? {}).sort().join(',')
+  check('covered vs normal: identical response shape (top level, enrollment, applicationFee, payment) and no feeCovered flag',
+    fresh2.status === 201 && keys(bodies[0]) === keys(fresh2.body) && keys(bodies[0].enrollment) === keys(fresh2.body.enrollment)
+      && keys(bodies[0].enrollment.applicationFee) === keys(fresh2.body.enrollment.applicationFee) && keys(bodies[0].payment) === keys(fresh2.body.payment)
+      && !('feeCovered' in bodies[0]) && bodies[0].enrollment.applicationFee.amount === fresh2.body.enrollment.applicationFee.amount,
+    `${keys(bodies[0])} vs ${keys(fresh2.body)}`)
+  check('covered: the redirect is the site\'s own received page, not Paystack', String(bodies[0].payment.authorization_url).startsWith('/enroll/success?application='))
   check('covered: request address NOT stored (admin confirms the address when scheduling)',
-    psql(`select coalesce(a.address,'(none)') from assessments a join enrollments e on e.id=a."enrollmentId" where e."courseId"='${course2}'`) === '(none)')
+    psql(`select coalesce(a.address,'(none)') from assessments a join enrollments e on e.id=a."enrollmentId" where e."courseId"='${course2}' and e."studentId"='${cov.studentId}'`) === '(none)')
 
   const conc = mk('conc', 'pending', false)
   const statuses = await Promise.all([1, 2, 3].map(() => postEvent('charge.success', { reference: conc.ref })))

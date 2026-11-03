@@ -190,7 +190,11 @@ export default function EnrollmentsPage() {
   }
 
   const handleMarkPaid = async (enrollment: Enrollment) => {
-    if (!confirm(`Mark the assessment fee as paid (cash) for ${enrollment.student.firstName} ${enrollment.student.lastName}? This moves the student to "Assessment paid".`)) return
+    const covered = Boolean(enrollment.feeCoveredByPaymentId)
+    const who = `${enrollment.student.firstName} ${enrollment.student.lastName}`
+    if (!confirm(covered
+      ? `${who} has already paid the assessment fee. Confirm this application? No second fee is recorded and the student moves to "Assessment paid". Only confirm if you recognise this application.`
+      : `Mark the assessment fee as paid (cash) for ${who}? This moves the student to "Assessment paid".`)) return
     try {
       const token = localStorage.getItem("admin_token")
       const res = await fetch(`/api/admin/enrollments/${enrollment.id}/mark-paid`, {
@@ -198,9 +202,12 @@ export default function EnrollmentsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ paymentMethod: "cash" }),
       })
-      if (res.ok) loadEnrollments()
-      else {
-        const d = await res.json().catch(() => ({}))
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        // A student who had already paid is covered, never charged twice: say so plainly.
+        if (d.feeCovered) alert(d.message)
+        loadEnrollments()
+      } else {
         alert(d.error || d.message || "Failed to mark fee paid")
       }
     } catch {

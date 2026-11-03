@@ -16,12 +16,16 @@ export type SettleOutcome =
   | { kind: 'already_processed' }
   | { kind: 'moved' }
   | { kind: 'unexpected_state'; status: string }
+  // The payment's own application was cancelled (the student re-applied in another tab); the fee
+  // went to the live pending application for the same course instead.
+  | { kind: 'moved_to_live'; liveEnrollmentId: string }
   | { kind: 'duplicate'; reason: 'already_covered' | 'superseded' }
 
 export interface PaystackSuccessData {
   paid_at?: string | null
   channel?: string | null
-  amount?: number | null // kobo
+  amount?: number | null // kobo; includes Paystack's fee when "pass charges to customer" is on
+  requested_amount?: number | null // kobo; the amount we asked for (verify response field)
   currency?: string | null
   authorization?: { authorization_code?: string | null } | null
 }
@@ -30,6 +34,12 @@ export class FeeAlreadyPaidError extends Error {
   constructor() {
     super('This student has already paid the assessment fee; a second fee cannot be recorded.')
     this.name = 'FeeAlreadyPaidError'
+  }
+}
+export class FeeNotSetError extends Error {
+  constructor() {
+    super('The assessment fee for this location is not set (it must be greater than 0).')
+    this.name = 'FeeNotSetError'
   }
 }
 export class FeeStateChangedError extends Error {
@@ -41,13 +51,17 @@ export class FeeStateChangedError extends Error {
 
 /**
  * Does what Paystack says was charged match what we asked for? Paystack reports kobo; we store whole
- * naira. A mismatch means a tampered/replayed reference or a fee edited mid-payment: do not settle.
+ * naira. The verify response carries `requested_amount` (what we initialised) next to `amount`; with
+ * "pass charges to customer" on, `amount` is the base PLUS Paystack's fee, so the base we compare is
+ * `requested_amount ?? amount`. A mismatch means a tampered/replayed reference or a fee edited
+ * mid-payment: do not settle.
  */
 export function chargeMatches(
-  paystack: Pick<PaystackSuccessData, 'amount' | 'currency'>,
+  paystack: Pick<PaystackSuccessData, 'amount' | 'requested_amount' | 'currency'>,
   expected: { amountNaira: number; currency: string },
 ): boolean {
-  return paystack.amount === expected.amountNaira * 100 && (paystack.currency ?? 'NGN') === expected.currency
+  const base = paystack.requested_amount ?? paystack.amount
+  return base === expected.amountNaira * 100 && (paystack.currency ?? 'NGN') === expected.currency
 }
 
 /** Serialise every fee write for one student for the rest of this transaction. */
@@ -89,7 +103,7 @@ export async function settleAssessmentFee(
 ): Promise<SettleOutcome> {
   const { paymentId, enrollmentId, paystack } = args
   return db.$transaction(async (tx) => {
-    const owner = await tx.enrollment.findUnique({ where: { id: enrollmentId }, select: { studentId: true } })
+    const owner = await tx.enrollment.findUnique({ where: { id: enrollmentId }, select: { studentId: true, courseId: true } })
     if (!owner) return { kind: 'already_processed' as const }
     await lockStudent(tx, owner.studentId)
 
@@ -125,6 +139,25 @@ export async function settleAssessmentFee(
 
     const current = await tx.enrollment.findUnique({ where: { id: enrollmentId }, select: { status: true } })
     await tx.enrollment.update({ where: { id: enrollmentId }, data: { applicationPaid: true } })
+
+    // Two tabs: a re-submit cancelled this application and created a live pending one for the same
+    // course. The student has now paid, so the LIVE application takes the fee (covered by this
+    // payment) and the student ends with a receipt and an application at assessment_paid, instead
+    // of a paid-but-cancelled row and a stuck pending one.
+    if (current?.status === 'cancelled') {
+      const live = await tx.enrollment.findFirst({
+        where: { studentId: owner.studentId, courseId: owner.courseId, status: 'pending', id: { not: enrollmentId } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+      if (live) {
+        const covered = await transitionEnrollment(tx, live.id, 'pending', 'assessment_paid', {
+          applicationPaid: true,
+          feeCoveredByPaymentId: paymentId,
+        })
+        if (covered) return { kind: 'moved_to_live' as const, liveEnrollmentId: live.id }
+      }
+    }
     return { kind: 'unexpected_state' as const, status: current?.status ?? 'unknown' }
   })
 }
@@ -148,6 +181,8 @@ export async function recordCashAssessmentFee(
     billingName: string
   },
 ): Promise<{ paymentId: string; supersededCount: number }> {
+  // A 0 fee recorded as a completed payment would silently cover the student forever.
+  if (!(args.amount > 0)) throw new FeeNotSetError()
   await lockStudent(tx, args.studentId)
   if (await findCoveringFeePayment(tx, args.studentId)) throw new FeeAlreadyPaidError()
 
@@ -183,10 +218,21 @@ export async function recordCashAssessmentFee(
  * `assessment_paid` with no charge. Run inside the caller's transaction, after `lockStudent`.
  */
 export async function coverApplication(tx: Tx, enrollmentId: string, coveringPaymentId: string): Promise<void> {
-  const moved = await transitionEnrollment(tx, enrollmentId, 'pending', 'assessment_paid', {
-    applicationPaid: true,
-    applicationFeeAmount: 0,
-    feeCoveredByPaymentId: coveringPaymentId,
+  // The covering payment can be this application's OWN completed payment (an anomaly such as a
+  // paid legacy row still at pending): then just mark it paid and keep its fee snapshot.
+  const covering = await tx.applicationPayment.findUnique({
+    where: { id: coveringPaymentId },
+    select: { enrollmentId: true },
   })
+  const own = covering?.enrollmentId === enrollmentId
+  const moved = await transitionEnrollment(
+    tx,
+    enrollmentId,
+    'pending',
+    'assessment_paid',
+    own
+      ? { applicationPaid: true }
+      : { applicationPaid: true, applicationFeeAmount: 0, feeCoveredByPaymentId: coveringPaymentId },
+  )
   if (!moved) throw new FeeStateChangedError()
 }

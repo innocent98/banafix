@@ -170,7 +170,9 @@ export function EnrollmentTable({
                                   </p>
                                 )
                               ) : (
-                                <p className="text-sm text-orange-600">Pending</p>
+                                <p className="text-sm text-orange-600">
+                                  {enrollment.feeCoveredByPaymentId ? "Covered, confirm" : "Pending"}
+                                </p>
                               )}
                               {duplicates.map((p) => (
                                 <div key={p.id} className="rounded border border-red-200 bg-red-50 p-1.5 dark:border-red-900/40 dark:bg-red-900/10">
@@ -234,8 +236,8 @@ export function EnrollmentTable({
                               size="sm"
                             className="!h-8 !w-8 !p-0 text-green-600 hover:text-green-700"
                               onClick={() => onMarkPaid(enrollment)}
-                              title="Mark assessment fee paid (cash)"
-                              aria-label="Mark fee paid"
+                              title={enrollment.feeCoveredByPaymentId ? "Confirm: fee already covered, no second fee is recorded" : "Mark assessment fee paid (cash)"}
+                              aria-label={enrollment.feeCoveredByPaymentId ? "Confirm fee covered" : "Mark fee paid"}
                             >
                               <BadgeCheck className="h-4 w-4" />
                             </Button>

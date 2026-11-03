@@ -51,7 +51,10 @@ const server = http.createServer((req, res) => {
           domain: 'test',
           status: ok ? 'success' : 'failed',
           reference,
-          amount: amounts.get(reference) ?? 500000,
+          // `PASSTHRU` in the reference simulates "pass charges to customer": amount = base + fees.
+          amount: (amounts.get(reference) ?? 500000) + (reference.includes('PASSTHRU') ? 7500 : 0),
+          requested_amount: amounts.get(reference) ?? 500000,
+          fees: reference.includes('PASSTHRU') ? 7500 : 0,
           message: null,
           gateway_response: ok ? 'Successful' : 'Declined',
           paid_at: ok ? new Date().toISOString() : null,

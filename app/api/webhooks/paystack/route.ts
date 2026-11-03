@@ -3,7 +3,7 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
-import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification, sendAdminCancelledPaymentNotice } from '@/lib/email'
+import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification, sendAdminCancelledPaymentNotice, sendAdminAmountMismatchNotice } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
 import { settleAssessmentFee, chargeMatches } from '@/lib/assessment-payment'
 import { reportDuplicateFeePayment } from '@/lib/duplicate-fee'
@@ -109,9 +109,25 @@ async function handleChargeSuccess(data: any) {
           expectedNaira: applicationPayment.amount,
           expectedCurrency: applicationPayment.currency,
           paidKobo: verificationResult.data.amount,
+          requestedKobo: verificationResult.data.requested_amount,
           paidCurrency: verificationResult.data.currency,
         },
       })
+      // An audit row alone is invisible: the student was charged, so tell the admin inbox.
+      try {
+        await sendAdminAmountMismatchNotice({
+          studentName: `${applicationPayment.enrollment.student.firstName} ${applicationPayment.enrollment.student.lastName}`,
+          studentEmail: applicationPayment.enrollment.student.email,
+          reference: String(reference),
+          enrollmentId: applicationPayment.enrollmentId,
+          expectedNaira: applicationPayment.amount,
+          paidKobo: verificationResult.data.amount,
+          requestedKobo: verificationResult.data.requested_amount,
+          currency: verificationResult.data.currency,
+        })
+      } catch (error) {
+        console.error('Amount-mismatch admin notice failed:', error)
+      }
       return
     }
 
@@ -149,15 +165,18 @@ async function handleChargeSuccess(data: any) {
       return
     }
 
+    const advanced = outcome.kind === 'moved' || outcome.kind === 'moved_to_live'
     await logAdminAction({
       adminId: null,
-      action: outcome.kind === 'moved' ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
+      action: advanced ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
       entityType: 'enrollment',
-      entityId: applicationPayment.enrollmentId,
+      // moved_to_live: the fee was paid in a superseded tab; the LIVE application advanced.
+      entityId: outcome.kind === 'moved_to_live' ? outcome.liveEnrollmentId : applicationPayment.enrollmentId,
       metadata: {
         reference,
         amount: applicationPayment.amount,
         ...(outcome.kind === 'unexpected_state' ? { statusAtPayment: outcome.status } : { toStatus: 'assessment_paid' }),
+        ...(outcome.kind === 'moved_to_live' ? { paidOnCancelledEnrollmentId: applicationPayment.enrollmentId } : {}),
       },
     })
 

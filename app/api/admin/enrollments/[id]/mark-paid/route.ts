@@ -8,6 +8,7 @@ import {
   lockStudent,
   recordCashAssessmentFee,
   FeeAlreadyPaidError,
+  FeeNotSetError,
   FeeStateChangedError,
 } from '@/lib/assessment-payment'
 import { logAdminAction } from '@/lib/audit'
@@ -71,6 +72,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       })
     } catch (e) {
       if (e instanceof FeeAlreadyPaidError) return createErrorResponse(e.message, 409)
+      if (e instanceof FeeNotSetError) return createErrorResponse(e.message, 400)
       if (e instanceof FeeStateChangedError) return createErrorResponse('Assessment fee is already marked paid', 409)
       throw e
     }
