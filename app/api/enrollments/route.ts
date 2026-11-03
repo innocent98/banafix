@@ -5,6 +5,7 @@ import { initializePayment, createApplicationFeePayment, generatePaymentReferenc
 import { isCourseExpired } from '@/lib/course-utils'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+import { validatePreferences } from '@/lib/scheduling/preferences'
 import { offerableOfferingWhere } from '@/lib/offerings'
 import { sendEnrollmentConfirmation } from '@/lib/email'
 
@@ -43,6 +44,10 @@ export async function POST(req: NextRequest) {
       priorLevel,
       schedulePreference,
       preferredDays,
+      preferredTimeBands,
+      preferredFromTime,
+      preferredToTime,
+      preferredClassesPerWeek,
       musicExperience,
       goals,
       specialRequests,
@@ -70,6 +75,9 @@ export async function POST(req: NextRequest) {
     if (!isArrangement(arrangement)) {
       return createErrorResponse('Invalid assessment arrangement', 400)
     }
+    // Structured scheduling preferences (days, time bands, optional from/to, classes per week).
+    const prefs = validatePreferences({ preferredDays, preferredTimeBands, preferredFromTime, preferredToTime, preferredClassesPerWeek })
+    if (!prefs.ok) return createErrorResponse(prefs.error, 400)
     if (arrangement === 'HOME' && !String(address ?? '').trim()) {
       return createErrorResponse('Home assessments need an address', 400)
     }
@@ -192,7 +200,7 @@ export async function POST(req: NextRequest) {
         selectedMode: offering.deliveryMode.name,
         priorLevel,
         schedulePreference,
-        preferredDays: preferredDays || [],
+        ...prefs.value,
         musicExperience,
         goals,
         specialRequests,

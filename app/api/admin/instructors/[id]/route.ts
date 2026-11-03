@@ -2,19 +2,15 @@ import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
-
-const COURSE_SELECT = { id: true, title: true, instrument: true, level: true } as const
+import { INSTRUCTOR_WITH_COURSES, setInstructorCourses, withCourses } from '@/lib/instructor-courses'
 
 // GET /api/admin/instructors/[id]
 export const GET = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
-    const instructor = await prisma.instructor.findUnique({
-      where: { id },
-      include: { courses: { select: COURSE_SELECT } },
-    })
+    const instructor = await prisma.instructor.findUnique({ where: { id }, include: INSTRUCTOR_WITH_COURSES })
     if (!instructor) return createErrorResponse('Instructor not found', 404)
-    return createResponse({ instructor })
+    return createResponse({ instructor: withCourses(instructor) })
   } catch (error) {
     console.error('Get instructor error:', error)
     return createErrorResponse('Failed to fetch instructor', 500)
@@ -43,27 +39,14 @@ export const PATCH = withAuth(async (req: NextRequest, admin, context: { params:
     if ('availability' in body) data.availability = body.availability?.trim() || null
     if ('verified' in body) data.verified = Boolean(body.verified)
 
-    // Reassign the set of courses this instructor teaches, when provided.
-    // A course has at most one instructor: selected courses are pointed here;
-    // courses previously taught by this instructor but now deselected are freed.
+    // Set the courses this instructor teaches, when provided. Adds/removes rows for THIS instructor only:
+    // a course can have several instructors, so this never takes a course away from another teacher.
     if (Array.isArray(body.courseIds)) {
-      const courseIds: string[] = body.courseIds
-      await prisma.$transaction([
-        prisma.course.updateMany({
-          where: { instructorId: id, id: { notIn: courseIds.length ? courseIds : ['__none__'] } },
-          data: { instructorId: null },
-        }),
-        ...(courseIds.length
-          ? [prisma.course.updateMany({ where: { id: { in: courseIds } }, data: { instructorId: id } })]
-          : []),
-      ])
+      await prisma.$transaction((tx) => setInstructorCourses(tx, id, body.courseIds as string[]))
     }
 
-    const instructor = await prisma.instructor.update({
-      where: { id },
-      data,
-      include: { courses: { select: COURSE_SELECT } },
-    })
+    await prisma.instructor.update({ where: { id }, data })
+    const instructor = withCourses(await prisma.instructor.findUniqueOrThrow({ where: { id }, include: INSTRUCTOR_WITH_COURSES }))
 
     await logAdminAction({
       adminId: admin.id,
@@ -87,7 +70,13 @@ export const DELETE = withAuth(async (req: NextRequest, admin, context: { params
     const existing = await prisma.instructor.findUnique({ where: { id } })
     if (!existing) return createErrorResponse('Instructor not found', 404)
 
-    // FK is ON DELETE SET NULL, so courses.instructorId is cleared automatically.
+    // Classes on record (any status) are history we keep: the FK restricts deletion, so say so plainly.
+    const classes = await prisma.classSession.count({ where: { instructorId: id } })
+    if (classes > 0) {
+      return createErrorResponse(`${existing.name} has ${classes} ${classes === 1 ? 'class' : 'classes'} on record and cannot be removed. Reassign or cancel their upcoming classes and keep them on the roster`, 409)
+    }
+
+    // Courses.instructorId is ON DELETE SET NULL; availability and InstructorCourse rows cascade.
     await prisma.instructor.delete({ where: { id } })
 
     await logAdminAction({
