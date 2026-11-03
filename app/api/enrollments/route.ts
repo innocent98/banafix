@@ -6,7 +6,7 @@ import { isCourseExpired } from '@/lib/course-utils'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
 import { offerableOfferingWhere } from '@/lib/offerings'
-import { sendEnrollmentConfirmation } from '@/lib/email'
+import { emitEnrollmentEvent } from '@/lib/messaging/enrollment-events'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
 export async function POST(req: NextRequest) {
@@ -287,21 +287,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Best-effort "application received" acknowledgement to the student. Sent only
-    // after payment has been successfully initialized, so it references a real,
-    // resumable application. Transactional and guarded — a mail failure must not
-    // fail the enrollment or delay the redirect to Paystack.
+    // "Application received" acknowledgement, through the outbox (spec C7). Queued only after payment has
+    // been successfully initialized, so it references a real, resumable application. Transactional,
+    // idempotent per enrollment, and guarded: a failure must not fail the enrollment or delay the redirect.
     try {
-      await sendEnrollmentConfirmation({
-        firstName,
-        lastName,
-        email,
-        courseName: course.title,
-        enrollmentId: enrollment.id,
-        applicationFee: applicationFeeData.amount,
-      })
-    } catch (emailError) {
-      console.error('Failed to send enrollment acknowledgement email:', emailError)
+      await emitEnrollmentEvent(prisma, enrollment.id, 'application_received')
+    } catch (emitError) {
+      console.error('Failed to queue application-received message:', emitError)
     }
 
     // Return enrollment details with payment URL

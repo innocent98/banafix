@@ -38,5 +38,7 @@ export interface ChannelProvider {
   name: string
   /** false => the drain records `skipped`, never `sent`. */
   isConfigured(): boolean
+  /** Minimum gap between sends (provider rate limits). */
+  minIntervalMs?: number
   send(message: ProviderMessage): Promise<ProviderResult>
 }
