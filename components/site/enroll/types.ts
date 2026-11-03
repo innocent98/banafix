@@ -5,7 +5,7 @@ import type { PublicOffering } from "@/lib/offerings"
  * Types and option tables for the redesigned enrolment wizard.
  *
  * The option VALUES here are the contract with the server and the admin UI —
- * `Enrollment.priorLevel` and `Enrollment.schedulePreference` are stored raw and
+ * `Enrollment.priorLevel` is stored raw and
  * rendered raw in /admin. Only the LABELS were softened to the handoff's voice.
  * Never change a value without changing the admin renderer too.
  */
@@ -55,8 +55,13 @@ export interface EnrollFormData {
   preferredDate: string
   preferredTimeBand: TimeBand | ""
   priorLevel: string
-  schedulePreference: string
+  /** Structured schedule preferences (see schedule-preferences.tsx). All optional. */
   preferredDays: string[]
+  preferredTimeBands: string[]
+  /** 'HH:MM' from a time input; empty when unset. */
+  preferredFromTime: string
+  preferredToTime: string
+  preferredClassesPerWeek: 1 | 2 | ""
   musicExperience: string
   goals: string
   specialRequests: string
@@ -92,8 +97,11 @@ export const EMPTY_FORM: EnrollFormData = {
   preferredDate: "",
   preferredTimeBand: "flexible",
   priorLevel: "",
-  schedulePreference: "",
   preferredDays: [],
+  preferredTimeBands: [],
+  preferredFromTime: "",
+  preferredToTime: "",
+  preferredClassesPerWeek: "",
   musicExperience: "",
   goals: "",
   specialRequests: "",
@@ -121,7 +129,7 @@ export const PRIOR_LEVEL_OPTIONS = [
   { value: "advanced", label: "Advanced (5+ years)" },
 ] as const
 
-/** `Enrollment.schedulePreference`. All six values the admin UI can receive. */
+/** Legacy `Enrollment.schedulePreference` values (no longer collected; kept for reference). */
 export const SCHEDULE_OPTIONS = [
   { value: "weekday-morning", label: "Weekday mornings, 9am to 12pm" },
   { value: "weekday-afternoon", label: "Weekday afternoons, 1pm to 5pm" },

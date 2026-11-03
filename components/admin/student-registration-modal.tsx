@@ -19,6 +19,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserPlus } from "lucide-react"
 import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BANDS, TIME_BAND_LABELS } from "@/lib/assessment-vocab"
 import { formatNaira } from "@/lib/site"
+import {
+  EMPTY_SCHEDULE_PREFS,
+  SchedulePreferencesFields,
+  scheduleTimeError,
+  schedulePrefsPayload,
+  type SchedulePrefsValue,
+} from "./schedule-preferences-fields"
 
 interface CourseLite {
   id: string
@@ -69,7 +76,6 @@ const EMPTY = {
   preferredTimeBand: "",
   scheduleAssessmentAt: "",
   priorLevel: "",
-  schedulePreference: "",
   musicExperience: "",
   goals: "",
   specialRequests: "",
@@ -87,6 +93,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const [feePaid, setFeePaid] = useState(true)
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const [consentToEmails, setConsentToEmails] = useState(false)
+  const [prefs, setPrefs] = useState<SchedulePrefsValue>({ ...EMPTY_SCHEDULE_PREFS })
   const [courses, setCourses] = useState<CourseLite[]>([])
   const [locations, setLocations] = useState<LocationLite[]>([])
   const [offerings, setOfferings] = useState<OfferingLite[]>([])
@@ -101,6 +108,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     setFeePaid(true)
     setPaymentMethod("cash")
     setConsentToEmails(false)
+    setPrefs({ ...EMPTY_SCHEDULE_PREFS })
     setError("")
     setOfferings([])
     const headers = { Authorization: `Bearer ${token()}` }
@@ -143,6 +151,10 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
       setError("First name, last name, email, location and course are required")
       return
     }
+    if (scheduleTimeError(prefs.preferredFromTime, prefs.preferredToTime)) {
+      setError("The earliest class time must be before the latest")
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch("/api/admin/enrollments", {
@@ -150,6 +162,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         body: JSON.stringify({
           ...form,
+          ...schedulePrefsPayload(prefs),
           offeringId: form.offeringId || undefined,
           preferredDate: form.preferredDate || undefined,
           preferredTimeBand: form.preferredTimeBand || undefined,
@@ -274,7 +287,10 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label htmlFor="schedulePreference">Schedule preference</Label><Input id="schedulePreference" placeholder="e.g. weekday-afternoon" value={form.schedulePreference} onChange={set("schedulePreference")} /></div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">When would the student like classes?</h4>
+              <SchedulePreferencesFields value={prefs} onChange={setPrefs} />
             </div>
             <div><Label htmlFor="goals">Goals</Label><Textarea id="goals" rows={2} value={form.goals} onChange={set("goals")} /></div>
             <div><Label htmlFor="musicExperience">Music experience</Label><Textarea id="musicExperience" rows={2} value={form.musicExperience} onChange={set("musicExperience")} /></div>

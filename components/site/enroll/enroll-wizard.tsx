@@ -30,6 +30,7 @@ import {
 } from "./enroll-states"
 import { EnrollSummary } from "./enroll-summary"
 import { PolicyDialog } from "./policy-dialog"
+import { scheduleTimeError } from "./schedule-preferences"
 import { StepDetails } from "./step-details"
 import { StepAssessment, arrangementsFor, defaultArrangement } from "./step-assessment"
 import { StepPayment } from "./step-payment"
@@ -231,10 +232,12 @@ export function EnrollWizard() {
         !form.lastName.trim() ||
         !form.email.trim() ||
         !form.phone.trim() ||
-        !form.priorLevel ||
-        !form.schedulePreference
+        !form.priorLevel
       ) {
-        return "Fill in your name, email, phone, current level and preferred time to continue."
+        return "Fill in your name, email, phone and current level to continue."
+      }
+      if (scheduleTimeError(form.preferredFromTime, form.preferredToTime)) {
+        return "Your earliest class time must be before your latest."
       }
       if (!emailValid) return "Enter a valid email address to continue."
       return ""
@@ -285,12 +288,17 @@ export function EnrollWizard() {
       // client validates the trimmed one; a trailing space used to pass the gate here and come
       // back as an undiagnosable "Invalid email format" 400. Empty optional assessment fields
       // are omitted rather than sent as "".
+      // Schedule preferences are structured: days as 'mon'.., bands, optional HH:MM range and
+      // classes per week (omitted when empty).
       const payload = {
         ...form,
         email: form.email.trim(),
         courseId: course.id,
         preferredDate: form.preferredDate || undefined,
         preferredTimeBand: form.preferredTimeBand || undefined,
+        preferredFromTime: form.preferredFromTime || undefined,
+        preferredToTime: form.preferredToTime || undefined,
+        preferredClassesPerWeek: form.preferredClassesPerWeek || undefined,
       }
 
       const response = await fetch("/api/enrollments", {
