@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   isNonNegativeInt,
+  isPositiveInt,
   validateDurationMins,
   validateClassesPerWeekOptions,
   validateRates,
@@ -77,5 +78,15 @@ describe("slugify / uniqueSlug", () => {
     expect(uniqueSlug("lagos", new Set())).toBe("lagos")
     expect(uniqueSlug("lagos", new Set(["lagos"]))).toBe("lagos-2")
     expect(uniqueSlug("lagos", new Set(["lagos", "lagos-2"]))).toBe("lagos-3")
+  })
+})
+
+describe("isPositiveInt (assessment fee must be > 0)", () => {
+  it("accepts positive whole numbers", () => {
+    expect(isPositiveInt(1)).toBe(true)
+    expect(isPositiveInt(5000)).toBe(true)
+  })
+  it("rejects zero, negatives, fractions and non-numbers", () => {
+    for (const v of [0, -1, 1.5, NaN, "5000", null, undefined]) expect(isPositiveInt(v)).toBe(false)
   })
 })

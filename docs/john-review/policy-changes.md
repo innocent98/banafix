@@ -412,3 +412,9 @@ Each line says what the site says now. Write your answer on the blank line and w
 - Not added because unconfirmed: written feedback every fourth lesson, an 8,000 naira term rental, a free makeup lesson each term.
 
 Note: the heading text on the `/policies` page itself (not changed in this pass) still says "how refunds work" and the page metadata still mentions a refund policy. Both are still accurate because the Refund Policy section exists.
+
+
+---
+
+## Behaviour note (for John, not a wording change)
+A student who has already paid the assessment fee and applies again for another course is **not charged**, and the policy text says so. Behind the scenes the new application waits as **Pending** until a team member confirms it in admin (so a stranger typing a paid student's email cannot create an assessment booking for them). The student sees "Application received... our team will confirm your application with you". Nothing in the policy wording needs to change for this; tell us if you would prefer such applications to be accepted automatically.

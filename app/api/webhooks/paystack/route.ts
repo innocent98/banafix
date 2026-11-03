@@ -3,9 +3,10 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
-import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification, sendAdminCancelledPaymentNotice } from '@/lib/email'
+import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification, sendAdminCancelledPaymentNotice, sendAdminAmountMismatchNotice } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
 import { settleAssessmentFee, chargeMatches } from '@/lib/assessment-payment'
+import { handleTuitionChargeSuccess, handleTuitionChargeFailed, handleTuitionDispute, handleTuitionRefund } from '@/lib/tuition-webhook'
 import { reportDuplicateFeePayment } from '@/lib/duplicate-fee'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
 
       case 'charge.dispute.create':
         await handleChargeDispute(event.data)
+        break
+
+      case 'refund.processed':
+        await handleRefundProcessed(event.data)
         break
 
       default:
@@ -83,8 +88,15 @@ async function handleChargeSuccess(data: any) {
     })
 
     if (!applicationPayment) {
+      // Not an assessment fee: is it an online tuition payment? Routed by the reference we hold, never by
+      // the metadata Paystack echoes back.
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionChargeSuccess(tuitionPayment, verificationResult.data)
+        return
+      }
       // Money may have been taken for a reference we have no record of. Leave a trace for an admin.
-      console.error('Application payment not found for reference:', reference)
+      console.error('Payment not found for reference:', reference)
       await logAdminAction({
         adminId: null,
         action: 'payment.unmatched_reference',
@@ -109,9 +121,25 @@ async function handleChargeSuccess(data: any) {
           expectedNaira: applicationPayment.amount,
           expectedCurrency: applicationPayment.currency,
           paidKobo: verificationResult.data.amount,
+          requestedKobo: verificationResult.data.requested_amount,
           paidCurrency: verificationResult.data.currency,
         },
       })
+      // An audit row alone is invisible: the student was charged, so tell the admin inbox.
+      try {
+        await sendAdminAmountMismatchNotice({
+          studentName: `${applicationPayment.enrollment.student.firstName} ${applicationPayment.enrollment.student.lastName}`,
+          studentEmail: applicationPayment.enrollment.student.email,
+          reference: String(reference),
+          enrollmentId: applicationPayment.enrollmentId,
+          expectedNaira: applicationPayment.amount,
+          paidKobo: verificationResult.data.amount,
+          requestedKobo: verificationResult.data.requested_amount,
+          currency: verificationResult.data.currency,
+        })
+      } catch (error) {
+        console.error('Amount-mismatch admin notice failed:', error)
+      }
       return
     }
 
@@ -149,15 +177,18 @@ async function handleChargeSuccess(data: any) {
       return
     }
 
+    const advanced = outcome.kind === 'moved' || outcome.kind === 'moved_to_live'
     await logAdminAction({
       adminId: null,
-      action: outcome.kind === 'moved' ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
+      action: advanced ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
       entityType: 'enrollment',
-      entityId: applicationPayment.enrollmentId,
+      // moved_to_live: the fee was paid in a superseded tab; the LIVE application advanced.
+      entityId: outcome.kind === 'moved_to_live' ? outcome.liveEnrollmentId : applicationPayment.enrollmentId,
       metadata: {
         reference,
         amount: applicationPayment.amount,
         ...(outcome.kind === 'unexpected_state' ? { statusAtPayment: outcome.status } : { toStatus: 'assessment_paid' }),
+        ...(outcome.kind === 'moved_to_live' ? { paidOnCancelledEnrollmentId: applicationPayment.enrollmentId } : {}),
       },
     })
 
@@ -285,6 +316,11 @@ async function handleChargeFailed(data: any) {
     })
 
     if (!applicationPayment) {
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionChargeFailed(tuitionPayment)
+        return
+      }
       console.error('Application payment not found for reference:', reference)
       return
     }
@@ -327,6 +363,11 @@ async function handleChargeDispute(data: any) {
     })
 
     if (!applicationPayment) {
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionDispute(tuitionPayment, { id: data.id, reason: data.reason, amount: data.amount })
+        return
+      }
       console.error('Application payment not found for dispute reference:', reference)
       return
     }
@@ -344,5 +385,27 @@ async function handleChargeDispute(data: any) {
 
   } catch (error) {
     console.error('Error handling charge dispute:', error)
+  }
+}
+
+/**
+ * Handle a processed refund. Only tuition payments are handled here (flagged for an admin, ledger
+ * untouched); a refund of an assessment fee is recorded by hand through the admin refund route.
+ */
+async function handleRefundProcessed(data: any) {
+  try {
+    const reference = data?.transaction_reference ?? data?.transaction?.reference
+    if (!reference) {
+      console.error('No transaction reference found in refund data')
+      return
+    }
+    const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: String(reference) } })
+    if (!tuitionPayment) {
+      console.log('Refund event is not for a tuition payment:', reference)
+      return
+    }
+    await handleTuitionRefund(tuitionPayment, data)
+  } catch (error) {
+    console.error('Error handling refund processed:', error)
   }
 }

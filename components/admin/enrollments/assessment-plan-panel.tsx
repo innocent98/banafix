@@ -47,6 +47,7 @@ interface AssessmentRow {
   completedAt: string | null
   assessor: { id: string; name: string } | null
 }
+interface MaterialRow { id: string; name: string; price: number; required: boolean }
 interface Detail {
   enrollment: {
     id: string
@@ -66,6 +67,8 @@ interface Detail {
   }
   assessments: AssessmentRow[]
   offerings: OfferingSummary[]
+  /** Active materials of the course: required ones are always charged, optional ones are picked here. */
+  materials?: MaterialRow[]
   reusableAssessment: {
     id: string
     resultLevel: string | null
@@ -186,6 +189,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const [planDuration, setPlanDuration] = useState("")
   const [planPerWeek, setPlanPerWeek] = useState("")
   const [plannedClasses, setPlannedClasses] = useState("")
+  const [optionalMaterialIds, setOptionalMaterialIds] = useState<string[]>([])
 
   const load = useCallback(async () => {
     if (!enrollmentId) return
@@ -256,6 +260,20 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
     setPlanDuration(e.durationMins != null ? String(e.durationMins) : "")
     setPlanPerWeek(e.classesPerWeek != null ? String(e.classesPerWeek) : "")
     setPlannedClasses(e.plannedClasses != null ? String(e.plannedClasses) : "")
+    setOptionalMaterialIds([])
+    // Editing an agreed plan recreates its charges, so start from the optional materials already charged.
+    if (e.status === "plan_agreed") {
+      const forEnrollment = e.id
+      api("GET", `/api/admin/enrollments/${forEnrollment}/tuition`)
+        .then(({ ok, data }) => {
+          if (!ok) return
+          const charged = ((data.charges ?? []) as Array<{ origin: string; kind: string; materialId?: string | null; voidedAt?: string | null }>)
+            .filter((c) => c.origin === "PLAN" && c.kind === "MATERIAL" && !c.voidedAt && c.materialId)
+            .map((c) => c.materialId as string)
+          setOptionalMaterialIds(charged)
+        })
+        .catch(() => {})
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey])
 
@@ -263,8 +281,15 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
   const planOffering = pricedOfferings.find((o) => o.id === planOfferingId)
   const rateForPlan = planOffering?.rates.find((r) => String(r.durationMins) === planDuration)?.pricePerClass
   const plannedN = Number(plannedClasses)
-  const previewTotal =
+  const classesTotal =
     rateForPlan != null && Number.isInteger(plannedN) && plannedN > 0 ? planTotal(rateForPlan, plannedN) : null
+  const courseMaterials = detail?.materials ?? []
+  const requiredMaterials = courseMaterials.filter((m) => m.required)
+  const optionalMaterials = courseMaterials.filter((m) => !m.required)
+  const chosenOptional = optionalMaterials.filter((m) => optionalMaterialIds.includes(m.id))
+  const materialsTotal =
+    requiredMaterials.reduce((sum, m) => sum + m.price, 0) + chosenOptional.reduce((sum, m) => sum + m.price, 0)
+  const previewTotal = classesTotal != null ? classesTotal + materialsTotal : null
 
   // Keep duration / classes-per-week valid for the chosen offering.
   useEffect(() => {
@@ -351,6 +376,7 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
           durationMins: Number(planDuration),
           classesPerWeek: Number(planPerWeek),
           plannedClasses: Number(plannedClasses),
+          materialIds: chosenOptional.map((m) => m.id),
         }),
       "Failed to save plan",
       status === "plan_agreed" ? "Plan updated" : "Plan agreed",
@@ -670,13 +696,46 @@ export function AssessmentPlanPanel({ enrollmentId, onClose, onChanged }: Props)
                           <Input id="plannedClasses" type="number" min={1} step={1} value={plannedClasses} onChange={(e) => setPlannedClasses(e.target.value)} />
                         </div>
                       </div>
+                      {courseMaterials.length > 0 && (
+                        <div className="space-y-2 rounded-lg border p-3 text-sm" data-testid="plan-materials">
+                          <p className="font-medium">Books and materials</p>
+                          {requiredMaterials.map((m) => (
+                            <label key={m.id} className="flex items-center gap-2">
+                              <input type="checkbox" checked disabled className="rounded border-gray-300" />
+                              <span>{m.name} • {formatNaira(m.price)}</span>
+                              <span className="text-xs text-muted-foreground">Included</span>
+                            </label>
+                          ))}
+                          {optionalMaterials.map((m) => (
+                            <label key={m.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300"
+                                checked={optionalMaterialIds.includes(m.id)}
+                                onChange={(ev) =>
+                                  setOptionalMaterialIds((ids) => (ev.target.checked ? [...ids, m.id] : ids.filter((id) => id !== m.id)))
+                                }
+                              />
+                              <span>{m.name} • {formatNaira(m.price)}</span>
+                              <span className="text-xs text-muted-foreground">Optional</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
                       <div className="rounded-lg bg-muted p-3 text-sm" data-testid="plan-preview">
-                        {rateForPlan != null && previewTotal != null ? (
-                          <p className="font-medium">{formatNaira(rateForPlan)} × {plannedN} = {formatNaira(previewTotal)}</p>
+                        {rateForPlan != null && classesTotal != null && previewTotal != null ? (
+                          <>
+                            <p className="font-medium">{formatNaira(rateForPlan)} × {plannedN} = {formatNaira(classesTotal)}</p>
+                            {materialsTotal > 0 && <p className="font-medium">Materials: {formatNaira(materialsTotal)}</p>}
+                            {materialsTotal > 0 && <p className="mt-1 font-semibold">Total: {formatNaira(previewTotal)}</p>}
+                          </>
                         ) : (
                           <p className="text-muted-foreground">Choose a class length and enter the planned classes to see the total.</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">The rate is locked in when the plan is agreed.</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          The rate and material prices are locked in when the plan is agreed.
+                          {status === "plan_agreed" && " Saving voids and recreates this plan's charges (any extra charges added later stay)."}
+                        </p>
                       </div>
                       <Button type="submit" disabled={busy || !planOfferingId || !planDuration || !planPerWeek || previewTotal == null}>
                         {status === "plan_agreed" ? "Update plan" : "Agree plan"}

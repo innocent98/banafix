@@ -58,9 +58,19 @@ export interface Enrollment {
     id: string
     amount: number
     status: string
+    paymentMethod?: string | null
     receiptNumber: string
     paidAt?: string
     description?: string
+  }>
+  /** Per-class ledger rows (voided ones included; the balance helpers ignore them). Absent on legacy rows. */
+  tuitionCharges?: Array<{
+    id: string
+    kind: string
+    quantity: number
+    unitPrice: number
+    createdAt: string
+    voidedAt?: string | null
   }>
 }
 

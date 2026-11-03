@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e2_1793741335532/tuition/payment-link",
+    "body": {
+      "amount": 15000
+    }
+  },
+  "status": 201,
+  "response": {
+    "payment": {
+      "id": "cmw17a2k5000q07y9m9eyq117",
+      "amount": 15000,
+      "paymentUrl": "http://127.0.0.1:4015/pay/tuition_1793741338226_nus621",
+      "reference": "tuition_1793741338226_nus621"
+    },
+    "reused": false
+  }
+}

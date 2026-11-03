@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { isNoindex } from "./lib/site-noindex";
+
 const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -28,6 +30,12 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  // Staff-review mode (SITE_NOINDEX=true): also send the header, so /api and
+  // /admin and non-HTML responses are covered, not just pages with the meta tag.
+  async headers() {
+    if (!isNoindex()) return []
+    return [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }]
   },
   async redirects() {
     return [

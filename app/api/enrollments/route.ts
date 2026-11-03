@@ -9,7 +9,7 @@ import { validatePreferences } from '@/lib/scheduling/preferences'
 import { offerableOfferingWhere } from '@/lib/offerings'
 import { sendEnrollmentConfirmation, sendApplicationFeeCovered } from '@/lib/email'
 import { isThrottled } from '@/lib/throttle'
-import { coverApplication, findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
+import { findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
 import type { Prisma } from '@prisma/client'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
@@ -223,66 +223,6 @@ export async function POST(req: NextRequest) {
       },
     }
 
-    // The assessment fee is charged ONCE PER STUDENT. A student with a completed fee payment (an
-    // earlier application, or a legacy student who paid under the old flow) is never charged again:
-    // no Paystack, the application starts at assessment_paid. The server decides here; the wizard
-    // never learns beforehand whether an email belongs to an existing student.
-    if (await findCoveringFeePayment(prisma, student.id)) {
-      const covered = await prisma.$transaction(async (tx) => {
-        await lockStudent(tx, student.id)
-        const covering = await findCoveringFeePayment(tx, student.id)
-        if (!covering) return null
-        // Re-check under the student lock: two simultaneous covered submits must not both create a
-        // live application for one course.
-        const live = await tx.enrollment.findFirst({
-          where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
-          select: { id: true },
-        })
-        if (live) return 'live' as const
-        // A covered application is created at assessment_paid with no payment, from an
-        // unauthenticated request: it neither stores the request's home address (admin confirms the
-        // address when scheduling) nor cancels the student's other applications.
-        const created = await tx.enrollment.create({
-          data: {
-            ...enrollmentData,
-            assessments: {
-              create: {
-                status: 'requested',
-                arrangement,
-                preferredDate: preferredDateValue,
-                preferredTimeBand: preferredTimeBand || null,
-              },
-            },
-          },
-        })
-        await coverApplication(tx, created.id, covering.id)
-        return created
-      })
-      if (covered === 'live') {
-        return createErrorResponse('You already have an application for this course in progress', 400)
-      }
-      if (covered) {
-        try {
-          // Greet by the STORED name, never the request body: this email goes to whatever address was typed in.
-          await sendApplicationFeeCovered({ firstName: student.firstName, email: normalizedEmail, courseName: course.title })
-        } catch (emailError) {
-          console.error('Failed to send fee-covered email:', emailError)
-        }
-        return createResponse(
-          {
-            enrollment: {
-              id: covered.id,
-              status: 'assessment_paid',
-              course: { title: course.title, instructor: course.instructor?.name, sessionStartDate: course.sessionStartDate },
-            },
-            feeCovered: true,
-            applicationFee: { amount: 0 },
-          },
-          201,
-        )
-      }
-    }
-
     let assessmentFee: number
     try {
       assessmentFee = await getAssessmentFee(prisma, offering.locationId)
@@ -293,6 +233,78 @@ export async function POST(req: NextRequest) {
 
     if (assessmentFee <= 0) {
       return createErrorResponse('The assessment fee for this location is not set. Please contact us to apply.', 400)
+    }
+
+    // The assessment fee is charged ONCE PER STUDENT. A student with a completed fee payment (an
+    // earlier application, or a legacy student who paid under the old flow) is never charged again.
+    // This route is unauthenticated, so a "covered" application is created PENDING with the
+    // coverage link set and an admin confirms it (Mark fee paid, which covers it without a second
+    // fee); it never reaches assessment_paid on an email address alone. The response has the same
+    // shape and the same redirect behaviour as the pay path, so the body does not say whether the
+    // email belongs to a paid student (the only difference is where the redirect goes).
+    if (await findCoveringFeePayment(prisma, student.id)) {
+      const covered = await prisma.$transaction(async (tx) => {
+        await lockStudent(tx, student.id)
+        const covering = await findCoveringFeePayment(tx, student.id)
+        if (!covering) return null
+        // Re-check under the student lock: two simultaneous submits must not both create a live
+        // application for one course.
+        const live = await tx.enrollment.findFirst({
+          where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+          select: { id: true },
+        })
+        if (live) return 'live' as const
+        // Repeat submits for the same course reuse the one waiting application (no spam rows).
+        const waiting = await tx.enrollment.findFirst({
+          where: { studentId: student.id, courseId, status: 'pending', feeCoveredByPaymentId: { not: null } },
+          select: { id: true },
+        })
+        if (waiting) return { id: waiting.id, created: false as const }
+        // From an unauthenticated request it neither stores the request's home address (admin
+        // confirms the address when scheduling) nor cancels the student's other applications.
+        const created = await tx.enrollment.create({
+          data: {
+            ...enrollmentData,
+            applicationFeeAmount: 0,
+            feeCoveredByPaymentId: covering.id,
+            assessments: {
+              create: {
+                status: 'requested',
+                arrangement,
+                preferredDate: preferredDateValue,
+                preferredTimeBand: preferredTimeBand || null,
+              },
+            },
+          },
+          select: { id: true },
+        })
+        return { id: created.id, created: true as const }
+      })
+      if (covered === 'live') {
+        return createErrorResponse('You already have an application for this course in progress', 400)
+      }
+      if (covered) {
+        if (covered.created) {
+          try {
+            // Greet by the STORED name, never the request body: this email goes to whatever address was typed in.
+            await sendApplicationFeeCovered({ firstName: student.firstName, email: normalizedEmail, courseName: course.title })
+          } catch (emailError) {
+            console.error('Failed to send application-received email:', emailError)
+          }
+        }
+        return createResponse(
+          {
+            enrollment: {
+              id: covered.id,
+              status: 'pending',
+              course: { title: course.title, instructor: course.instructor?.name, sessionStartDate: course.sessionStartDate },
+              applicationFee: { amount: assessmentFee, receiptNumber: null },
+            },
+            payment: { authorization_url: `/enroll/success?application=${covered.id}`, access_code: null, reference: null },
+          },
+          201,
+        )
+      }
     }
 
     const enrollment = await prisma.enrollment.create({ data: enrollmentData })
@@ -341,14 +353,20 @@ export async function POST(req: NextRequest) {
     // Override the reference to use the one we created
     paymentData.reference = applicationPayment.paystackReference!
 
-    const paystackResponse = await initializePayment(paymentData)
+    // initializePayment THROWS on a non-2xx from Paystack (lib/paystack.ts), so the failure path is a
+    // catch, not a falsy `status`. Either way, remove the records of this attempt (the payment never
+    // reached Paystack, so deleting it loses nothing) and leave the student's other applications alone.
+    let paystackResponse: Awaited<ReturnType<typeof initializePayment>> | null = null
+    try {
+      paystackResponse = await initializePayment(paymentData)
+    } catch (error) {
+      console.error('Paystack initialise failed:', error)
+    }
 
-    if (!paystackResponse.status) {
-      // If payment initialization fails, clean up the records
-      await prisma.applicationPayment.delete({ where: { id: applicationPayment.id } })
-      await prisma.enrollment.delete({ where: { id: enrollment.id } })
-
-      return createErrorResponse('Failed to initialize payment. Please try again.', 500)
+    if (!paystackResponse?.status) {
+      await prisma.applicationPayment.deleteMany({ where: { id: applicationPayment.id } })
+      await prisma.enrollment.deleteMany({ where: { id: enrollment.id } })
+      return createErrorResponse('Failed to initialize payment. Please try again.', 502)
     }
 
     // The new application is live: retire the superseded unpaid ones (compare-and-set on `pending`).
@@ -472,11 +490,17 @@ export const GET = withAuth(async (req: NextRequest) => {
           },
           tuitionPayments: {
             select: {
+              id: true,
               amount: true,
               status: true,
+              paymentMethod: true,
               receiptNumber: true,
               paidAt: true,
             },
+          },
+          // Needed by the admin table for the per-class balance (voided rows included: the balance helper ignores them).
+          tuitionCharges: {
+            select: { id: true, kind: true, quantity: true, unitPrice: true, createdAt: true, voidedAt: true },
           },
         },
         orderBy: { createdAt: 'desc' },

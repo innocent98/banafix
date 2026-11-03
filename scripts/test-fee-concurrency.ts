@@ -27,14 +27,14 @@ const check = (name: string, ok: boolean, extra = '') => {
 }
 
 let seq = 0
-async function fixture(enrollments: number) {
+async function fixture(enrollments: number, statuses: string[] = []) {
   const n = `${Date.now()}_${seq++}`
   const course = await db.course.create({ data: { id: `fc_${n}`, title: 'C', instrument: 'Guitar', level: 'Beginner' } })
   const student = await db.student.create({ data: { id: `fs_${n}`, email: `fee${n}@example.com`, firstName: 'F', lastName: 'S' } })
   const rows = []
   for (let i = 0; i < enrollments; i++) {
     const enrollment = await db.enrollment.create({
-      data: { id: `fe_${n}_${i}`, courseId: course.id, studentId: student.id, selectedMode: 'On-site', status: 'pending' },
+      data: { id: `fe_${n}_${i}`, courseId: course.id, studentId: student.id, selectedMode: 'On-site', status: statuses[i] ?? 'pending' },
     })
     const payment = await db.applicationPayment.create({
       data: {
@@ -91,6 +91,29 @@ async function main() {
   await scenario('three webhooks for the SAME payment (replay storm)', 1,
     (f) => Promise.all([1, 2, 3].map(() => hook(f.rows[0].payment.id, f.rows[0].enrollment.id))),
     (r) => r.filter((x) => x === 'hook_moved').length === 1 && r.filter((x) => x === 'hook_already_processed').length === 2)
+
+  // Two tabs: the re-submit cancelled application 0 (its payment still pending) and created a live
+  // pending application 1 for the same course. Paying in the OLD tab must advance the LIVE one.
+  {
+    const f = await fixture(2, ['cancelled', 'pending'])
+    const out = await hook(f.rows[0].payment.id, f.rows[0].enrollment.id)
+    const live = await db.enrollment.findUnique({ where: { id: f.rows[1].enrollment.id } })
+    const old = await db.enrollment.findUnique({ where: { id: f.rows[0].enrollment.id } })
+    check('two tabs: fee paid on the CANCELLED application advances the live pending one',
+      out === 'hook_moved_to_live' && live?.status === 'assessment_paid' && live?.applicationPaid === true
+        && live?.feeCoveredByPaymentId === f.rows[0].payment.id && old?.status === 'cancelled' && (await completedCount(f.student.id)) === 1)
+    const second = await hook(f.rows[1].payment.id, f.rows[1].enrollment.id)
+    check('two tabs: paying the live tab afterwards is a flagged duplicate (refund), nothing else moves',
+      second === 'hook_duplicate' && (await completedCount(f.student.id)) === 1)
+  }
+  await scenario('two tabs, both payments land at once', 2,
+    async (f) => {
+      await db.enrollment.update({ where: { id: f.rows[0].enrollment.id }, data: { status: 'cancelled' } })
+      const r = await Promise.all([hook(f.rows[0].payment.id, f.rows[0].enrollment.id), hook(f.rows[1].payment.id, f.rows[1].enrollment.id)])
+      const live = await db.enrollment.findUnique({ where: { id: f.rows[1].enrollment.id } })
+      return [...r, `live_${live?.status}`]
+    },
+    (r) => r.includes('live_assessment_paid') && r.includes('hook_duplicate') && (r.includes('hook_moved_to_live') || r.includes('hook_moved')))
 
   // Superseded payment arriving later is a duplicate; the enrollment is untouched.
   const f = await fixture(1)

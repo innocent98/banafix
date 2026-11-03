@@ -7,6 +7,9 @@
  *
  *  POST /transaction/initialize      -> {status:true, data:{authorization_url, access_code, reference}}
  *  GET  /transaction/verify/:ref     -> success, unless the reference contains "FAIL" (then failed)
+ *                                       reports the amount and metadata given at initialize
+ *  POST /__override/:ref {amount?, currency?, status?, metadata?}  -> test hook: make verify report something else
+ *                                       (a different kobo amount, a wrong metadata echo, a failed status)
  *
  * This proves OUR handling of Paystack responses. It does NOT prove Paystack itself: a real
  * test-mode charge with John's keys is still required.
@@ -15,6 +18,8 @@ import http from 'node:http'
 
 const port = Number(process.env.MOCK_PAYSTACK_PORT || 4010)
 const amounts = new Map() // reference -> kobo, remembered from initialize so verify reports what was asked for
+const metadatas = new Map() // reference -> metadata echoed back by verify, as real Paystack does
+const overrides = new Map() // reference -> {amount?, currency?, status?, metadata?} set through /__override/:ref
 
 const server = http.createServer((req, res) => {
   const send = (code, body) => {
@@ -29,6 +34,7 @@ const server = http.createServer((req, res) => {
       const body = raw ? JSON.parse(raw) : {}
       const reference = body.reference || `mock_${Date.now()}`
       amounts.set(reference, body.amount)
+      metadatas.set(reference, body.metadata ?? null)
       return send(200, {
         status: true,
         message: 'Authorization URL created',
@@ -39,10 +45,16 @@ const server = http.createServer((req, res) => {
         },
       })
     }
+    const ov = url.pathname.match(/^\/__override\/(.+)$/)
+    if (req.method === 'POST' && ov) {
+      overrides.set(decodeURIComponent(ov[1]), raw ? JSON.parse(raw) : {})
+      return send(200, { status: true })
+    }
     const m = url.pathname.match(/^\/transaction\/verify\/(.+)$/)
     if (req.method === 'GET' && m) {
       const reference = decodeURIComponent(m[1])
-      const ok = !reference.includes('FAIL')
+      const override = overrides.get(reference) ?? {}
+      const ok = override.status ? override.status === 'success' : !reference.includes('FAIL')
       return send(200, {
         status: true,
         message: 'Verification successful',
@@ -51,13 +63,18 @@ const server = http.createServer((req, res) => {
           domain: 'test',
           status: ok ? 'success' : 'failed',
           reference,
-          amount: amounts.get(reference) ?? 500000,
+          // `PASSTHRU` in the reference simulates "pass charges to customer": amount = base + fees.
+          // `override.amount` (test hook) replaces the BASE amount, so a mismatch override moves both fields.
+          amount: (override.amount ?? amounts.get(reference) ?? 500000) + (reference.includes('PASSTHRU') ? 7500 : 0),
+          requested_amount: override.amount ?? amounts.get(reference) ?? 500000,
+          fees: reference.includes('PASSTHRU') ? 7500 : 0,
+          metadata: 'metadata' in override ? override.metadata : metadatas.get(reference) ?? null,
           message: null,
           gateway_response: ok ? 'Successful' : 'Declined',
           paid_at: ok ? new Date().toISOString() : null,
           created_at: new Date().toISOString(),
           channel: 'card',
-          currency: 'NGN',
+          currency: override.currency ?? 'NGN',
           authorization: { authorization_code: 'AUTH_mock' },
         },
       })

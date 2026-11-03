@@ -1,65 +1,49 @@
 import type { Metadata } from "next"
 import { CalendarDays, Clock, MapPin } from "lucide-react"
 
-import {
-  EVENT_CATEGORY_LABELS,
-  EVENTS,
-  upcomingEvents,
-  type BanafixEvent,
-} from "@/components/site/events/events"
 import { MediaSlot } from "@/components/site/media-slot"
-import { Display, Eyebrow, LevelBadge, PillAnchor, PillLink } from "@/components/site/primitives"
+import { Display, Eyebrow, PillAnchor, PillLink } from "@/components/site/primitives"
+import { getUpcomingEvents, type PublicEvent } from "@/lib/site-content-queries"
 import { ENROL_HREF, ENROL_LABEL, SITE_EMAIL, SITE_EMAIL_MAILTO, SITE_WHATSAPP } from "@/lib/site"
 
 export const metadata: Metadata = {
-  title: "Events & workshops | Banafix",
-  description:
-    "Masterclasses, workshops and student recitals at the Banafix studio in Lekki, Lagos.",
+  title: "Events | Banafix",
+  description: "Upcoming events at Banafix in Lekki, Lagos.",
 }
 
 /**
- * /events.
- *
- * There is no Event model and no events API — see components/site/events/events.ts
- * for what was removed and why. The page renders the designed grid when
- * `EVENTS` has entries and a designed empty state while it does not, so
- * putting real events back is a data edit, not a rebuild.
- *
- * `revalidate` is deliberate: `upcomingEvents` compares against `new Date()`,
- * and a purely static page would freeze "upcoming" at build time and keep
- * listing an event days after it ran. An hour is well inside the resolution
- * anyone cares about for an event listing, and far cheaper than
- * force-dynamic.
+ * /events lists published events that have not started yet (`SiteEvent`, past
+ * events are filtered out by `upcomingEvents`). With none it shows an honest
+ * empty state. Read per request: "upcoming" depends on the current time and the
+ * build needs no database.
  */
-export const revalidate = 3600
+export const dynamic = "force-dynamic"
 
-function formatEventDate(isoDate: string) {
-  return new Date(isoDate).toLocaleDateString("en-NG", {
+const LAGOS = "Africa/Lagos"
+
+function formatEventDate(date: Date) {
+  return date.toLocaleDateString("en-NG", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: LAGOS,
   })
 }
 
-function EventCard({ event }: { event: BanafixEvent }) {
+function formatEventTime(date: Date) {
+  return date.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit", timeZone: LAGOS })
+}
+
+function EventCard({ event }: { event: PublicEvent }) {
   return (
     <article className="flex flex-col overflow-hidden rounded-[22px] border border-bfx-border bg-bfx-surface transition-shadow hover:shadow-[0_22px_44px_-24px_rgba(16,26,40,0.3)]">
-      <div className="relative h-[196px]">
-        <MediaSlot
-          src={event.image ?? null}
-          alt={event.title}
-          glyph="beamed"
-          glyphSize={68}
-        />
-        <LevelBadge className="top-[13px] left-[13px]">
-          {EVENT_CATEGORY_LABELS[event.category]}
-        </LevelBadge>
+      <div className="relative h-[140px]">
+        <MediaSlot src={null} alt="" glyph="beamed" glyphSize={68} />
       </div>
 
       <div className="flex flex-1 flex-col p-6">
-        <h2 className="mb-1.5 text-[21px] font-bold tracking-[-0.015em]">{event.title}</h2>
-        <p className="mb-4 text-[13.5px] font-semibold text-bfx-bronze">with {event.host}</p>
+        <h2 className="mb-3 text-[21px] font-bold tracking-[-0.015em]">{event.title}</h2>
         <p className="bfx-pretty mb-5 text-[15px] leading-[1.6] text-bfx-body-2">
           {event.description}
         </p>
@@ -67,11 +51,11 @@ function EventCard({ event }: { event: BanafixEvent }) {
         <div className="mb-5 flex flex-col gap-2.5 text-[14px] text-bfx-strong">
           <div className="flex items-center gap-2.5">
             <CalendarDays aria-hidden className="h-4 w-4 flex-none text-bfx-muted-2" />
-            <time dateTime={event.date}>{formatEventDate(event.date)}</time>
+            <time dateTime={event.startsAt.toISOString()}>{formatEventDate(event.startsAt)}</time>
           </div>
           <div className="flex items-center gap-2.5">
             <Clock aria-hidden className="h-4 w-4 flex-none text-bfx-muted-2" />
-            {event.time}
+            {formatEventTime(event.startsAt)}
           </div>
           <div className="flex items-center gap-2.5">
             <MapPin aria-hidden className="h-4 w-4 flex-none text-bfx-muted-2" />
@@ -79,16 +63,12 @@ function EventCard({ event }: { event: BanafixEvent }) {
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-3.5 border-t border-dashed border-bfx-border-7 pt-[18px]">
-          <div>
-            <div className="text-[12px] font-semibold text-bfx-muted-2">entry</div>
-            <div className="text-[21px] font-extrabold tracking-[-0.01em]">{event.price}</div>
-          </div>
-          {event.registerHref ? (
+        <div className="mt-auto border-t border-dashed border-bfx-border-7 pt-[18px]">
+          {event.registrationUrl ? (
             <PillAnchor
               variant="ink"
               size="sm"
-              href={event.registerHref}
+              href={event.registrationUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -111,8 +91,8 @@ function EventCard({ event }: { event: BanafixEvent }) {
   )
 }
 
-export default function EventsPage() {
-  const events = upcomingEvents(EVENTS)
+export default async function EventsPage() {
+  const events = await getUpcomingEvents()
 
   return (
     <div className="bfx-rise">
@@ -120,13 +100,12 @@ export default function EventsPage() {
         <div className="max-w-[640px]">
           <Eyebrow>EVENTS</Eyebrow>
           <Display as="h1" className="mb-4 text-[clamp(38px,5vw,62px)] leading-none">
-            Recitals, workshops
+            What&rsquo;s on
             <br />
-            and masterclasses
+            at Banafix
           </Display>
           <p className="bfx-pretty text-[18px] leading-[1.6] text-bfx-body">
-            Every term ends in a student recital, and we run open workshops in between. When one is
-            scheduled, it shows up here.
+            When an event is scheduled, it shows up here.
           </p>
         </div>
       </section>
@@ -139,8 +118,8 @@ export default function EventsPage() {
             ))}
           </div>
         ) : (
-          /* First-time empty state. Nothing is scheduled and we say so rather
-             than filling the grid with events that have already happened. */
+          /* Empty state. Nothing is scheduled and we say so rather than filling
+             the grid with events that have already happened. */
           <div className="overflow-hidden rounded-[24px] border border-bfx-border bg-bfx-surface">
             <div className="grid items-center gap-10 p-8 sm:p-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
               <div>
@@ -150,9 +129,8 @@ export default function EventsPage() {
                   right now
                 </Display>
                 <p className="bfx-pretty mb-7 max-w-[460px] text-[16.5px] leading-[1.65] text-bfx-body">
-                  The next recital and workshop dates go up here as soon as they&apos;re set. Tell
-                  us what you&apos;d like to sit in on and we&apos;ll message you when it&apos;s
-                  scheduled. No mailing list, just a WhatsApp note.
+                  Event dates go up here as soon as they&apos;re set. Message us on WhatsApp and
+                  ask what is coming up.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <PillAnchor
@@ -162,7 +140,7 @@ export default function EventsPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Tell us on WhatsApp
+                    Ask on WhatsApp
                   </PillAnchor>
                   <PillLink variant="outlineSoft" size="lg" href="/courses">
                     Browse courses
@@ -186,8 +164,7 @@ export default function EventsPage() {
               Want to run a workshop here?
             </h2>
             <p className="bfx-pretty m-0 max-w-[540px] text-[15px] leading-[1.6] text-bfx-body">
-              Tutors and students both propose sessions. Send us the idea and the instrument, and
-              we&apos;ll find a room and a date.
+              Send us the idea and we&apos;ll see what we can do.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

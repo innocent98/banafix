@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 and 4 built (PRs open, unmerged)**, others planned
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3, 4 and 5 built (PRs open, unmerged)**, others planned
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -14,10 +14,10 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
 - [ ] Official contact + feedback email addresses and forwarding
 
-### Stream 1 — Quick wins (independent)
-- [ ] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
-- [ ] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
-- [ ] Add Vitest for pure logic (no test runner exists today)
+### Stream 1 — Quick wins (independent) — ✅ built 2026-11-03, branch `feature/per-class-copy-and-modules` (SOP: [`per-class-copy-and-modules`](../sop/per-class-copy-and-modules.md))
+- [x] Copy: per-class pricing / 12 modules wording; remove monthly tiers on `/admissions`, "Twelve-week programmes", `/courses` heading
+- [x] `CurriculumModule.weeks` optional (admin forms, API, public render); drop `parseWeeks` caption
+- [x] Add Vitest for pure logic (no test runner exists today)
 - [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
 
 ### Stream 2 — Location + offering model  *(foundation for 3–5)*  ✅ built 2026-11-03, branch `feature/assessment-first-admission` (PR open, not merged)
@@ -53,10 +53,20 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Follow-ups: S7 notification hooks (`TODO(S7)` in `lib/scheduling/hooks.ts`); `/tutors` should read the many-to-many list; cancelled enrollments should cancel their classes
 - SOP: [`docs/sop/scheduling.md`](../sop/scheduling.md) · FE guide: [`docs/fe-integration-guide-scheduling.md`](../fe-integration-guide-scheduling.md) · Spec/plan: `docs/superpowers/specs/2026-11-03-scheduling-design.md`, `docs/superpowers/plans/2026-11-03-stream4-scheduling.md`
 
-### Stream 5 — Per-class tuition
-- [ ] Invoice = classes × rate snapshot; paid status per class; partial payments
-- [ ] Manual recording (cash/transfer/POS) kept; online tuition via Paystack; materials as line items
-- [ ] Receipts + balance rewritten (replaces D3)
+### Stream 5 — Per-class tuition  ✅ built 2026-11-03, branch `feature/per-class-tuition` (PR open against `feature/assessment-first-admission`, unmerged)
+- [x] Charge ledger `TuitionCharge` (CLASSES + MATERIAL, price snapshot, voided never deleted); created with the plan; top-ups at today's rate; derived balance + `classesCovered` (pure, unit-tested; S4 can reuse)
+- [x] Partial payments (balance = charges − counted payments; credit on overpayment; overpayment needs confirmation); legacy enrollments keep the old `Course.pricing` balance, isolated and tested
+- [x] Manual recording kept (cash / bank transfer / POS / card / cheque / mobile money / other)
+- [x] Online tuition: admin generates a Paystack link (default = outstanding), webhook `tuition` branch (replay, concurrent, amount/currency/metadata mismatch, unknown reference, late payment on cancelled), proven against the **local Paystack mock**
+- [~] **Real Paystack test-mode charge for tuition NOT DONE** (needs John's keys)
+- [x] Materials as charges (required auto-added at the plan step, optional picked); required/optional set in the Materials tab (S3)
+- [x] Per-class receipts (PDF + email, student copy + admin copy, point-in-time); PDFs print `NGN` (helvetica has no ₦)
+- [x] Admin: ledger modal on the enrollment screen, `/admin/payments` (payments + outstanding, filters, CSV)
+- [~] Browser QA of the admin flow at 1280px: see the SOP verification table for what was and was not exercised
+- [x] Independent-review round 2 (open links vs the cap, credit/refund-needed visible on `/admin/payments`, admin alert emails, `refund.processed` flagged, URL-less rows, honest outstanding scan); [x] PR #12's `chargeMatches` change (`requested_amount ?? amount`) merged (`878b425`) and re-tested on the mock (110 + 33 checks)
+- [ ] **Deploy gate:** snapshot prod, direct DB URL, migrate `20261103180000_per_class_tuition` after `20261103150000_assessment_first_admission`
+- [ ] John decides: **tuition refund policy** (not built); whether `plan_agreed → enrolled` should wait for the first class to be paid (built: any counted payment)
+- SOP: [`docs/sop/per-class-tuition.md`](../sop/per-class-tuition.md) · Spec: `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream5-per-class-tuition.md` · API guide: [`docs/fe-integration-guide-per-class-tuition.md`](../fe-integration-guide-per-class-tuition.md)
 
 ### Stream 6 — Registration + parents
 - [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
@@ -66,11 +76,13 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Admin announcements; `Feedback` model with testimonial-consent flag
 - [ ] WhatsApp/SMS provider plugged in later (John's choice; cost comparison to research)
 
-### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*
-- [ ] Models + admin CRUD: `Testimonial` (name, text, optional video, publish-permission flag), `TrustedPartner` (name, logo), `SiteEvent` (title, date, location, registration link), `SiteStat` (label, value; real figures only)
-- [ ] Public home / testimonials / events render from the DB; honest empty states, no invented content; remove hardcoded `testimonials.ts` / `events.ts` / trusted-by constants
-- [ ] Remove "Lagos Music Academy" overreach; stats show only entered values
-- [ ] Team-review readiness: noindex/preview guard decision (John wants staff to review before rollout)
+### Stream 8 — Website content  *(admin-managed data, D11; John supplies real values)*  ✅ built 2026-11-03, PR `feature/site-content-admin` (SOP: [`site-content-admin`](../sop/site-content-admin.md))
+- [x] Models + admin CRUD: `Testimonial` (name, role, quote, optional video, `permissionToPublish`, publish, order), `TrustedPartner` (name, Blob logo, link), `SiteEvent` (title, description, start, location, registration link), `SiteStat` (label, value, admin note; real figures only); all audited, nav items added
+- [x] Publish-permission guard enforced server-side (+ revoking permission unpublishes); unit-tested
+- [x] Public home / testimonials / events render from the DB; honest empty states; hardcoded `testimonials.ts` / `events.ts` / trusted-by list deleted; past events hidden
+- [x] Removed unbacked hero claims ("3,200 alumni", "4.9 / 5 from 412 reviews"); stats show only entered values
+- [x] Team-review readiness: noindex/preview-guard recommendation made (not built; see PR description)
+- [ ] John to enter real content via `/admin` (stats, partners, testimonials with permission, events) and confirm "SINCE 2016"
 
 ### Wave plan (lead session)
 - **Wave 1 (now, ≤3 sessions):** S1 quick wins · S2+3 assessment-first admission · S8 site content
@@ -273,7 +285,8 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [x] **D11** — all commercial config (fees, offerings, rates, materials, availability) is admin-editable data, never hardcoded
 - [x] **D2** — introduce `Student` person entity (unique email)
 - [x] **D4** — Vercel Cron for birthdays
-- [x] **D3** — expected-total-tuition = `course.pricing[mode]` (decided; consumed by the future tuition module)
+- [x] **D3** — expected-total-tuition = `course.pricing[mode]` — **⚠️ SUPERSEDED by D12 (Stream 5):** now legacy rows only
+- [x] **D12** — per-class tuition is a charge ledger; paid status derived, never stored per class
 - [ ] **D5** — harden public enrollment read endpoints behind admin auth
 
 ## Backlog / upcoming
@@ -288,6 +301,11 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [ ] `GET /api/receipts/application-fee/[enrollmentId]` still unauthenticated; D5 otherwise partly closed
 - [ ] Drop deprecated `Course` columns + dormant `Enrollment` identity columns; remove `lib/locations.ts`, stale "Seats Utilization" stat, Basic-tab `location` select
 - [ ] Parent child-picker lists only `enrolled` students; admin "Record tuition" button shows on rows the server refuses
+
+- [ ] Real Paystack test charge with "pass charges to customer" ON and OFF: confirms `requested_amount` semantics used by the fee amount check (independent review H1; fixed from the spec, proven on the mock only)
+- [ ] Same-day runbook after deploy: enter per-class rates in `/admin` (online intake is closed until then): `docs/sop/assessment-first-admission.md`
+- [ ] Review follow-ups: server-side "refund needed" count/filter (L8); cash mark-paid for an already-covered student tracks no cash (L7); explicit BEGIN/COMMIT for migrations in a later migration (L4)
+- [x] Independent review of PR #12 fixed: H1 amount check, M1 two-tab fee, M3 covered path now pending + admin confirm, L1/L2/L6/L9/L10
 
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types

@@ -1,0 +1,123 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/enrollments/t5_e1_1793741335532/tuition",
+    "body": null
+  },
+  "status": 200,
+  "response": {
+    "mode": "ledger",
+    "enrollment": {
+      "id": "t5_e1_1793741335532",
+      "status": "plan_agreed",
+      "applicationPaid": true,
+      "selectedMode": "T5 Mode",
+      "ratePerClass": 4000,
+      "plannedClasses": 10,
+      "durationMins": 60
+    },
+    "charges": [
+      {
+        "id": "cmw17a0qg000007y99v2xmeys",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "CLASSES",
+        "origin": "PLAN",
+        "quantity": 8,
+        "unitPrice": 4000,
+        "description": "8 x 60-minute classes",
+        "materialId": null,
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:55.864Z",
+        "voidedAt": "2026-11-03T21:28:56.021Z",
+        "voidedBy": "t5_admin_1793741335532",
+        "voidReason": "Plan edited"
+      },
+      {
+        "id": "cmw17a0qg000107y9rptqyofv",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "MATERIAL",
+        "origin": "PLAN",
+        "quantity": 1,
+        "unitPrice": 3000,
+        "description": "Theory workbook",
+        "materialId": "t5_matr_1793741335532",
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:55.864Z",
+        "voidedAt": "2026-11-03T21:28:56.021Z",
+        "voidedBy": "t5_admin_1793741335532",
+        "voidReason": "Plan edited"
+      },
+      {
+        "id": "cmw17a0qg000207y9a5spxecn",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "MATERIAL",
+        "origin": "PLAN",
+        "quantity": 1,
+        "unitPrice": 1500,
+        "description": "Metronome",
+        "materialId": "t5_mato_1793741335532",
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:55.864Z",
+        "voidedAt": "2026-11-03T21:28:56.021Z",
+        "voidedBy": "t5_admin_1793741335532",
+        "voidReason": "Plan edited"
+      },
+      {
+        "id": "cmw17a0uu000507y9ck8hqpco",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "CLASSES",
+        "origin": "PLAN",
+        "quantity": 10,
+        "unitPrice": 4000,
+        "description": "10 x 60-minute classes",
+        "materialId": null,
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:56.023Z",
+        "voidedAt": null,
+        "voidedBy": null,
+        "voidReason": null
+      },
+      {
+        "id": "cmw17a0uu000607y9apt5jtka",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "MATERIAL",
+        "origin": "PLAN",
+        "quantity": 1,
+        "unitPrice": 3000,
+        "description": "Theory workbook",
+        "materialId": "t5_matr_1793741335532",
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:56.023Z",
+        "voidedAt": null,
+        "voidedBy": null,
+        "voidReason": null
+      },
+      {
+        "id": "cmw17a0uu000707y9xck2i2d7",
+        "enrollmentId": "t5_e1_1793741335532",
+        "kind": "MATERIAL",
+        "origin": "PLAN",
+        "quantity": 1,
+        "unitPrice": 1500,
+        "description": "Metronome",
+        "materialId": "t5_mato_1793741335532",
+        "createdBy": "t5_admin_1793741335532",
+        "createdAt": "2026-11-03T21:28:56.023Z",
+        "voidedAt": null,
+        "voidedBy": null,
+        "voidReason": null
+      }
+    ],
+    "payments": [],
+    "summary": {
+      "mode": "ledger",
+      "charged": 44500,
+      "paid": 0,
+      "outstanding": 44500,
+      "credit": 0,
+      "materials": 4500,
+      "classesPurchased": 10,
+      "classesCovered": 0
+    }
+  }
+}

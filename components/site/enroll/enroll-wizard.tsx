@@ -11,9 +11,9 @@
  *
  * Steps: 1 Assessment (location · format · arrangement · preferred date/time) -> 2 Your details
  * -> 3 Consents + pay. Submit POSTs `/api/enrollments` with `offeringId`, then
- * `window.location.href = result.payment.authorization_url`. When the server answers
- * `feeCovered: true` (this student already paid the fee) there is no payment object and no
- * redirect: the wizard swaps to the `FeeAlreadyCovered` confirmation instead.
+ * `window.location.href = result.payment.authorization_url`. The response has the same shape for
+ * every applicant; for a student whose assessment fee is already covered the URL is the site's own
+ * "application received" page instead of Paystack's.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -28,7 +28,6 @@ import {
   CourseUnavailable,
   EnrollLoadError,
   EnrollSkeleton,
-  FeeAlreadyCovered,
   NoCourseSelected,
 } from "./enroll-states"
 import { EnrollSummary } from "./enroll-summary"
@@ -115,7 +114,6 @@ export function EnrollWizard() {
   const [paymentError, setPaymentError] = useState("")
   const [paymentRetryable, setPaymentRetryable] = useState(true)
   // Set when the server found the assessment fee already paid by this student: no checkout.
-  const [feeCovered, setFeeCovered] = useState(false)
 
   const topRef = useRef<HTMLDivElement | null>(null)
 
@@ -314,16 +312,8 @@ export function EnrollWizard() {
 
       const result = await response.json()
 
-      // The server decides; the client never looks the student up beforehand.
-      if (response.ok && result?.feeCovered === true) {
-        setFeeCovered(true)
-        setSubmitting(false)
-        window.scrollTo({ top: 0 })
-        return
-      }
-
       if (response.ok && result?.payment?.authorization_url) {
-        // Paystack owns the rest of the flow and returns to /enroll/success.
+        // Paystack (or the site's own received page) owns the rest of the flow.
         window.location.href = result.payment.authorization_url
         return
       }
@@ -357,7 +347,6 @@ export function EnrollWizard() {
 
   /* ----------------------------------------------------------------- views */
 
-  if (feeCovered && course) return <FeeAlreadyCovered courseTitle={course.title} />
   if (!courseId) return <NoCourseSelected />
   if (loading) return <EnrollSkeleton />
   if (loadError || !course) {
