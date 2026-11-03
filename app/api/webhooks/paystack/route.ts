@@ -6,6 +6,7 @@ import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/l
 import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
 import { settleAssessmentFee, chargeMatches } from '@/lib/assessment-payment'
+import { handleTuitionChargeSuccess, handleTuitionChargeFailed, handleTuitionDispute } from '@/lib/tuition-webhook'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -82,8 +83,15 @@ async function handleChargeSuccess(data: any) {
     })
 
     if (!applicationPayment) {
+      // Not an assessment fee: is it an online tuition payment? Routed by the reference we hold, never by
+      // the metadata Paystack echoes back.
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionChargeSuccess(tuitionPayment, verificationResult.data)
+        return
+      }
       // Money may have been taken for a reference we have no record of. Leave a trace for an admin.
-      console.error('Application payment not found for reference:', reference)
+      console.error('Payment not found for reference:', reference)
       await logAdminAction({
         adminId: null,
         action: 'payment.unmatched_reference',
@@ -260,6 +268,11 @@ async function handleChargeFailed(data: any) {
     })
 
     if (!applicationPayment) {
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionChargeFailed(tuitionPayment)
+        return
+      }
       console.error('Application payment not found for reference:', reference)
       return
     }
@@ -302,6 +315,11 @@ async function handleChargeDispute(data: any) {
     })
 
     if (!applicationPayment) {
+      const tuitionPayment = await prisma.tuitionPayment.findUnique({ where: { paystackReference: reference } })
+      if (tuitionPayment) {
+        await handleTuitionDispute(tuitionPayment, { id: data.id, reason: data.reason, amount: data.amount })
+        return
+      }
       console.error('Application payment not found for dispute reference:', reference)
       return
     }

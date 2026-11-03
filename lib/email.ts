@@ -4,7 +4,7 @@
  */
 
 import { Resend } from 'resend'
-import { ApplicationFeeReceiptData, TuitionReceiptData } from './receipt'
+import { ApplicationFeeReceiptData, TuitionReceiptData, TuitionReceiptLedger } from './receipt'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -64,6 +64,7 @@ export async function sendTuitionReceipt(
   try {
     const { enrollment, course, payment } = data
 
+    // TODO(S7): route this send through the communications outbox
     const emailResult = await resend.emails.send({
       from: FROM_EMAIL,
       to: enrollment.email,
@@ -89,6 +90,7 @@ export async function sendTuitionReceipt(
     // student never sees the admin address). A failure here must not affect the
     // student send's success result.
     try {
+      // TODO(S7): route this send through the communications outbox
       const adminCopy = await resend.emails.send({
         from: FROM_EMAIL,
         to: ADMIN_EMAIL,
@@ -230,10 +232,164 @@ function generateApplicationFeeEmailHTML(data: ApplicationFeeReceiptData): strin
   `
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function naira(amount: number): string {
+  return `₦${amount.toLocaleString()}`
+}
+
+/**
+ * Per-class tuition receipt email (ledger enrollments). Every interpolated
+ * string is HTML-escaped.
+ */
+function generateLedgerTuitionEmailHTML(data: TuitionReceiptData, ledger: TuitionReceiptLedger): string {
+  const { enrollment, course, payment } = data
+  const balance = data.remainingBalance ?? 0
+  const paidInFull = data.paymentType === 'completed'
+  const dateText = new Date(payment.paidAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const lineRows = ledger.lines
+    .map(
+      (line) => `
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(line.description)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">${line.quantity} x ${naira(line.unitPrice)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap;">${naira(line.amount)}</td>
+                        </tr>`
+    )
+    .join('')
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tuition Payment Receipt</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f9fafb; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: #1e293b; color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+            .header p { margin: 5px 0 0; opacity: 0.9; }
+            .content { padding: 30px; }
+            .receipt-info { background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .receipt-info h3 { margin: 0 0 15px; color: #1e293b; }
+            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
+            .info-label { font-weight: bold; color: #64748b; }
+            .charges { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+            .charges th { text-align: left; padding: 8px; background: #f1f5f9; color: #1e293b; }
+            .amount-box { background: #10b981; color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .amount-box h3 { margin: 0 0 10px; font-size: 18px; }
+            .amount-box .amount { font-size: 24px; font-weight: bold; }
+            .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>BANAFIX</h1>
+                <p>Music Academy & Training Center</p>
+            </div>
+
+            <div class="content">
+                <h2>Tuition Payment Receipt</h2>
+                <p>Dear ${escapeHtml(enrollment.firstName)} ${escapeHtml(enrollment.lastName)},</p>
+                <p>Thank you for your tuition payment! This receipt confirms your payment for the ${escapeHtml(course.title)} course.</p>
+
+                <div class="receipt-info">
+                    <h3>Receipt Details</h3>
+                    <div class="info-row">
+                        <span class="info-label">Receipt Number:</span>
+                        <span>${escapeHtml(data.receiptNumber)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Payment Date:</span>
+                        <span>${dateText}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Payment Method:</span>
+                        <span>${escapeHtml(payment.paymentMethod.toUpperCase())}</span>
+                    </div>
+                    ${payment.description ? `
+                    <div class="info-row">
+                        <span class="info-label">Description:</span>
+                        <span>${escapeHtml(payment.description)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="receipt-info">
+                    <h3>Charges</h3>
+                    <table class="charges">
+                        <tr><th>Description</th><th>Qty x Rate</th><th style="text-align: right;">Amount</th></tr>${lineRows}
+                    </table>
+                    <div class="info-row">
+                        <span class="info-label">Total charged:</span>
+                        <span><strong>${naira(ledger.totalCharged)}</strong></span>
+                    </div>
+                </div>
+
+                <div class="amount-box">
+                    <h3>Amount Paid</h3>
+                    <div class="amount">${naira(payment.amount)}</div>
+                </div>
+
+                <div class="receipt-info">
+                    <h3>Payment Summary</h3>
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span><strong>${paidInFull ? 'Paid in full' : 'Part payment'}</strong></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total paid to date:</span>
+                        <span><strong>${naira(data.totalPaid)}</strong></span>
+                    </div>
+                    ${ledger.credit > 0 ? `
+                    <div class="info-row">
+                        <span class="info-label">Credit:</span>
+                        <span><strong>${naira(ledger.credit)}</strong></span>
+                    </div>
+                    ` : `
+                    <div class="info-row">
+                        <span class="info-label">Balance remaining:</span>
+                        <span><strong>${naira(balance)}</strong></span>
+                    </div>
+                    `}
+                    <div class="info-row">
+                        <span class="info-label">Classes covered:</span>
+                        <span><strong>${ledger.classesCovered} of ${ledger.classesPurchased}</strong></span>
+                    </div>
+                </div>
+
+                <p>Your payment has been recorded successfully. Continue practicing and we look forward to seeing your progress!</p>
+
+                <p>Please keep this receipt for your records. A PDF copy is attached to this email.</p>
+            </div>
+
+            <div class="footer">
+                <p>Questions? Contact us at ${escapeHtml(SUPPORT_EMAIL)}</p>
+                <p>Banafix Music Academy - Building Musical Excellence</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `
+}
+
 /**
  * Generate HTML email template for tuition payment receipt
  */
-function generateTuitionEmailHTML(data: TuitionReceiptData): string {
+export function generateTuitionEmailHTML(data: TuitionReceiptData): string {
+  if (data.ledger) return generateLedgerTuitionEmailHTML(data, data.ledger)
+
   const { enrollment, course, payment } = data
 
   return `

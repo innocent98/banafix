@@ -193,6 +193,124 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   return Buffer.from(doc.output('arraybuffer'))
 }
 
+/** Lowest y (mm) content may reach on an A4 page before a new page is added. */
+const PDF_CONTENT_LIMIT_Y = 270
+
+/**
+ * Per-class ledger section of the tuition receipt: charges table, totals and
+ * classes covered. Flows from y=190 and adds pages rather than overflowing.
+ */
+function renderLedgerSection(
+  doc: jsPDF,
+  data: TuitionReceiptData,
+  ledger: TuitionReceiptLedger,
+  colors: { primaryColor: string; accentColor: string; lightGray: string }
+): void {
+  const { primaryColor, accentColor, lightGray } = colors
+  let y = 190
+
+  const ensureSpace = (needed: number) => {
+    if (y + needed > PDF_CONTENT_LIMIT_Y) {
+      doc.addPage()
+      y = 20
+    }
+  }
+
+  // Charges table
+  doc.setTextColor(primaryColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('CHARGES', 20, y)
+  y += 6
+
+  const drawTableHead = () => {
+    doc.setFillColor(lightGray)
+    doc.rect(20, y - 4.5, 170, 7, 'F')
+    doc.setTextColor(primaryColor)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Description', 22, y)
+    doc.text('Qty x Rate', 125, y)
+    doc.text('Amount', 188, y, { align: 'right' })
+    y += 7
+  }
+  drawTableHead()
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  for (const line of ledger.lines) {
+    const descLines: string[] = doc.splitTextToSize(line.description, 98)
+    const rowHeight = descLines.length * 4.5 + 2
+    if (y + rowHeight > PDF_CONTENT_LIMIT_Y) {
+      doc.addPage()
+      y = 20
+      drawTableHead()
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+    }
+    doc.setTextColor(primaryColor)
+    doc.text(descLines, 22, y)
+    doc.text(`${line.quantity} x ${formatCurrency(line.unitPrice)}`, 125, y)
+    doc.text(formatCurrency(line.amount), 188, y, { align: 'right' })
+    y += rowHeight
+  }
+
+  // Totals block
+  const balance = data.remainingBalance ?? 0
+  const hasCredit = ledger.credit > 0
+  const paymentTypeLabel = data.paymentType === 'completed' ? 'Paid in full' : 'Part payment'
+  const rows: Array<[string, string, boolean]> = [
+    ['Total charged', formatCurrency(ledger.totalCharged), false],
+    ['Amount paid', formatCurrency(data.payment.amount), true],
+    ['Total paid to date', formatCurrency(data.totalPaid), false],
+    hasCredit
+      ? ['Credit', formatCurrency(ledger.credit), false]
+      : ['Balance remaining', formatCurrency(balance), false],
+    ['Classes covered', `${ledger.classesCovered} of ${ledger.classesPurchased}`, false],
+  ]
+  const blockHeight = 14 + (rows.length + (data.payment.description ? 1 : 0)) * 7 + 7 + 4
+  y += 4
+  ensureSpace(blockHeight)
+
+  doc.setFillColor(accentColor)
+  doc.rect(20, y, 170, blockHeight, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.text('PAYMENT DETAILS', 25, y + 8)
+  let ty = y + 16
+
+  doc.setFontSize(10)
+  if (data.payment.description) {
+    doc.setFont('helvetica', 'normal')
+    const descText: string[] = doc.splitTextToSize(`Description: ${data.payment.description}`, 160)
+    doc.text(descText[0], 25, ty)
+    ty += 7
+  }
+  for (const [label, value, emphasise] of rows) {
+    doc.setFont('helvetica', emphasise ? 'bold' : 'normal')
+    doc.setFontSize(emphasise ? 12 : 10)
+    doc.text(label, 25, ty)
+    doc.text(value, 185, ty, { align: 'right' })
+    ty += 7
+  }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('Status', 25, ty)
+  doc.text(paymentTypeLabel, 185, ty, { align: 'right' })
+  y += blockHeight
+
+  // Footer
+  y += 8
+  ensureSpace(20)
+  doc.setTextColor(primaryColor)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.text('This receipt confirms your tuition payment. Thank you for choosing Banafix Music Academy.', 20, y)
+  doc.text('Contact support@banafix.com for any inquiries about your payment or course.', 20, y + 7)
+  doc.text('Banafix Music Academy - Building Musical Excellence', 20, y + 14)
+}
+
 /**
  * Generate Tuition Payment Receipt PDF
  */
@@ -275,6 +393,11 @@ export function generateTuitionReceiptPDF(data: TuitionReceiptData): Buffer {
   doc.text(`Level: ${data.course.level}`, 20, 169)
   if (data.course.instructor) {
     doc.text(`Instructor: ${data.course.instructor}`, 20, 176)
+  }
+
+  if (data.ledger) {
+    renderLedgerSection(doc, data, data.ledger, { primaryColor, accentColor, lightGray })
+    return Buffer.from(doc.output('arraybuffer'))
   }
 
   // Payment Details
