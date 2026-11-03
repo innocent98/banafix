@@ -36,8 +36,15 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
       orderBy: [{ location: { name: 'asc' } }, { deliveryMode: { name: 'asc' } }],
     })
 
+    // Materials for the plan step: required ones are always charged, optional ones can be picked.
+    const materials = await prisma.material.findMany({
+      where: { courseId: enrollment.courseId, isActive: true },
+      select: { id: true, name: true, price: true, required: true },
+      orderBy: { createdAt: 'asc' },
+    })
+
     const { assessments, ...rest } = enrollment
-    return createResponse({ enrollment: rest, assessments, offerings })
+    return createResponse({ enrollment: rest, assessments, offerings, materials })
   } catch (error) {
     console.error('Get admin enrollment error:', error)
     return createErrorResponse('Failed to fetch enrollment', 500)

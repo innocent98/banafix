@@ -129,3 +129,8 @@ export function checkPaymentAmount(outstanding: number, amount: unknown, allowOv
   }
   return { ok: true, amount: n }
 }
+
+/** Prisma rows store `kind` as a string; narrow it for the pure helpers. */
+export function toLedgerCharges<T extends Omit<LedgerCharge, 'kind'> & { kind: string }>(rows: T[]): (T & { kind: ChargeKind })[] {
+  return rows.map((r) => ({ ...r, kind: (r.kind === 'MATERIAL' ? 'MATERIAL' : 'CLASSES') as ChargeKind }))
+}

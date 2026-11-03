@@ -56,19 +56,3 @@ export function buildPlanSnapshot(input: {
   }
   return { ok: true, ratePerClass: rate, durationMins, classesPerWeek, plannedClasses }
 }
-
-/**
- * Expected total tuition for the balance. An agreed plan wins (snapshot rate x planned classes);
- * legacy rows fall back to the course's per-MODE price (D3) until Stream 5. Undefined when neither
- * exists, so callers omit the balance instead of blocking.
- */
-export function expectedTuitionTotal(
-  enrollment: { ratePerClass: number | null; plannedClasses: number | null; selectedMode: string | null },
-  legacyPricing: Record<string, number> | null,
-): number | undefined {
-  if (enrollment.ratePerClass != null && enrollment.plannedClasses != null) {
-    return planTotal(enrollment.ratePerClass, enrollment.plannedClasses)
-  }
-  const legacy = legacyPricing && enrollment.selectedMode ? legacyPricing[enrollment.selectedMode] : undefined
-  return typeof legacy === 'number' ? legacy : undefined
-}
