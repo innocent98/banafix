@@ -1,14 +1,16 @@
 import { NextRequest } from 'next/server'
-import { createResponse, createErrorResponse } from '@/lib/middleware'
+import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { verifyPayment } from '@/lib/paystack'
 import { settleAssessmentFee } from '@/lib/assessment-payment'
 
-// GET /api/enrollments/[id] - Get specific enrollment details
-export async function GET(
+// GET /api/enrollments/[id] - enrollment details incl. student PII. Admin-only (was unauthenticated;
+// nothing in the app called it). The admin panel uses GET /api/admin/enrollments/[id].
+export const GET = withAuth(async (
   req: NextRequest,
+  admin,
   context: { params: Promise<{ id: string }> }
-) {
+) => {
   try {
     const params = await context.params
     const enrollmentId = params.id
@@ -77,7 +79,7 @@ export async function GET(
     console.error('Get enrollment error:', error)
     return createErrorResponse('Failed to fetch enrollment', 500)
   }
-}
+})
 
 // POST /api/enrollments/[id]/verify-payment - Manually verify payment status
 export async function POST(

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createResponse, createErrorResponse } from '@/lib/middleware'
+import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
@@ -314,12 +314,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/enrollments - Get enrollments (with optional filters)
-export async function GET(req: NextRequest) {
+// GET /api/enrollments - admin list of enrollments (with optional filters). Admin-only: it returns
+// student PII and assessment results (D5 partly closed here; this used to be unauthenticated).
+export const GET = withAuth(async (req: NextRequest) => {
   try {
     const url = new URL(req.url)
     const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '10')
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '10') || 10, 1), 200)
     const status = url.searchParams.get('status')
     const courseId = url.searchParams.get('courseId')
     const email = url.searchParams.get('email')
@@ -399,4 +400,4 @@ export async function GET(req: NextRequest) {
     console.error('Get enrollments error:', error)
     return createErrorResponse('Failed to fetch enrollments', 500)
   }
-}
+})
