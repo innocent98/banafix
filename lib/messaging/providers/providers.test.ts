@@ -37,7 +37,7 @@ describe('Resend adapter', () => {
     expect(createResendProvider({ apiKey: key, from: 'a@b.test' }).isConfigured()).toBe(false)
   })
   it('is configured with a real-looking key', () => {
-    expect(createResendProvider({ apiKey: 're_abc123def456', from: 'a@b.test' }).isConfigured()).toBe(true)
+    expect(createResendProvider({ apiKey: 'abc123def456', from: 'a@b.test' }).isConfigured()).toBe(true)
   })
   it('skips when unconfigured', async () => {
     const r = await createResendProvider({ apiKey: '', from: 'a@b.test' }).send({ to: 'x@y.test', subject: 's', text: 't' })
