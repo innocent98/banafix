@@ -304,7 +304,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 lg:ml-0">
+        <div className="flex-1 min-w-0 lg:ml-0">
           {/* Top Bar */}
           <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border sticky top-0 z-30">
             <div className="px-6 py-4">
@@ -331,7 +331,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
                   <div className="h-6 w-px bg-border" />
 
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="hidden items-center gap-2 text-sm sm:flex">
                     <span className="text-muted-foreground">Welcome back,</span>
                     <span className="font-medium">{admin?.name?.split(' ')[0] || "Admin"}</span>
                   </div>
