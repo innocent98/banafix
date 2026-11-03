@@ -3,7 +3,7 @@ import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
-import { calculateApplicationFee } from '@/lib/application-fee'
+import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { sendEnrollmentConfirmation } from '@/lib/email'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
@@ -95,10 +95,7 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Course enrollment has expired', 400)
     }
 
-    // Check if course has available seats (skipped for unlimited-capacity courses)
-    if (!course.unlimitedSeats && course.seatsLeft <= 0) {
-      return createErrorResponse('Course is fully booked', 400)
-    }
+    // Seat counting is retired (D9): capacity is never enforced.
 
     // Check if selected mode is available for the course
     if (!course.availableModes.includes(selectedMode)) {
@@ -124,22 +121,46 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Block only if this student is already enrolled in THIS course. A stale
-    // `pending` must not block a retry.
-    const paidEnrollment = await prisma.enrollment.findFirst({
-      where: { studentId: student.id, courseId, status: 'enrolled' },
+    // Block if this student already has a live application for THIS course (any paid stage or
+    // enrolled). A stale `pending` or a `cancelled` one must not block a retry (B9).
+    const liveEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
+      select: { status: true },
     })
-    if (paidEnrollment) {
-      return createErrorResponse('You are already enrolled in this course', 400)
+    if (liveEnrollment) {
+      return createErrorResponse(
+        liveEnrollment.status === 'enrolled'
+          ? 'You are already enrolled in this course'
+          : 'You already have an application for this course in progress',
+        400,
+      )
     }
     await prisma.enrollment.deleteMany({
       where: { studentId: student.id, courseId, status: 'pending' },
     })
 
+    // INTERIM (replaced by the offering-based body in the public-flow commit): resolve the
+    // location from the course's legacy location text.
+    const location = await prisma.location.findFirst({
+      where: { name: { equals: course.location.trim(), mode: 'insensitive' } },
+      select: { id: true },
+    })
+    if (!location) {
+      return createErrorResponse('This course is not open for applications at its location yet', 400)
+    }
+    let assessmentFee: number
+    try {
+      assessmentFee = await getAssessmentFee(prisma, location.id)
+    } catch (e) {
+      if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
+      throw e
+    }
+
     const enrollment = await prisma.enrollment.create({
       data: {
         studentId: student.id,
         courseId,
+        locationId: location.id,
         selectedMode,
         priorLevel,
         schedulePreference,
@@ -156,8 +177,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Calculate application fee based on course location
-    const applicationFeeData = calculateApplicationFee(course.location)
+    const applicationFeeData = { amount: assessmentFee, currency: ASSESSMENT_FEE_CURRENCY }
 
     // Generate unique receipt number for application payment
     const receiptNumber = `APP-${Date.now()}-${enrollment.id.slice(-6)}`

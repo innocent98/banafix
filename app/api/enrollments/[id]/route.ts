@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { verifyPayment } from '@/lib/paystack'
+import { settleAssessmentFee } from '@/lib/assessment-payment'
 
 // GET /api/enrollments/[id] - Get specific enrollment details
 export async function GET(
@@ -123,36 +124,11 @@ export async function POST(
 
     // Update payment status based on Paystack response
     if (paymentData.status === 'success') {
-      // Update application payment
-      await prisma.applicationPayment.update({
-        where: { id: pendingPayment.id },
-        data: {
-          status: 'completed',
-          paystackStatus: 'success',
-          paidAt: paymentData.paid_at ? new Date(paymentData.paid_at) : new Date(),
-          paymentMethod: paymentData.channel,
-          authorizationCode: paymentData.authorization?.authorization_code,
-        },
-      })
-
-      // Update enrollment status and reduce course seats
-      await prisma.$transaction(async (tx: any) => {
-        await tx.enrollment.update({
-          where: { id: enrollmentId },
-          data: {
-            status: 'application_paid',
-            applicationPaid: true,
-          },
-        })
-
-        await tx.course.update({
-          where: { id: enrollment.courseId },
-          data: {
-            seatsLeft: {
-              decrement: 1,
-            },
-          },
-        })
+      // Same settle path as the webhook: atomic, idempotent, no seat decrement.
+      await settleAssessmentFee(prisma, {
+        paymentId: pendingPayment.id,
+        enrollmentId,
+        paystack: paymentData,
       })
 
       return createResponse({

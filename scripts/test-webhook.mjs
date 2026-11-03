@@ -79,7 +79,80 @@ async function post(signature, label) {
   return res.status
 }
 
+
+// ───────────────────────── E2E mode (WEBHOOK_E2E=1) ─────────────────────────
+// Proves the REAL assessment-first webhook path against a LOCAL ephemeral Postgres + the local
+// Paystack mock (scripts/mock-paystack.mjs). Start the app with:
+//   DATABASE_URL=<ephemeral> PAYSTACK_SECRET_KEY=<same as here> PAYSTACK_BASE_URL=http://127.0.0.1:4010 npm run dev
+// Then:  DATABASE_URL=<ephemeral> WEBHOOK_E2E=1 node scripts/test-webhook.mjs
+import { execFileSync } from 'node:child_process'
+
+function psql(sql) {
+  const dbUrl = process.env.DATABASE_URL
+  if (!dbUrl || !dbUrl.includes('127.0.0.1')) throw new Error('E2E needs a LOCAL DATABASE_URL (127.0.0.1); refusing to touch anything else')
+  return execFileSync('psql', [dbUrl, '-v', 'ON_ERROR_STOP=1', '-At', '-c', sql], { encoding: 'utf8' }).trim()
+}
+
+async function postEvent(event, data) {
+  const body = JSON.stringify({ event, data })
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-paystack-signature': sign(body) }, body })
+  return res.status
+}
+
+async function e2e() {
+  const t = Date.now()
+  const ids = { course: `e2e_c_${t}`, loc: `e2e_l_${t}`, student: `e2e_s_${t}` }
+  psql(`insert into locations (id,name,slug,"assessmentFee","updatedAt") values ('${ids.loc}','E2E ${t}','e2e-${t}',5000,now())`)
+  psql(`insert into courses (id,title,instrument,level,"seatsLeft","totalSeats","updatedAt") values ('${ids.course}','E2E','Guitar','Beginner',5,20,now())`)
+  psql(`insert into students (id,email,"firstName","lastName","updatedAt") values ('${ids.student}','e2e${t}@example.com','E','E',now())`)
+  const mk = (suffix, status, paid) => {
+    const id = `e2e_e_${suffix}_${t}`, ref = `e2e_ref_${suffix}_${t}`
+    psql(`insert into enrollments (id,"courseId","studentId","locationId","selectedMode",status,"applicationPaid","updatedAt") values ('${id}','${ids.course}','${ids.student}','${ids.loc}','On-site','${status}',${paid},now())`)
+    psql(`insert into application_payments (id,"enrollmentId",amount,"paymentMethod","paystackReference","paystackStatus",status,"receiptNumber","billingEmail","billingName","updatedAt") values ('ap_${id}','${id}',5000,'pending','${ref}','pending','pending','APP-${suffix}-${t}','e2e${t}@example.com','E E',now())`)
+    return { id, ref }
+  }
+  const fresh = mk('fresh', 'pending', false)
+  const cancelled = mk('cancelled', 'cancelled', false)
+  const legacy = mk('legacy', 'enrolled', true)
+  const failedCase = mk('FAILcase', 'assessment_scheduled', true)
+
+  const q = (id, col) => psql(`select "${col}" from enrollments where id='${id}'`)
+  const audits = (id, action) => Number(psql(`select count(*) from audit_logs where "entityId"='${id}' and action='${action}'`))
+  const results = []
+  const check = (name, ok) => { results.push(ok); console.log(`${ok ? '✅' : '❌'} ${name}`) }
+
+  check('charge.success accepted (200)', (await postEvent('charge.success', { reference: fresh.ref })) === 200)
+  check('pending -> assessment_paid', q(fresh.id, 'status') === 'assessment_paid')
+  check('applicationPaid = true', q(fresh.id, 'applicationPaid') === 't')
+  check('NO seat decrement (seatsLeft still 5)', psql(`select "seatsLeft" from courses where id='${ids.course}'`) === '5')
+  check('payment row completed', psql(`select status from application_payments where "enrollmentId"='${fresh.id}'`) === 'completed')
+  check('exactly one enrollment.assessment_paid audit row', audits(fresh.id, 'enrollment.assessment_paid') === 1)
+
+  check('REPLAY accepted (200)', (await postEvent('charge.success', { reference: fresh.ref })) === 200)
+  check('replay: status unchanged', q(fresh.id, 'status') === 'assessment_paid')
+  check('replay: still exactly one audit row', audits(fresh.id, 'enrollment.assessment_paid') === 1)
+
+  await postEvent('charge.success', { reference: cancelled.ref })
+  check('late payment on CANCELLED: stays cancelled', q(cancelled.id, 'status') === 'cancelled')
+  check('late payment on CANCELLED: money fact recorded', q(cancelled.id, 'applicationPaid') === 't')
+  check('late payment on CANCELLED: unexpected-state audit row', audits(cancelled.id, 'enrollment.fee_paid_unexpected_state') === 1)
+
+  await postEvent('charge.success', { reference: legacy.ref })
+  check('late payment on legacy ENROLLED: stays enrolled', q(legacy.id, 'status') === 'enrolled')
+
+  await postEvent('charge.failed', { reference: failedCase.ref })
+  check('charge.failed never moves a progressed enrollment', q(failedCase.id, 'status') === 'assessment_scheduled')
+
+  const conc = mk('conc', 'pending', false)
+  const statuses = await Promise.all([1, 2, 3].map(() => postEvent('charge.success', { reference: conc.ref })))
+  check('3 CONCURRENT deliveries all answered 200', statuses.every((c) => c === 200))
+  check('concurrent: exactly one transition + one audit row', q(conc.id, 'status') === 'assessment_paid' && audits(conc.id, 'enrollment.assessment_paid') === 1)
+
+  process.exit(results.every(Boolean) ? 0 : 1)
+}
+
 async function main() {
+  if (process.env.WEBHOOK_E2E === '1') return e2e()
   console.log(`Target: ${url}`)
   console.log(`Reference: ${reference}`)
 

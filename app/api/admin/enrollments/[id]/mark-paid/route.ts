@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
-import { calculateApplicationFee } from '@/lib/application-fee'
+import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
+import { transitionEnrollment } from '@/lib/enrollment-transition'
 import { logAdminAction } from '@/lib/audit'
 
-// POST /api/admin/enrollments/[id]/mark-paid - mark the application fee paid in
-// cash for an existing enrollment (walk-in payment made at the office).
+// POST /api/admin/enrollments/[id]/mark-paid - mark the assessment fee paid in
+// cash for an existing pending enrollment (moves it to assessment_paid, no seat change) (walk-in payment made at the office).
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params
@@ -14,22 +15,39 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
 
     const enrollment = await prisma.enrollment.findUnique({
       where: { id },
-      include: { course: { select: { location: true } }, student: { select: { email: true, firstName: true, lastName: true } } },
+      include: { student: { select: { email: true, firstName: true, lastName: true } } },
     })
     if (!enrollment) return createErrorResponse('Enrollment not found', 404)
     if (enrollment.applicationPaid) {
-      return createErrorResponse('Application fee is already marked paid', 400)
+      return createErrorResponse('Assessment fee is already marked paid', 400)
+    }
+    if (enrollment.status !== 'pending') {
+      return createErrorResponse(`Cannot record the assessment fee on a ${enrollment.status} enrollment`, 400)
     }
 
-    const fee = calculateApplicationFee(enrollment.course.location)
-    const amount = enrollment.applicationFeeAmount ?? fee.amount
+    // Snapshot taken at application time wins; otherwise the location's current fee.
+    let amount = enrollment.applicationFeeAmount
+    if (amount == null) {
+      if (!enrollment.locationId) return createErrorResponse('Enrollment has no location', 400)
+      try {
+        amount = await getAssessmentFee(prisma, enrollment.locationId)
+      } catch (e) {
+        if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
+        throw e
+      }
+    }
 
-    await prisma.$transaction([
-      prisma.applicationPayment.create({
+    // Payment row + status move in ONE transaction; the compare-and-set makes a double click harmless.
+    const moved = await prisma.$transaction(async (tx) => {
+      const won = await transitionEnrollment(tx, enrollment.id, 'pending', 'assessment_paid', {
+        applicationPaid: true,
+      })
+      if (!won) return false
+      await tx.applicationPayment.create({
         data: {
           enrollmentId: enrollment.id,
-          amount,
-          currency: fee.currency,
+          amount: amount as number,
+          currency: ASSESSMENT_FEE_CURRENCY,
           paymentMethod,
           paystackStatus: 'success',
           status: 'completed',
@@ -38,24 +56,22 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
           billingEmail: enrollment.student.email,
           billingName: `${enrollment.student.firstName} ${enrollment.student.lastName}`,
         },
-      }),
-      prisma.enrollment.update({
-        where: { id: enrollment.id },
-        data: { applicationPaid: true, status: 'enrolled' },
-      }),
-    ])
+      })
+      return true
+    })
+    if (!moved) return createErrorResponse('Assessment fee is already marked paid', 400)
 
     await logAdminAction({
       adminId: admin.id,
       action: 'application.cash_paid',
       entityType: 'enrollment',
       entityId: enrollment.id,
-      metadata: { amount, paymentMethod },
+      metadata: { amount, paymentMethod, toStatus: 'assessment_paid' },
     })
 
-    return createResponse({ message: 'Application fee marked as paid' })
+    return createResponse({ message: 'Assessment fee marked as paid' })
   } catch (error) {
     console.error('Mark application fee paid error:', error)
-    return createErrorResponse('Failed to mark application fee paid', 500)
+    return createErrorResponse('Failed to mark assessment fee paid', 500)
   }
 })

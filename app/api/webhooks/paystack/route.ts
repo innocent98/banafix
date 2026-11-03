@@ -5,6 +5,7 @@ import { validateWebhookSignature, verifyPayment } from '@/lib/paystack'
 import { generateApplicationFeeReceiptPDF, ApplicationFeeReceiptData } from '@/lib/receipt'
 import { sendApplicationFeeReceipt, sendAdminEnrollmentNotification } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
+import { settleAssessmentFee } from '@/lib/assessment-payment'
 
 // POST /api/webhooks/paystack - Handle Paystack webhook events
 export async function POST(req: NextRequest) {
@@ -85,59 +86,43 @@ async function handleChargeSuccess(data: any) {
       return
     }
 
+    // Cheap early-out for replays; the atomic claim below is what actually guarantees idempotency.
     if (applicationPayment.status === 'completed') {
       console.log('Payment already processed for reference:', reference)
       return
     }
 
-    // Update application payment status
-    await prisma.applicationPayment.update({
-      where: { id: applicationPayment.id },
-      data: {
-        status: 'completed',
-        paystackStatus: 'success',
-        paidAt: verificationResult.data.paid_at ? new Date(verificationResult.data.paid_at) : new Date(),
-        paymentMethod: verificationResult.data.channel,
-        authorizationCode: verificationResult.data.authorization?.authorization_code,
-      },
+    // B12: payment claim + enrollment move are ONE transaction (see lib/assessment-payment.ts).
+    const outcome = await settleAssessmentFee(prisma, {
+      paymentId: applicationPayment.id,
+      enrollmentId: applicationPayment.enrollmentId,
+      paystack: verificationResult.data,
     })
 
-    // Update enrollment status and reduce course seats
-    await prisma.$transaction(async (tx: any) => {
-      // Update enrollment status
-      await tx.enrollment.update({
-        where: { id: applicationPayment.enrollmentId },
-        data: {
-          status: 'enrolled',
-          applicationPaid: true,
-        },
-      })
-
-      // Reduce course seats — only for limited-capacity courses with seats remaining.
-      // updateMany lets us filter on non-unique fields and avoids negative seat counts.
-      await tx.course.updateMany({
-        where: {
-          id: applicationPayment.enrollment.courseId,
-          unlimitedSeats: false,
-          seatsLeft: { gt: 0 },
-        },
-        data: {
-          seatsLeft: {
-            decrement: 1,
-          },
-        },
-      })
-    })
+    if (outcome.kind === 'already_processed') {
+      console.log('Payment already processed for reference:', reference)
+      return
+    }
 
     console.log('Payment processed successfully for enrollment:', applicationPayment.enrollmentId)
 
     await logAdminAction({
       adminId: null,
-      action: 'enrollment.enrolled',
+      action: outcome.kind === 'moved' ? 'enrollment.assessment_paid' : 'enrollment.fee_paid_unexpected_state',
       entityType: 'enrollment',
       entityId: applicationPayment.enrollmentId,
-      metadata: { reference, amount: applicationPayment.amount },
+      metadata: {
+        reference,
+        amount: applicationPayment.amount,
+        ...(outcome.kind === 'unexpected_state' ? { statusAtPayment: outcome.status } : { toStatus: 'assessment_paid' }),
+      },
     })
+
+    // A cancelled enrollment got paid: surface it, but don't email a "you're in" receipt for it.
+    if (outcome.kind === 'unexpected_state' && outcome.status === 'cancelled') {
+      console.warn('Fee paid on a cancelled enrollment; needs admin attention:', applicationPayment.enrollmentId)
+      return
+    }
 
     // Send the student receipt and notify admin. Email failures must NOT bubble
     // up: a thrown error here would make the webhook return 500 and Paystack
@@ -146,7 +131,10 @@ async function handleChargeSuccess(data: any) {
     await sendEnrollmentEmails(applicationPayment, verificationResult.data)
 
   } catch (error) {
+    // Rethrow: the route answers 500 so Paystack retries. Safe because the DB work is one
+    // transaction (nothing half-applied) and the email sends below it are individually guarded.
     console.error('Error handling charge success:', error)
+    throw error
   }
 }
 
@@ -257,13 +245,8 @@ async function handleChargeFailed(data: any) {
       },
     })
 
-    // Update enrollment status
-    await prisma.enrollment.update({
-      where: { id: applicationPayment.enrollmentId },
-      data: {
-        status: 'pending', // Keep as pending so they can retry payment
-      },
-    })
+    // Nothing to change on the enrollment: an unpaid enrollment is already `pending` (retryable),
+    // and a failed charge must never move a paid / progressed enrollment.
 
     console.log('Payment failed for enrollment:', applicationPayment.enrollmentId)
 

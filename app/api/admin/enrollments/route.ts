@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
-import { calculateApplicationFee } from '@/lib/application-fee'
+import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { logAdminAction } from '@/lib/audit'
 
 // POST /api/admin/enrollments - admin registers a student directly (walk-in).
@@ -75,21 +75,35 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       },
     })
 
-    // Already enrolled in this course? Block. Clear any stale pending first.
-    const existingEnrolled = await prisma.enrollment.findFirst({
-      where: { studentId: student.id, courseId, status: 'enrolled' },
+    // Live application (any paid stage / enrolled) for this course? Block. Clear any stale pending first.
+    const existingLive = await prisma.enrollment.findFirst({
+      where: { studentId: student.id, courseId, status: { notIn: ['pending', 'cancelled'] } },
     })
-    if (existingEnrolled) {
-      return createErrorResponse('This student is already enrolled in this course', 400)
+    if (existingLive) {
+      return createErrorResponse('This student already has an application for this course', 400)
     }
     await prisma.enrollment.deleteMany({ where: { studentId: student.id, courseId, status: 'pending' } })
 
-    const fee = calculateApplicationFee(course.location)
+    // INTERIM (location picker lands with the admin UI): location from the course's legacy text.
+    const location = await prisma.location.findFirst({
+      where: { name: { equals: course.location.trim(), mode: 'insensitive' } },
+      select: { id: true },
+    })
+    if (!location) return createErrorResponse('No location is configured for this course', 400)
+    let feeAmount: number
+    try {
+      feeAmount = await getAssessmentFee(prisma, location.id)
+    } catch (e) {
+      if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
+      throw e
+    }
+    const fee = { amount: feeAmount, currency: ASSESSMENT_FEE_CURRENCY }
 
     const enrollment = await prisma.enrollment.create({
       data: {
         studentId: student.id,
         courseId,
+        locationId: location.id,
         selectedMode,
         priorLevel,
         schedulePreference,
@@ -104,7 +118,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         waitlistNotes,
         applicationFeeAmount: fee.amount,
         applicationPaid: Boolean(feePaid),
-        status: feePaid ? 'enrolled' : 'pending',
+        status: feePaid ? 'assessment_paid' : 'pending', // fee buys an assessment, not enrolment (D6)
       },
     })
 
@@ -131,7 +145,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       action: 'enrollment.admin_create',
       entityType: 'enrollment',
       entityId: enrollment.id,
-      metadata: { courseId, feePaid: Boolean(feePaid), paymentMethod: feePaid ? paymentMethod : null },
+      metadata: { courseId, feePaid: Boolean(feePaid), paymentMethod: feePaid ? paymentMethod : null, status: feePaid ? 'assessment_paid' : 'pending' },
     })
 
     return createResponse({ enrollment, message: 'Student registered' }, 201)

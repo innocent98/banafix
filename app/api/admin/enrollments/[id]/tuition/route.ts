@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { generateTuitionReceiptPDF, generateReceiptNumber, TuitionReceiptData } from '@/lib/receipt'
 import { sendTuitionReceipt } from '@/lib/email'
 import { logAdminAction } from '@/lib/audit'
+import { transitionEnrollment } from '@/lib/enrollment-transition'
+import { planTotal } from '@/lib/offering-rates'
 
 // POST /api/admin/enrollments/[id]/tuition - Record tuition payment
 export const POST = withAuth(async (req: NextRequest, admin, context: { params: Promise<{ id: string }> }) => {
@@ -60,7 +62,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     }
 
     if (!enrollment.applicationPaid) {
-      return createErrorResponse('Application fee must be paid before recording tuition payments', 400)
+      return createErrorResponse('Assessment fee must be paid before recording tuition payments', 400)
     }
 
     // Generate unique receipt number
@@ -88,11 +90,16 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     // Total paid to date = all prior tuition payments (full + partial) + this one.
     const totalPaid = enrollment.tuitionPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) + amount
 
-    // Expected tuition = the course's price for the student's selected mode (D3).
-    // If the course has no price for that mode, we simply omit the balance (never block).
+    // Expected tuition: an agreed plan wins (snapshot rate x planned classes); legacy rows fall
+    // back to the course's per-MODE price (D3) until Stream 5. If neither exists we simply omit
+    // the balance (never block).
     const pricing = (enrollment.course.pricing ?? null) as Record<string, number> | null
     const expectedTotal =
-      pricing && enrollment.selectedMode ? pricing[enrollment.selectedMode] : undefined
+      enrollment.ratePerClass != null && enrollment.plannedClasses != null
+        ? planTotal(enrollment.ratePerClass, enrollment.plannedClasses)
+        : pricing && enrollment.selectedMode
+          ? pricing[enrollment.selectedMode]
+          : undefined
     const remainingBalance =
       typeof expectedTotal === 'number' ? Math.max(0, expectedTotal - totalPaid) : undefined
 
@@ -103,6 +110,21 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       entityId: tuitionPayment.id,
       metadata: { enrollmentId, amount, paymentType: status, totalPaid, remainingBalance },
     })
+
+    // Recording tuition on an enrollment whose plan is agreed admits the student (spec: plan_agreed
+    // -> enrolled). Compare-and-set, so a concurrent "Confirm enrolment" cannot double-apply.
+    if (enrollment.status === 'plan_agreed') {
+      const admitted = await transitionEnrollment(prisma, enrollmentId, 'plan_agreed', 'enrolled')
+      if (admitted) {
+        await logAdminAction({
+          adminId: admin.id,
+          action: 'enrollment.enrolled_by_tuition',
+          entityType: 'enrollment',
+          entityId: enrollmentId,
+          metadata: { tuitionPaymentId: tuitionPayment.id, fromStatus: 'plan_agreed', toStatus: 'enrolled' },
+        })
+      }
+    }
 
     // Generate and send receipt if requested
     if (sendReceipt) {
