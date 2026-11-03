@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth } from '@/lib/middleware'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
-import { getCourseExpirationCutoff, getCourseStatus } from '@/lib/course-utils'
+import { buildCurriculumRows, buildFaqRows, getCourseExpirationCutoff, getCourseStatus } from '@/lib/course-utils'
 
 // GET /api/admin/courses - List all courses
 export const GET = withAuth(async (req: NextRequest, admin) => {
@@ -123,6 +123,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       // Instructor: assign an existing roster instructor by id, or create one inline.
       instructorId,
       instructor,
+      // Modules and FAQs entered on the create form are saved with the course.
+      curriculum,
+      faqs,
     } = data
 
     if (!title || !instrument || !level || !duration) {
@@ -154,6 +157,9 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         isPublished: false,
         // Assign an existing roster instructor directly if provided.
         instructorId: typeof instructorId === 'string' && instructorId ? instructorId : undefined,
+        // Nested create: the course and its modules/FAQs are written in one transaction.
+        curriculum: { create: buildCurriculumRows(curriculum) },
+        faqs: { create: buildFaqRows(faqs) },
       },
     })
 

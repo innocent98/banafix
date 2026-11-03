@@ -65,8 +65,11 @@ said "from ₦X / month", "Four sessions a month", "Twelve-week programmes", and
   price/duration display); admin placeholder "e.g., 12 weeks" for the course duration field; seed data
   `duration: '12 weeks'`; the `₦5,000 registration` line in `contact-faq.tsx` (the real fee varies by
   location and is renamed in Stream 3).
-- **Unverified marketing claims noticed, left untouched:** "termly recital", "written feedback after every
-  fourth lesson", "rentals are ₦8,000 a term", "one free makeup lesson each term", "Every term ends in a
-  student recital" (events page, Stream 8). John should confirm each is real.
-- **Pre-existing bug, not fixed here:** `POST /api/admin/courses` ignores the `curriculum` array sent by the
-  create form, so modules entered at create time are never saved (they must be added on the edit page).
+- **Marketing claims:** confirmed true by Adebayo 2026-11-03: "termly recital" (and the termly-recital line on
+  the events page) and "Since 2016". Still unconfirmed, left untouched: "written feedback after every fourth
+  lesson", "rentals are ₦8,000 a term", "one free makeup lesson each term".
+- **Pre-existing bug, fixed 2026-11-03:** `POST /api/admin/courses` ignored the `curriculum` (and `faqs`) arrays sent by
+  the create form, so modules and FAQs entered at create time were never saved. The handler now nested-creates
+  both with the course (`buildCurriculumRows` / `buildFaqRows` in `lib/course-utils.ts`: untitled modules and
+  incomplete FAQs dropped, survivors numbered from 1, blank timeframe stored as null). Proven against a scratch
+  Postgres (modules `[1,1,M1,null],[2,2,M2,null]`, FAQ filtered, cascade delete leaves no rows) plus 5 unit tests.
