@@ -283,6 +283,7 @@ model Enrollment {
   offering            CourseOffering?     @relation("EnrollmentOffering", fields: [offeringId], references: [id], onDelete: SetNull)
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
+  tuitionCharges      TuitionCharge[]
   assessments         Assessment[]
 
   @@index([studentId])
@@ -352,6 +353,12 @@ model TuitionPayment {
   receiptGenerated Boolean @default(false)
   receiptSent   Boolean  @default(false)
 
+  // Online (Paystack) tuition: admin-generated payment link. Manual rows leave these null.
+  // Counted statuses are completed + partial; pending (link not yet paid), failed, cancelled are not.
+  paystackReference String? @unique
+  paystackChannel   String?
+  paymentUrl        String?
+
   // Admin Information
   recordedBy    String?  // Admin ID who recorded the payment
   adminNotes    String?
@@ -364,6 +371,31 @@ model TuitionPayment {
   enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("tuition_payments")
+}
+
+// One line of what a student owes (Stream 5, D12). Total owed = sum of non-voided quantity x unitPrice.
+// unitPrice is a SNAPSHOT (rate per class, or material price); never rewritten. Voided, never deleted.
+model TuitionCharge {
+  id           String    @id @default(cuid())
+  enrollmentId String
+  kind         String    // CLASSES | MATERIAL
+  origin       String    @default("ADJUSTMENT") // PLAN (created with / replaced by the plan) | ADJUSTMENT (added later)
+  quantity     Int
+  unitPrice    Int       // whole naira
+  description  String
+  materialId   String?
+  createdBy    String?   // admin id; null = system
+  createdAt    DateTime  @default(now())
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  material     Material?  @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId])
+  @@index([materialId])
+  @@map("tuition_charges")
 }
 
 enum LocationKind {
@@ -440,6 +472,7 @@ model Material {
   updatedAt DateTime @updatedAt
 
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tuitionCharges TuitionCharge[]
 
   @@index([courseId])
   @@map("materials")
