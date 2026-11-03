@@ -3,9 +3,9 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams planned from the 2026-11-03 client meeting (below)
+**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3 built (PR open, unmerged)**, others planned
 
-## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(planned, nothing built)*
+## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
 
 ### Stream 0 — Unblock operations (config, not code)
@@ -20,21 +20,26 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Add Vitest for pure logic (no test runner exists today)
 - [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
 
-### Stream 2 — Location + offering model  *(foundation for 3–5)*
-- [ ] `Location` entity (physical/online, assessment fee, active) + admin CRUD; seed from `lib/locations.ts` + `lib/application-fee.ts` tiers
-- [ ] `CourseOffering` (course × location × format) + `OfferingRate` (per-class price per duration 45/60) + classes-per-week options
-- [ ] `Material` (course-level books/materials: name, price, required)
-- [ ] Staged migration: legacy courses → offerings **inactive** until per-class rates are set (legacy lump prices are not per-class)
-- [ ] Public flow: location → course → format → per-class rate; admin course form Offerings + Materials tabs
-- [ ] Retire seat enforcement (D9)
+### Stream 2 — Location + offering model  *(foundation for 3–5)*  ✅ built 2026-11-03, branch `feature/assessment-first-admission` (PR open, not merged)
+- [x] `Location` entity (physical/online, assessment fee, active) + admin CRUD (`/admin/locations`); seeded from the old `lib/locations.ts` + `lib/application-fee.ts` tiers by the migration and `prisma/seed.ts`
+- [x] `CourseOffering` (course × location × format) + `OfferingRate` (per-class price per duration) + classes-per-week options; admin Offerings matrix with bulk "set rate"
+- [x] `Material` (course-level books/materials: name, price, required) + admin Materials tab
+- [x] Staged migration: legacy courses → offerings **inactive**, no rates (verified: `scripts/verify-migration.sh`, 33 assertions on an ephemeral Postgres with a legacy fixture)
+- [x] Public flow: location → course → format → per-class rate (`?location=<slug>`); "Enrolment opening soon" when nothing is offerable; admin course form Offerings + Materials tabs
+- [x] Retire seat enforcement (D9) — webhook, public POST, wizard no longer count seats
+- [~] Browser QA: 1280px admin + public and 375px public (`/courses`, wizard steps 1–3) done; admin at 375px and the stage filter exercised in the UI **not done**
+- [ ] **Deploy gate:** snapshot prod, direct DB URL, then enter per-class rates in `/admin` (every migrated offering is inactive until then)
 
-### Stream 3 — Assessment-first admission  *(supersedes D1)*
-- [ ] Status machine: `pending → assessment_paid → assessment_scheduled → assessed → plan_agreed → enrolled` (+ `cancelled`); legacy `enrolled` rows grandfathered
-- [ ] Webhook / cash mark-paid → `assessment_paid` (no longer `enrolled`, no seat decrement)
-- [ ] `Assessment` entity: arrangement (home/centre/online), preferred date+time, scheduled slot, assessor, result (level, notes), editable + audited
-- [ ] Plan step: offering, duration, classes/week, planned class count, rate snapshot
-- [ ] Rename "application fee" → "assessment fee" in UI, emails, receipts, policy text; fee stays non-refundable
-- [ ] Admin pipeline view (stage filters, schedule + result forms)
+### Stream 3 — Assessment-first admission  *(supersedes D1)*  ✅ built 2026-11-03 (same branch)
+- [x] Status machine `pending → assessment_paid → assessment_scheduled → assessed → plan_agreed → enrolled` (+ `cancelled`, + re-assessment move); one guard + compare-and-set helper, unit-tested; legacy `enrolled`/`pending` grandfathered
+- [x] Webhook / cash mark-paid / walk-in → `assessment_paid`, no seat decrement; payment claim + status move in one transaction; replay/concurrent/cancelled/legacy cases proven against a **local Paystack mock**
+- [~] **Real Paystack test-mode charge NOT DONE** (needs John's keys) — the mock proves our handling, not Paystack
+- [x] `Assessment` entity: arrangement, preferred date + time band, scheduled slot, assessor, result (level, notes, recommended offering), editable + audited
+- [x] Plan step: offering, duration, classes/week, planned classes, rate snapshot (later rate edits never move it); tuition on `plan_agreed` or audited "Confirm enrolment" → `enrolled`
+- [x] Rename "application fee" → "assessment fee" in UI, emails, receipts (copy only; DB names stay)
+- [~] Policy text (`policy-dialog.tsx`, `policies.ts`) **not edited** — 20 contradictions listed for John (refund schedule vs non-refundable fee, dashboard, PayPal, instalments, seats)
+- [x] Admin pipeline view (stage filters, schedule + result + plan forms, confirm/cancel); walk-in per spec
+- SOP: [`docs/sop/assessment-first-admission.md`](../sop/assessment-first-admission.md) · Plan/ledger: `docs/superpowers/plans/2026-11-03-streams-2-3-assessment-first.md`
 
 ### Stream 4 — Scheduling
 - [ ] Structured instructor availability (weekly slots per location/online) + `InstructorCourse` many-to-many
@@ -267,6 +272,15 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 ## Backlog / upcoming
 - [ ] Student dashboard + online tuition payment — *explicitly out of scope for now*
 - [ ] Track "actually started lessons" — possible future flag (not a status)
+
+## Deferred follow-ups — Streams 2+3
+- [ ] Real Paystack test-mode charge (John's keys) — closes the live-webhook gap for `assessment_paid`
+- [ ] John decides: is the assessment fee once per student or once per course application? (built: per application)
+- [ ] John reviews the policy-text contradictions (shared notes `policy-contradictions.md`)
+- [ ] Cash fee recorded while a Paystack charge is in flight ⇒ double fee (audited only)
+- [ ] `GET /api/receipts/application-fee/[enrollmentId]` still unauthenticated; D5 otherwise partly closed
+- [ ] Drop deprecated `Course` columns + dormant `Enrollment` identity columns; remove `lib/locations.ts`, stale "Seats Utilization" stat, Basic-tab `location` select
+- [ ] Parent child-picker lists only `enrolled` students; admin "Record tuition" button shows on rows the server refuses
 
 ## Deferred follow-ups
 - [ ] Auto-send wiring parity review across all receipt types

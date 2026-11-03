@@ -1,5 +1,7 @@
 # SOP — Tuition receipts: admin copy, full/part marking, balance (req #1)
 
+> **Superseded in part (2026-11-03) — see `docs/sop/assessment-first-admission.md`.** The expected-total source below (`course.pricing[selectedMode]`, D3) now applies **only to legacy rows**. When an enrollment has an agreed plan (`ratePerClass` and `plannedClasses` set), the tuition route uses `ratePerClass x plannedClasses` (`planTotal`) as the expected total; rows with neither (e.g. a walk-in with no offering, `selectedMode ''`) get no balance. Legacy `enrolled` rows keep using `Course.pricing` until Stream 5 (invoicing). Also: the route still requires the assessment (formerly "application") fee to be paid, and recording tuition on a `plan_agreed` enrollment now also moves it to `enrolled` (audit `enrollment.enrolled_by_tuition`). `GET /api/enrollments` still exposes `course.pricing` for the legacy fallback. "Stays Enrolled" wording in the history refers to the legacy status vocabulary.
+
 ## What shipped
 Recording a tuition payment now supports a **Full / Part** marker, computes and shows the
 **remaining balance**, and sends an **admin copy** of every tuition receipt. Branch
