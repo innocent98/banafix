@@ -115,7 +115,7 @@ export async function GET(
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="application-fee-receipt-${receiptData.receiptNumber}.pdf"`,
+          'Content-Disposition': `attachment; filename="assessment-fee-receipt-${receiptData.receiptNumber}.pdf"`,
           'Content-Length': pdfBuffer.length.toString(),
         },
       })

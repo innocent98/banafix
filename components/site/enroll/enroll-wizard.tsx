@@ -4,18 +4,20 @@
  * The enrolment wizard — the handoff's `isEnroll` screen (handoff.html:440–562)
  * reconciled with the flow that actually takes money.
  *
- * Money, unchanged: the ONLY amount charged is the registration (application)
- * fee, derived from `calculateApplicationFee(course.location)`. VAT is display
- * only, on the course fee, and is never sent to the server.
+ * Money: the ONLY amount charged is the assessment fee, `Location.assessmentFee` of the
+ * chosen offering's location. The server recomputes it from the offering and returns it as
+ * `applicationFee.amount`; the figure shown here is the same value from the course payload.
+ * No tuition is shown or charged: it is agreed after the assessment.
  *
- * Submit, unchanged: the same POST body shape goes to `/api/enrollments`, then
+ * Steps: 1 Assessment (location · format · arrangement · preferred date/time) -> 2 Your details
+ * -> 3 Consents + pay. Submit POSTs `/api/enrollments` with `offeringId`, then
  * `window.location.href = result.payment.authorization_url`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
-import { calculateApplicationFee } from "@/lib/application-fee"
+import { isArrangement } from "@/lib/assessment-vocab"
 import { isCourseExpired } from "@/lib/course-utils"
 import { formatNaira } from "@/lib/site"
 import { Display } from "@/components/site/primitives"
@@ -29,12 +31,11 @@ import {
 import { EnrollSummary } from "./enroll-summary"
 import { PolicyDialog } from "./policy-dialog"
 import { StepDetails } from "./step-details"
-import { StepFormat } from "./step-format"
+import { StepAssessment, arrangementsFor, defaultArrangement } from "./step-assessment"
 import { StepPayment } from "./step-payment"
 import { StepProgress } from "./step-progress"
 import {
   EMPTY_FORM,
-  HOME_TRAINING_MODE,
   STEP_NAMES,
   type EnrollCourse,
   type EnrollFormData,
@@ -46,20 +47,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const GATE_HINT_ID = "enroll-gate-hint"
 
 /**
- * Resolve the delivery mode to start on. `?mode=` comes from the course page;
- * it is validated against the course's real `availableModes` (exposed by the API
- * as `modes`) and falls back to the first mode when absent or bogus, because the
- * server rejects a `selectedMode` outside that list.
- */
-function resolveMode(requested: string | null, modes: string[]): string {
-  if (requested && modes.includes(requested)) return requested
-  return modes[0] ?? ""
-}
-
-/**
- * The three preconditions `POST /api/enrollments` enforces that the course
- * payload already lets us check. Without this the student fills every step and
- * meets the refusal on the Pay button.
+ * The preconditions `POST /api/enrollments` enforces that the course payload already lets us
+ * check. Without this the student fills every step and meets the refusal on the Pay button.
  */
 function unavailableReason(course: EnrollCourse): { headline: string; body: string } | null {
   if (isCourseExpired(course.sessionStartDate)) {
@@ -68,16 +57,10 @@ function unavailableReason(course: EnrollCourse): { headline: string; body: stri
       body: "This session has already started, so we are no longer taking enrolments for it. Browse the other courses, or ask us when the next session opens.",
     }
   }
-  if (!course.unlimitedSeats && course.seatsLeft <= 0) {
+  if (course.offerings.length === 0) {
     return {
-      headline: "This course is full",
-      body: "Every seat in this session has been taken. Browse the other courses, or ask us to let you know when a seat frees up.",
-    }
-  }
-  if ((course.modes ?? []).length === 0) {
-    return {
-      headline: "No formats available",
-      body: "This course has no delivery format set up yet, so there is nothing to enrol on. Ask us and we will sort it out.",
+      headline: "Enrolment opening soon",
+      body: "This course is not open for enrolment yet. Ask us and we will tell you as soon as it opens.",
     }
   }
   return null
@@ -92,14 +75,16 @@ function describeServerError(message: string): { text: string; retryable: boolea
   const known: Record<string, string> = {
     "You are already enrolled in this course":
       "You already have a place on this course. Check the confirmation email we sent you, or contact us if you cannot find it.",
-    "Course is fully booked":
-      "The last seat went while you were filling this in. Browse the other courses, or ask us to hold you for the next session.",
+    "You already have an application for this course in progress":
+      "You already have an application for this course in progress. Check the email we sent you, or contact us if you cannot find it.",
     "Course enrollment has expired":
       "Enrolment for this session closed while you were filling this in. Ask us when the next session opens.",
     "Course is not available for enrollment":
       "This course is no longer open for enrolment. Browse the other courses, or ask us about it.",
-    "Selected delivery mode is not available for this course":
-      "That format is no longer offered on this course. Go back a step and pick another one.",
+    "This format is not currently open for enrolment at that location":
+      "That format is no longer open at that location. Go back to the first step and pick another one.",
+    "Home assessments need an address":
+      "Home assessments need an address. Go back to the first step and add it.",
     "Invalid email format": "Check your email address, then try again.",
   }
   const text = known[message]
@@ -109,7 +94,7 @@ function describeServerError(message: string): { text: string; retryable: boolea
 export function EnrollWizard() {
   const searchParams = useSearchParams()
   const courseId = searchParams.get("courseId")
-  const requestedMode = searchParams.get("mode")
+  const requestedOfferingId = searchParams.get("offeringId")
 
   const [course, setCourse] = useState<EnrollCourse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -157,9 +142,13 @@ export function EnrollWizard() {
 
         const loaded = data.course as EnrollCourse
         setCourse(loaded)
+        // `?offeringId=` comes from the course page. It is only honoured when it is still
+        // offerable; otherwise the student picks a location and format themselves.
+        const requested = loaded.offerings.find((offering) => offering.id === requestedOfferingId)
         setForm((previous) => ({
           ...previous,
-          selectedMode: resolveMode(requestedMode, loaded.modes ?? []),
+          offeringId: requested?.id ?? "",
+          arrangement: requested ? defaultArrangement(requested.location.kind) : "",
         }))
       } catch {
         if (!cancelled) {
@@ -175,18 +164,16 @@ export function EnrollWizard() {
     return () => {
       cancelled = true
     }
-  }, [courseId, requestedMode, reloadToken])
+  }, [courseId, requestedOfferingId, reloadToken])
 
   /* ---------------------------------------------------------------- money */
 
-  const applicationFee = useMemo(
-    () => (course ? calculateApplicationFee(course.location).amount : 0),
-    [course],
+  const offering = useMemo(
+    () => course?.offerings.find((candidate) => candidate.id === form.offeringId) ?? null,
+    [course, form.offeringId],
   )
-
-  const activeMode = form.selectedMode || (course ? resolveMode(null, course.modes ?? []) : "")
-
-  const courseFee = course ? course.pricing?.[activeMode] ?? course.price ?? 0 : 0
+  // `null` until a location is chosen: the fee is that location's, never a default.
+  const applicationFee = offering ? offering.location.assessmentFee : null
 
   /* ------------------------------------------------------------ form state */
 
@@ -198,19 +185,27 @@ export function EnrollWizard() {
     [],
   )
 
-  const toggleDay = useCallback((day: string, checked: boolean) => {
-    setForm((previous) => ({
-      ...previous,
-      preferredDays: checked
-        ? [...previous.preferredDays, day]
-        : previous.preferredDays.filter((existing) => existing !== day),
-    }))
-  }, [])
-
-  const selectMode = useCallback((mode: string) => {
-    setForm((previous) => ({ ...previous, selectedMode: mode }))
-    setShowGateHint(false)
-  }, [])
+  const selectOffering = useCallback(
+    (offeringId: string) => {
+      const chosen = course?.offerings.find((candidate) => candidate.id === offeringId) ?? null
+      setForm((previous) => {
+        // Keep the arrangement when it is still valid at the new location, else re-default it.
+        const allowed = chosen ? arrangementsFor(chosen.location.kind) : []
+        const keep = previous.arrangement !== "" && allowed.includes(previous.arrangement)
+        return {
+          ...previous,
+          offeringId,
+          arrangement: chosen
+            ? keep
+              ? previous.arrangement
+              : defaultArrangement(chosen.location.kind)
+            : "",
+        }
+      })
+      setShowGateHint(false)
+    },
+    [course],
+  )
 
   /* ------------------------------------------------------------ validation */
 
@@ -218,10 +213,19 @@ export function EnrollWizard() {
   const emailValid = EMAIL_REGEX.test(trimmedEmail)
   const emailError = emailTouched && form.email && !emailValid ? "Enter a valid email address." : undefined
 
-  const needsAddress = activeMode === HOME_TRAINING_MODE
+  const needsAddress = form.arrangement === "HOME"
 
   const blockedReason = useMemo(() => {
     if (step === 0) {
+      if (!offering) return "Pick a location and a format to continue."
+      if (!isArrangement(form.arrangement)) return "Choose how you would like the assessment done."
+      if (needsAddress && (!form.address.trim() || !form.landmark.trim())) {
+        return "A home assessment needs an address and a nearby landmark."
+      }
+      return ""
+    }
+
+    if (step === 1) {
       if (
         !form.firstName.trim() ||
         !form.lastName.trim() ||
@@ -236,11 +240,7 @@ export function EnrollWizard() {
       return ""
     }
 
-    if (step === 1) {
-      if (!form.selectedMode) return "Pick a format to continue."
-      if (needsAddress && (!form.address.trim() || !form.landmark.trim())) {
-        return "Home training needs an address and a nearby landmark."
-      }
+    if (step === 2) {
       if (!form.agreeToTerms || !form.agreeToRefundPolicy) {
         return "Tick both agreements to continue."
       }
@@ -248,7 +248,7 @@ export function EnrollWizard() {
     }
 
     return ""
-  }, [step, form, emailValid, needsAddress])
+  }, [step, form, emailValid, needsAddress, offering])
 
   const blocked = blockedReason !== ""
 
@@ -280,17 +280,17 @@ export function EnrollWizard() {
     setPaymentRetryable(true)
 
     try {
-      // Identical body shape to the outgoing flow. `selectedMode` is now a real
-      // user choice rather than always falling through to `modes[0]`.
-      // Same keys as before the redesign. `email` is sent trimmed because the
-      // server runs its regex on the raw string (route.ts:68) while the client
-      // validates the trimmed one; a trailing space used to pass the gate here
-      // and come back as an undiagnosable "Invalid email format" 400.
+      // `offeringId` identifies location + format; the server derives the rest (and the fee).
+      // `email` is sent trimmed because the server runs its regex on the raw string while the
+      // client validates the trimmed one; a trailing space used to pass the gate here and come
+      // back as an undiagnosable "Invalid email format" 400. Empty optional assessment fields
+      // are omitted rather than sent as "".
       const payload = {
         ...form,
         email: form.email.trim(),
         courseId: course.id,
-        selectedMode: activeMode,
+        preferredDate: form.preferredDate || undefined,
+        preferredTimeBand: form.preferredTimeBand || undefined,
       }
 
       const response = await fetch("/api/enrollments", {
@@ -319,7 +319,7 @@ export function EnrollWizard() {
       setPaymentRetryable(true)
       setSubmitting(false)
     }
-  }, [course, form, activeMode])
+  }, [course, form])
 
   const handleNext = () => {
     if (blocked) {
@@ -360,7 +360,8 @@ export function EnrollWizard() {
     )
   }
 
-  const nextLabel = step === 2 ? `Pay ${formatNaira(applicationFee)} →` : "Continue →"
+  const nextLabel =
+    step === 2 && applicationFee !== null ? `Pay ${formatNaira(applicationFee)} →` : "Continue →"
 
   return (
     <section
@@ -372,11 +373,12 @@ export function EnrollWizard() {
           as="h1"
           className="mb-2.5 text-[clamp(34px,4.4vw,52px)] leading-[1.04] text-bfx-ink"
         >
-          Hold your spot
+          Book your assessment
         </Display>
         <p className="text-[17.5px] text-bfx-body">
-          Three short steps. The {formatNaira(applicationFee)} registration fee is the only amount
-          charged on this page.
+          Three short steps. The assessment fee
+          {applicationFee === null ? "" : ` (${formatNaira(applicationFee)})`} is the only amount
+          charged on this page, and it is non-refundable.
         </p>
       </header>
 
@@ -385,6 +387,15 @@ export function EnrollWizard() {
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,330px)] lg:gap-[34px]">
         <div className="order-2 rounded-[24px] border border-bfx-border-6 bg-bfx-surface p-6 sm:p-[34px] lg:order-1">
           {step === 0 ? (
+            <StepAssessment
+              course={course}
+              form={form}
+              onChange={update}
+              onSelectOffering={selectOffering}
+            />
+          ) : null}
+
+          {step === 1 ? (
             <StepDetails
               form={form}
               emailError={emailError}
@@ -393,25 +404,15 @@ export function EnrollWizard() {
             />
           ) : null}
 
-          {step === 1 ? (
-            <StepFormat
-              course={course}
-              form={form}
-              onChange={update}
-              onSelectMode={selectMode}
-              onToggleDay={toggleDay}
-              onOpenPolicies={() => setPoliciesOpen(true)}
-            />
-          ) : null}
-
           {step === 2 ? (
             <StepPayment
               form={form}
-              applicationFee={applicationFee}
+              applicationFee={applicationFee ?? 0}
               paymentError={paymentError}
               paymentRetryable={paymentRetryable}
               onChange={update}
               onRetry={() => void submit()}
+              onOpenPolicies={() => setPoliciesOpen(true)}
             />
           ) : null}
 
@@ -468,8 +469,8 @@ export function EnrollWizard() {
         <div className="order-1 lg:order-2">
           <EnrollSummary
             course={course}
-            selectedMode={activeMode}
-            courseFee={courseFee}
+            offering={offering}
+            arrangement={form.arrangement}
             applicationFee={applicationFee}
           />
         </div>

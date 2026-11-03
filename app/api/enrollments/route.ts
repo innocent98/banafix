@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { initializePayment, createApplicationFeePayment, generatePaymentReference } from '@/lib/paystack'
 import { isCourseExpired } from '@/lib/course-utils'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
+import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+import { offerableOfferingWhere } from '@/lib/offerings'
 import { sendEnrollmentConfirmation } from '@/lib/email'
 
 // POST /api/enrollments - Create new enrollment with payment initialization
@@ -24,13 +26,18 @@ export async function POST(req: NextRequest) {
       guardianPhone,
       guardianEmail,
 
-      // Address Information (for home training)
+      // Address Information (also the home-assessment address when arrangement is HOME)
       address,
       landmark,
 
-      // Course Selection
+      // Course + offering (location and format) selection
       courseId,
-      selectedMode,
+      offeringId,
+
+      // Assessment arrangement
+      arrangement,
+      preferredDate,
+      preferredTimeBand,
 
       // Course Preferences
       priorLevel,
@@ -56,8 +63,22 @@ export async function POST(req: NextRequest) {
     } = data
 
     // Validation
-    if (!firstName || !lastName || !email || !courseId || !selectedMode) {
-      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, selectedMode', 400)
+    if (!firstName || !lastName || !email || !courseId || !offeringId) {
+      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, offeringId', 400)
+    }
+
+    if (!isArrangement(arrangement)) {
+      return createErrorResponse('Invalid assessment arrangement', 400)
+    }
+    if (arrangement === 'HOME' && !String(address ?? '').trim()) {
+      return createErrorResponse('Home assessments need an address', 400)
+    }
+    if (preferredTimeBand != null && preferredTimeBand !== '' && !isTimeBand(preferredTimeBand)) {
+      return createErrorResponse('Invalid preferred time', 400)
+    }
+    const preferredDateValue = preferredDate ? new Date(preferredDate) : null
+    if (preferredDateValue && Number.isNaN(preferredDateValue.getTime())) {
+      return createErrorResponse('Invalid preferred date', 400)
     }
 
     if (!agreeToTerms || !agreeToRefundPolicy) {
@@ -97,9 +118,14 @@ export async function POST(req: NextRequest) {
 
     // Seat counting is retired (D9): capacity is never enforced.
 
-    // Check if selected mode is available for the course
-    if (!course.availableModes.includes(selectedMode)) {
-      return createErrorResponse('Selected delivery mode is not available for this course', 400)
+    // The offering must belong to this course and be offerable (B6): active offering, active
+    // location, at least one per-class rate. Location and format both come from it.
+    const offering = await prisma.courseOffering.findFirst({
+      where: { id: String(offeringId), courseId, ...offerableOfferingWhere() },
+      select: { id: true, locationId: true, deliveryMode: { select: { name: true } } },
+    })
+    if (!offering) {
+      return createErrorResponse('This format is not currently open for enrolment at that location', 400)
     }
 
     const normalizedEmail = String(email).trim().toLowerCase()
@@ -139,18 +165,9 @@ export async function POST(req: NextRequest) {
       where: { studentId: student.id, courseId, status: 'pending' },
     })
 
-    // INTERIM (replaced by the offering-based body in the public-flow commit): resolve the
-    // location from the course's legacy location text.
-    const location = await prisma.location.findFirst({
-      where: { name: { equals: course.location.trim(), mode: 'insensitive' } },
-      select: { id: true },
-    })
-    if (!location) {
-      return createErrorResponse('This course is not open for applications at its location yet', 400)
-    }
     let assessmentFee: number
     try {
-      assessmentFee = await getAssessmentFee(prisma, location.id)
+      assessmentFee = await getAssessmentFee(prisma, offering.locationId)
     } catch (e) {
       if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
       throw e
@@ -160,8 +177,9 @@ export async function POST(req: NextRequest) {
       data: {
         studentId: student.id,
         courseId,
-        locationId: location.id,
-        selectedMode,
+        locationId: offering.locationId,
+        offeringId: offering.id,
+        selectedMode: offering.deliveryMode.name,
         priorLevel,
         schedulePreference,
         preferredDays: preferredDays || [],
@@ -174,6 +192,18 @@ export async function POST(req: NextRequest) {
         couponCode,
         waitlistNotes,
         status: 'pending',
+        // The assessment request is created with the enrollment (B4); the stale-pending cleanup
+        // above cascades it, and so does the cleanup below if payment initialisation fails.
+        assessments: {
+          create: {
+            status: 'requested',
+            arrangement,
+            preferredDate: preferredDateValue,
+            preferredTimeBand: preferredTimeBand || null,
+            address: arrangement === 'HOME' ? String(address).trim() : null,
+            landmark: arrangement === 'HOME' && landmark ? String(landmark).trim() : null,
+          },
+        },
       },
     })
 
@@ -306,6 +336,13 @@ export async function GET(req: NextRequest) {
       prisma.enrollment.findMany({
         where,
         include: {
+          location: { select: { id: true, name: true } },
+          offering: { select: { id: true, deliveryMode: { select: { name: true } } } },
+          assessments: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true, status: true, arrangement: true, preferredDate: true, preferredTimeBand: true, scheduledAt: true, resultLevel: true },
+          },
           student: {
             select: { id: true, firstName: true, lastName: true, email: true, phone: true, dateOfBirth: true, address: true },
           },

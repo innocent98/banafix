@@ -31,19 +31,6 @@ interface VerifyResult {
   }
 }
 
-function formatDate(dateInput: string | null) {
-  if (!dateInput) return null
-  const date = new Date(dateInput)
-  return Number.isNaN(date.getTime())
-    ? null
-    : date.toLocaleDateString("en-NG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-}
-
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <section className="mx-auto w-full max-w-[720px] px-[clamp(20px,4vw,40px)] pb-[100px] pt-14">
@@ -215,8 +202,8 @@ function SuccessContent() {
           }
         >
           <p>
-            {error || "Your payment is being processed."} If you completed payment, your enrolment
-            will be confirmed shortly.
+            {error || "Your payment is being processed."} If you completed payment, we will confirm it
+            shortly.
           </p>
           {reference ? (
             <p className="mt-3 text-[14px] text-bfx-muted">
@@ -228,8 +215,6 @@ function SuccessContent() {
       </Shell>
     )
   }
-
-  const startDate = formatDate(result.enrollment.course.sessionStartDate)
 
   /* -------------------------------------------------------------- failed */
 
@@ -252,9 +237,9 @@ function SuccessContent() {
           }
         >
           <p>
-            Your registration payment for{" "}
+            Your assessment fee payment for{" "}
             <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong>{" "}
-            didn't go through, and no charge was made. You can start the enrolment again from the
+            didn't go through, and no charge was made. You can book the assessment again from the
             course page.
           </p>
         </Panel>
@@ -287,9 +272,9 @@ function SuccessContent() {
           }
         >
           <p>
-            We've received your payment and are confirming it. You'll get an email once your spot in{" "}
+            We've received your payment and are confirming it. You'll get an email once your assessment fee for{" "}
             <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong> is
-            secured.
+            confirmed.
           </p>
           <p className="mt-3 text-[14px] text-bfx-muted">
             Receipt <span className="font-mono text-bfx-ink">{result.receiptNumber}</span>
@@ -311,12 +296,13 @@ function SuccessContent() {
           ✓
         </span>
         <Display as="h1" className="mb-3 text-[clamp(30px,4.4vw,42px)] leading-[1.06] text-bfx-ink">
-          You're enrolled
+          Assessment fee received
         </Display>
         <p className="text-[15.5px] leading-[1.65] text-bfx-body">
-          Thanks, {result.enrollment.firstName}. Your registration for{" "}
+          Thanks, {result.enrollment.firstName}. Your assessment fee for{" "}
           <strong className="font-bold text-bfx-ink">{result.enrollment.course.title}</strong> is
-          confirmed, and a receipt is on its way to {result.enrollment.email}.
+          paid, and a receipt is on its way to {result.enrollment.email}. We will contact you to
+          arrange your assessment. Tuition is agreed with you after it.
         </p>
 
         <dl className="mt-8 flex flex-col gap-4 rounded-[18px] border border-bfx-border-5 bg-bfx-field p-6 text-left">
@@ -324,9 +310,8 @@ function SuccessContent() {
           {result.enrollment.course.instructor ? (
             <ReceiptRow label="Tutor" value={result.enrollment.course.instructor} />
           ) : null}
-          <ReceiptRow label="Registration fee paid" value={formatNaira(result.amount)} />
+          <ReceiptRow label="Assessment fee paid" value={formatNaira(result.amount)} />
           <ReceiptRow label="Receipt no." value={result.receiptNumber} mono />
-          {startDate ? <ReceiptRow label="Starts" value={startDate} divider /> : null}
         </dl>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

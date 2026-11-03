@@ -2,8 +2,8 @@
  * Course detail — "Banafix Redesign.dc.html", `isCourse`.
  *
  * Server component. Only the two interactive pieces hydrate: the tab strip and
- * the format picker in the aside. Everything else — hero, panels, prices — is
- * rendered on the server.
+ * the format picker in the aside. Everything else — hero, panels, rates — is
+ * rendered on the server. The location is `?location=<slug>`.
  *
  * Reads Prisma directly rather than `/api/courses/[id]`; the visibility rule
  * (`isPublished && isActive`) is the same one that route applies.
@@ -20,11 +20,11 @@ import {
 } from "@/components/site/courses/course-panels"
 import { CourseTabs, type CourseTab } from "@/components/site/courses/course-tabs"
 import { EnrolAside } from "@/components/site/courses/enrol-aside"
-import { parseWeeks, pricedModes, toPricing } from "@/components/site/courses/course-data"
+import { LocationChooser } from "@/components/site/location-chooser"
 import { MediaSlot } from "@/components/site/media-slot"
 import { Display, PillLink } from "@/components/site/primitives"
-import { calculateApplicationFee } from "@/lib/application-fee"
 import { coursePhotoSrc } from "@/lib/course-photo"
+import { getPublicOfferings } from "@/lib/offerings"
 import { prisma } from "@/lib/prisma"
 
 async function getCourse(id: string) {
@@ -58,16 +58,30 @@ export async function generateMetadata({
   }
 }
 
-export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CourseDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ location?: string }>
+}) {
   const { id } = await params
+  const { location: locationParam } = await searchParams
   const course = await getCourse(id)
 
   if (!course) notFound()
 
-  const pricing = toPricing(course.pricing)
-  // Name + price only. There is no per-mode description on `DeliveryMode` or
-  // `Course`, so a format row asserts nothing the backend cannot back.
-  const modes = pricedModes(course.availableModes, pricing)
+  // Everything shown about formats and rates comes from offerable offerings (an active offering at
+  // an active location with at least one per-class rate). Nothing reads the deprecated
+  // `Course.pricing` / `availableModes` / `location`.
+  const allOfferings = await getPublicOfferings(course.id)
+  const locations = [
+    ...new Map(allOfferings.map((offering) => [offering.location.id, offering.location])).values(),
+  ]
+  const activeLocation = locations.find((l) => l.slug === locationParam?.trim()) ?? null
+  const offerings = activeLocation
+    ? allOfferings.filter((offering) => offering.location.id === activeLocation.id)
+    : []
 
   const tabs: CourseTab[] = []
 
@@ -132,10 +146,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-bfx-on-dark">
                   {course.duration}
                 </span>
-                {/* The handoff hardcodes "Lekki, Lagos"; `location` is real. */}
-                <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-bfx-on-dark">
-                  {course.location}
-                </span>
+                {activeLocation ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-bfx-on-dark">
+                    {activeLocation.name}
+                  </span>
+                ) : null}
               </div>
 
               <Display as="h1" className="mb-4 text-[clamp(38px,5vw,64px)] leading-none">
@@ -163,6 +178,19 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         </div>
       </section>
 
+      {locations.length > 0 ? (
+        <section className="bfx-shell pt-9">
+          <LocationChooser
+            locations={locations}
+            activeSlug={activeLocation?.slug ?? null}
+            label="Choose your location to see formats and rates"
+            hrefFor={(slug) =>
+              slug ? `/courses/${course.id}?location=${encodeURIComponent(slug)}` : `/courses/${course.id}`
+            }
+          />
+        </section>
+      ) : null}
+
       <section className="bfx-shell grid grid-cols-1 items-start gap-[52px] pb-[100px] pt-11 lg:grid-cols-[minmax(0,1fr)_minmax(0,372px)]">
         <div>
           {tabs.length > 0 ? (
@@ -185,15 +213,13 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           )}
         </div>
 
+        {/* Keyed by location so the format selection resets when the location changes. */}
         <EnrolAside
+          key={activeLocation?.id ?? "none"}
           courseId={course.id}
-          duration={course.duration}
-          modes={modes}
-          weeks={parseWeeks(course.duration)}
-          applicationFee={calculateApplicationFee(course.location).amount}
-          seatsLeft={course.seatsLeft}
-          totalSeats={course.totalSeats}
-          unlimitedSeats={course.unlimitedSeats}
+          hasAnyOffering={allOfferings.length > 0}
+          location={activeLocation}
+          offerings={offerings}
         />
       </section>
     </div>

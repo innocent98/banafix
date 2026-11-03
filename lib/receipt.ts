@@ -1,6 +1,6 @@
 /**
  * Receipt generation utilities for Banafix enrollment system
- * Handles PDF generation and email delivery for application fees and tuition payments
+ * Handles PDF generation and email delivery for assessment fees (DB name: application fee) and tuition payments
  */
 
 import jsPDF from 'jspdf'
@@ -59,7 +59,7 @@ export interface TuitionReceiptData {
 }
 
 /**
- * Generate Application Fee Receipt PDF
+ * Generate Assessment Fee Receipt PDF
  */
 export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData): Buffer {
   const doc = new jsPDF()
@@ -86,7 +86,7 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   doc.setTextColor(primaryColor)
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
-  doc.text('APPLICATION FEE RECEIPT', 20, 55)
+  doc.text('ASSESSMENT FEE RECEIPT', 20, 55)
 
   // Receipt Info Box
   doc.setFillColor(lightGray)
@@ -157,7 +157,7 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   doc.text('PAYMENT SUMMARY', 25, 227)
 
   doc.setFontSize(10)
-  doc.text('Application Fee (Non-refundable):', 25, 235)
+  doc.text('Assessment Fee (Non-refundable):', 25, 235)
   doc.setFontSize(14)
   doc.text(`₦${data.payment.amount.toLocaleString()}`, 150, 235)
 
@@ -165,7 +165,7 @@ export function generateApplicationFeeReceiptPDF(data: ApplicationFeeReceiptData
   doc.setTextColor(primaryColor)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text('This receipt confirms payment of your application fee for course enrollment.', 20, 260)
+  doc.text('This receipt confirms payment of your assessment fee.', 20, 260)
   doc.text('Please keep this receipt for your records. Contact support@banafix.com for any inquiries.', 20, 267)
   doc.text('Banafix Music Academy - Building Musical Excellence', 20, 274)
 

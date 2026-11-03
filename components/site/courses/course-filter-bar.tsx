@@ -15,8 +15,13 @@ import Link from "next/link"
 import { chip } from "@/components/site/courses/styles"
 import { plural } from "@/components/site/courses/course-data"
 
-function coursesHref(params: { level?: string | null; instrument?: string | null }) {
+export function coursesHref(params: {
+  level?: string | null
+  instrument?: string | null
+  location?: string | null
+}) {
   const search = new URLSearchParams()
+  if (params.location) search.set("location", params.location)
   if (params.instrument) search.set("instrument", params.instrument)
   if (params.level) search.set("level", params.level)
   const query = search.toString()
@@ -27,18 +32,20 @@ export function CourseFilterBar({
   levels,
   activeLevel,
   instrument,
+  location,
   count,
 }: {
   levels: string[]
   activeLevel: string | null
   instrument: string | null
+  location: string | null
   count: number
 }) {
   return (
     <section className="bfx-shell sticky top-[76px] z-20 pb-5">
       <div className="flex flex-wrap items-center gap-2.5 bg-bfx-cream/[0.92] py-3.5 backdrop-blur-[10px]">
         <Link
-          href={coursesHref({ instrument })}
+          href={coursesHref({ instrument, location })}
           aria-current={activeLevel === null ? "page" : undefined}
           className={chip(activeLevel === null)}
         >
@@ -48,7 +55,7 @@ export function CourseFilterBar({
         {levels.map((level) => (
           <Link
             key={level}
-            href={coursesHref({ level, instrument })}
+            href={coursesHref({ level, instrument, location })}
             aria-current={activeLevel === level ? "page" : undefined}
             className={chip(activeLevel === level)}
           >
@@ -60,7 +67,7 @@ export function CourseFilterBar({
             Surface it as its own removable chip so the filter is never silent. */}
         {instrument ? (
           <Link
-            href={coursesHref({ level: activeLevel })}
+            href={coursesHref({ level: activeLevel, location })}
             aria-label={`Remove the ${instrument} filter`}
             className={chip(true)}
           >

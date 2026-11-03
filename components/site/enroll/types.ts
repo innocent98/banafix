@@ -1,3 +1,6 @@
+import type { Arrangement, TimeBand } from "@/lib/assessment-vocab"
+import type { PublicOffering } from "@/lib/offerings"
+
 /**
  * Types and option tables for the redesigned enrolment wizard.
  *
@@ -9,34 +12,29 @@
 
 /**
  * Shape of `GET /api/courses/[id]` → `course`, narrowed to what the wizard uses.
- *
- * Note the field name: the API maps Prisma's `Course.availableModes` to `modes`
- * (app/api/courses/[id]/route.ts:47). `modes` here IS `availableModes`, which is
- * what `POST /api/enrollments` validates `selectedMode` against.
+ * `offerings` are the offerable formats across every location (no `?location`), each carrying
+ * its location and per-duration per-class rates. Nothing legacy (`pricing`, `modes`, seats).
  */
+export type EnrollOffering = PublicOffering
+
 export interface EnrollCourse {
   id: string
   title: string
   instrument: string
   level: string
   duration: string
-  location: string
   session: string | null
   sessionStartDate: string | null
-  modes: string[]
-  pricing: Record<string, number> | null
-  price: number
-  totalSeats: number
-  seatsLeft: number
-  unlimitedSeats: boolean
+  offerings: EnrollOffering[]
   image: string | null
   instructor: { name: string } | null
 }
 
 /**
- * The POST body for `/api/enrollments`, unchanged from the outgoing flow.
- * Every key the route destructures is present, including the ones no screen
- * collects (they were sent empty before this redesign too).
+ * The POST body for `/api/enrollments`. Every key the route destructures is
+ * present, including the ones no screen collects (they were sent empty before
+ * this redesign too). `offeringId` replaces the legacy `selectedMode`; the
+ * server derives the location, format and assessment fee from it.
  */
 export interface EnrollFormData {
   firstName: string
@@ -51,7 +49,11 @@ export interface EnrollFormData {
   guardianName: string
   guardianPhone: string
   guardianEmail: string
-  selectedMode: string
+  offeringId: string
+  arrangement: Arrangement | ""
+  /** yyyy-mm-dd from the date input; empty when not chosen. */
+  preferredDate: string
+  preferredTimeBand: TimeBand | ""
   priorLevel: string
   schedulePreference: string
   preferredDays: string[]
@@ -85,7 +87,10 @@ export const EMPTY_FORM: EnrollFormData = {
   guardianName: "",
   guardianPhone: "",
   guardianEmail: "",
-  selectedMode: "",
+  offeringId: "",
+  arrangement: "",
+  preferredDate: "",
+  preferredTimeBand: "flexible",
   priorLevel: "",
   schedulePreference: "",
   preferredDays: [],
@@ -126,18 +131,6 @@ export const SCHEDULE_OPTIONS = [
   { value: "flexible", label: "Flexible" },
 ] as const
 
-export const HOME_TRAINING_MODE = "Home Training"
-
-export const WEEKDAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const
-
 /**
  * The payment channels this app actually asks Paystack to offer:
  * `lib/paystack.ts:280` sends `channels: ['card', 'bank', 'ussd', 'bank_transfer']`.
@@ -146,4 +139,4 @@ export const WEEKDAYS = [
  */
 export const PAYSTACK_CHANNELS = ["Card", "Bank transfer", "USSD"] as const
 
-export const STEP_NAMES = ["Your details", "Format", "Payment"] as const
+export const STEP_NAMES = ["Assessment", "Your details", "Pay"] as const
