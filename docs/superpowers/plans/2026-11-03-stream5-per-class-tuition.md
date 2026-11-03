@@ -30,7 +30,7 @@
 ---
 
 ### Task 1: Schema + migration + migration verifier
-**Files:** Modify `prisma/schema.prisma`; Create `prisma/migrations/20261103190000_per_class_tuition/migration.sql`; Create `scripts/verify-tuition-migration.sh`.
+**Files:** Modify `prisma/schema.prisma`; Create `prisma/migrations/20261103180000_per_class_tuition/migration.sql`; Create `scripts/verify-tuition-migration.sh`.
 **Interfaces — Produces:** model `TuitionCharge` (spec "Data model"); `TuitionPayment.paystackReference/paystackChannel/paymentUrl`; `Enrollment.tuitionCharges TuitionCharge[]`, `Material.tuitionCharges`.
 - [ ] Add the model and columns; generate DDL with `prisma migrate diff --from-migrations ... --to-schema-datamodel` against the scratch DB; append the backfill `INSERT ... SELECT` for T2 to the same file.
 - [ ] Verifier: ephemeral DB, apply all earlier migrations, load a fixture with legacy rows (no plan), a `plan_agreed` row and an `enrolled` row with plan fields + one TuitionPayment, apply the new migration, assert: legacy rows and payments unchanged; one CLASSES charge `plannedClasses x ratePerClass` for each plan row; none for legacy; re-running the INSERT is a no-op; `migrate diff` shows no drift.
