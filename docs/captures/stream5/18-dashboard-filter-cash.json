@@ -1,0 +1,76 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/payments?locationId=t5_loc_1793721017135&method=cash",
+    "body": null
+  },
+  "status": 200,
+  "response": {
+    "payments": [
+      {
+        "id": "cmw0v6z83002z076whg07djha",
+        "enrollmentId": "t5_e4_1793721017135",
+        "amount": 90000,
+        "status": "completed",
+        "method": "cash",
+        "channel": null,
+        "reference": null,
+        "receiptNumber": "TUI-1793721038544-YV6F",
+        "description": null,
+        "paidAt": "2026-11-03T15:50:38.547Z",
+        "createdAt": "2026-11-03T15:50:38.547Z",
+        "paymentUrl": null,
+        "enrollmentStatus": "enrolled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793721017135@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793721017135"
+      },
+      {
+        "id": "cmw0v6k6b001x076w3cvi8vec",
+        "enrollmentId": "t5_e1_1793721017135",
+        "amount": 20000,
+        "status": "completed",
+        "method": "cash",
+        "channel": null,
+        "reference": null,
+        "receiptNumber": "TUI-1793721019037-0WA1",
+        "description": "First part",
+        "paidAt": "2026-11-03T15:50:19.042Z",
+        "createdAt": "2026-11-03T15:50:19.043Z",
+        "paymentUrl": null,
+        "enrollmentStatus": "enrolled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793721017135@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793721017135"
+      }
+    ],
+    "outstanding": [
+      {
+        "enrollmentId": "t5_e6_1793721017135",
+        "enrollmentStatus": "enrolled",
+        "student": "Ada Placeholder",
+        "email": "t5stu1793721017135@example.com",
+        "course": "T5 Guitar",
+        "location": "T5 Loc 1793721017135",
+        "mode": "ledger",
+        "charged": 10000,
+        "paid": 7000,
+        "outstanding": 3000,
+        "classesCovered": 1,
+        "classesPurchased": 2,
+        "lastPaymentAt": "2026-11-03T15:50:44.726Z"
+      }
+    ],
+    "totals": {
+      "collected": 110000,
+      "pendingOnline": 0,
+      "outstanding": 3000
+    },
+    "truncated": {
+      "payments": false,
+      "outstanding": false
+    }
+  }
+}

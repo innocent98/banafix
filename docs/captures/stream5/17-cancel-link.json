@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/tuition-payments/cmw0v70810037076wkiiu7vtg/cancel",
+    "body": {}
+  },
+  "status": 200,
+  "response": {
+    "message": "Payment link cancelled"
+  }
+}

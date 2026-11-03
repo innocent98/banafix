@@ -73,6 +73,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       description: "Student enrollments & payments"
     },
     {
+      id: "payments",
+      label: "Payments",
+      icon: DollarSign,
+      href: "/admin/payments",
+      description: "Tuition payments & outstanding balances"
+    },
+    {
       id: "locations",
       label: "Locations",
       icon: MapPin,
@@ -92,13 +99,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     //   icon: Calendar,
     //   href: "/admin/students",
     //   description: "Manage student records"
-    // },
-    // {
-    //   id: "payments",
-    //   label: "Payments",
-    //   icon: DollarSign,
-    //   href: "/admin/payments",
-    //   description: "Financial transactions"
     // },
     // {
     //   id: "testimonials",

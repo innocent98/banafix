@@ -11,12 +11,15 @@ const STYLES: Record<EnrollmentStatus, string> = {
   cancelled: "bg-muted text-muted-foreground",
 }
 
-/** Renders every known stage; an unknown legacy string is shown as-is (never throws). */
-export function StatusBadge({ status, tuitionPaid }: { status: string; tuitionPaid?: boolean }) {
+/**
+ * Renders every known stage; an unknown legacy string is shown as-is (never throws).
+ * `paidInFull`: the caller derives it (ledger rows: balance is 0; legacy rows: a completed tuition payment).
+ */
+export function StatusBadge({ status, paidInFull }: { status: string; paidInFull?: boolean }) {
   if (!isEnrollmentStatus(status)) {
     return <Badge variant="outline">{status || "Unknown"}</Badge>
   }
-  const label = status === "enrolled" && tuitionPaid ? "Tuition paid" : STATUS_LABELS[status]
+  const label = status === "enrolled" && paidInFull ? "Tuition paid" : STATUS_LABELS[status]
   return (
     <Badge variant="outline" className={STYLES[status]}>
       {label}

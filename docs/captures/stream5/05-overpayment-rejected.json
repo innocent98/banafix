@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e1_1793721017135/tuition",
+    "body": {
+      "amount": 30000,
+      "paymentMethod": "cash",
+      "sendReceipt": false
+    }
+  },
+  "status": 400,
+  "response": {
+    "error": "Amount exceeds the outstanding balance of ₦24,500. Add a charge first, or confirm the overpayment."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/admin/enrollments/t5_e1_1793721017135/tuition/charges",
+    "body": {
+      "kind": "CLASSES",
+      "quantity": 2
+    }
+  },
+  "status": 201,
+  "response": {
+    "charge": {
+      "id": "cmw0v6v3j002p076w4f1eafqc",
+      "enrollmentId": "t5_e1_1793721017135",
+      "kind": "CLASSES",
+      "origin": "ADJUSTMENT",
+      "quantity": 2,
+      "unitPrice": 4000,
+      "description": "2 x 60-minute classes (top-up)",
+      "materialId": null,
+      "createdBy": "t5_admin_1793721017135",
+      "createdAt": "2026-11-03T15:50:33.200Z",
+      "voidedAt": null,
+      "voidedBy": null,
+      "voidReason": null
+    }
+  }
+}

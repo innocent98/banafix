@@ -1,0 +1,49 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/admin/enrollments/t5_e4_1793721017135/tuition",
+    "body": null
+  },
+  "status": 200,
+  "response": {
+    "mode": "legacy",
+    "enrollment": {
+      "id": "t5_e4_1793721017135",
+      "status": "enrolled",
+      "applicationPaid": true,
+      "selectedMode": "On-site",
+      "ratePerClass": null,
+      "plannedClasses": null,
+      "durationMins": null
+    },
+    "charges": [],
+    "payments": [
+      {
+        "id": "cmw0v6ywa002w076wdq3bgbx0",
+        "enrollmentId": "t5_e4_1793721017135",
+        "amount": 20000,
+        "currency": "NGN",
+        "paymentMethod": "bank-transfer",
+        "description": null,
+        "status": "partial",
+        "paidAt": "2026-11-03T15:50:38.121Z",
+        "receiptNumber": "TUI-1793721038121-48X5",
+        "receiptGenerated": false,
+        "receiptSent": false,
+        "paystackReference": null,
+        "paystackChannel": null,
+        "paymentUrl": null,
+        "recordedBy": "t5_admin_1793721017135",
+        "adminNotes": null,
+        "createdAt": "2026-11-03T15:50:38.122Z",
+        "updatedAt": "2026-11-03T15:50:38.122Z"
+      }
+    ],
+    "summary": {
+      "mode": "legacy",
+      "expectedTotal": 50000,
+      "paid": 20000,
+      "outstanding": 30000
+    }
+  }
+}
