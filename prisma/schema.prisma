@@ -88,6 +88,7 @@ model Course {
   enrollments Enrollment[]
   offerings   CourseOffering[]
   materials   Material[]
+  instructors InstructorCourse[]
 
   @@index([instructorId])
   @@map("courses")
@@ -110,6 +111,11 @@ model Instructor {
 
   courses      Course[]
   assessments  Assessment[]
+
+  // Scheduling (Stream 4)
+  teaches       InstructorCourse[]
+  availabilityWindows InstructorAvailability[]
+  classSessions ClassSession[]
 
   @@map("instructors")
 }
@@ -238,7 +244,12 @@ model Enrollment {
   selectedMode       String   // Selected delivery mode
   priorLevel         String?  // complete-beginner, some-experience, intermediate, advanced
   schedulePreference String?  // weekday-morning, weekday-afternoon, etc.
-  preferredDays      String[] // Array of preferred days for home training
+  preferredDays      String[] // Preferred weekdays, canonical 'mon'..'sun' (legacy rows may hold 'Monday'; see lib/scheduling/preferences.ts)
+  // Structured scheduling preferences (Stream 4). schedulePreference above is legacy, read-only fallback.
+  preferredTimeBands     String[] @default([]) // morning | afternoon | evening
+  preferredFromTime      String?  // 'HH:MM' Lagos local, optional narrowing of the bands
+  preferredToTime        String?
+  preferredClassesPerWeek Int?    // 1 | 2 (the student's wish; the plan's classesPerWeek is what is agreed)
   musicExperience    String?
   goals              String?
   specialRequests    String?
@@ -284,7 +295,9 @@ model Enrollment {
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
   assessments         Assessment[]
+  classSessions       ClassSession[]
 
+  @@unique([id, studentId]) // target of ClassSession's composite FK (keeps session.studentId honest)
   @@index([studentId])
   @@index([locationId])
   @@index([offeringId])
@@ -386,6 +399,8 @@ model Location {
 
   offerings     CourseOffering[]
   enrollments   Enrollment[]
+  availability  InstructorAvailability[]
+  classSessions ClassSession[]
 
   @@map("locations")
 }
@@ -470,6 +485,78 @@ model Assessment {
 
   @@index([enrollmentId])
   @@map("assessments")
+}
+
+// ---------------------------------------------------------------------------
+// Scheduling (Stream 4). Spec: docs/superpowers/specs/2026-11-03-scheduling-design.md
+// Raw-SQL constraints (btree_gist exclusion, CHECKs, partial unique) live in the migration
+// and are NOT modelled here; Prisma ignores them.
+// ---------------------------------------------------------------------------
+
+// Which courses an instructor teaches (M:N). Course.instructorId stays as the public /tutors "primary".
+model InstructorCourse {
+  instructorId String
+  courseId     String
+  createdAt    DateTime @default(now())
+
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([instructorId, courseId])
+  @@index([courseId])
+  @@map("instructor_courses")
+}
+
+// "On this weekday, between these local times, at this place, in this mode."
+// weekday ISO 1..7 (Mon..Sun); minutes from Lagos local midnight. DB prevents overlapping windows per instructor+weekday.
+model InstructorAvailability {
+  id           String   @id @default(cuid())
+  instructorId String
+  weekday      Int
+  startMinute  Int
+  endMinute    Int
+  locationId   String
+  mode         String   // CENTRE | HOME | ONLINE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  location     Location   @relation(fields: [locationId], references: [id])
+
+  @@index([instructorId, weekday])
+  @@index([locationId])
+  @@map("instructor_availability")
+}
+
+// One booked class. No money here (D12): Stream 5 joins on (enrollmentId, sequence).
+// Active (blocks time) = scheduled | held; the exclusion constraints in the migration enforce it per instructor and per student.
+model ClassSession {
+  id               String   @id @default(cuid())
+  enrollmentId     String
+  studentId        String   // denormalised for the student exclusion constraint; composite FK keeps it equal to the enrollment's
+  instructorId     String
+  locationId       String?
+  mode             String   // CENTRE | HOME | ONLINE
+  startsAt         DateTime @db.Timestamptz(3)
+  durationMins     Int      // 45 | 60 (CHECK)
+  endsAt           DateTime @db.Timestamptz(3) // = startsAt + durationMins (CHECK); stored because timestamptz + interval is not indexable
+  status           String   @default("scheduled") // scheduled | held | missed | rescheduled | cancelled
+  sequence         Int      // class slot 1..n within the enrollment
+  rescheduledFromId String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollment       Enrollment   @relation(fields: [enrollmentId, studentId], references: [id, studentId], onDelete: Restrict)
+  instructor       Instructor   @relation(fields: [instructorId], references: [id], onDelete: Restrict)
+  location         Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  rescheduledFrom  ClassSession?  @relation("Reschedule", fields: [rescheduledFromId], references: [id], onDelete: SetNull)
+  rescheduledTo    ClassSession[] @relation("Reschedule")
+
+  @@index([instructorId, startsAt])
+  @@index([enrollmentId, sequence])
+  @@index([studentId, startsAt])
+  @@map("class_sessions")
 }
 
 // System Settings for global configuration
