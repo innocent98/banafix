@@ -3,6 +3,7 @@ import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
 import { transitionEnrollment } from '@/lib/enrollment-transition'
+import { emitEnrollmentEvent } from '@/lib/messaging/enrollment-events'
 import { isArrangement } from '@/lib/assessment-vocab'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -60,6 +61,8 @@ export const POST = withAuth(async (req: NextRequest, admin, context: Ctx) => {
       // Reschedule in place.
       if (status === 'assessment_scheduled' && latest && latest.status === 'scheduled') {
         const updated = await tx.assessment.update({ where: { id: latest.id }, data: fields })
+        // Not a status move, so the transition hook does not fire: re-notify for the new slot (same slot = no-op).
+        await emitEnrollmentEvent(tx, id, 'assessment_scheduled')
         return { assessment: updated, transitioned: false, action: 'assessment.reschedule' }
       }
       if (status === 'assessment_paid' || status === 'assessed') {

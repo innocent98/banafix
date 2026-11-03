@@ -47,7 +47,8 @@
 | **Scheduling** (Stream 4): instructor availability, `ClassSession`, conflict prevention | 🟡 Code | `InstructorAvailability` (weekday × location × mode), `ClassSession` with `btree_gist` **exclusion constraints** per instructor and per student (active = scheduled/held), generator from the plan + student preferences, audited availability override. Migration `20261103170000_scheduling` verified on an ephemeral Postgres 🟢; concurrent bookings proven on a real DB 🟢 (§10). Detail: `docs/sop/scheduling.md`, FE contract `docs/fe-integration-guide-scheduling.md` |
 | Admin: availability editor, `/admin/schedule` timetable, assign / reschedule / mark held-missed-cancelled | 🟡 Code | Week grid (desktop) / agenda (phone); every mutation writes an `AuditLog` row inside its transaction. Some dialogs not browser-checked (§10) |
 | Student scheduling preferences | 🟡 Code | `Enrollment.preferredDays` (`mon..sun`), `preferredTimeBands`, `preferredFromTime/ToTime`, `preferredClassesPerWeek`; captured by the wizard and walk-in modal |
-| Birthday automation (students + parents) | 🟡 Code | Vercel Cron → `/api/cron/birthdays`; delivery pending real `RESEND_API_KEY` |
+| Birthday automation (students + parents) | 🟡 Code | Vercel Cron → `/api/cron/birthdays`, now through the outbox (idempotent per year, consent respected); delivery pending real `RESEND_API_KEY` |
+| Communications outbox (Stream 7) | 🟡 Code | `MessageTemplate` / `OutboundMessage` / `Announcement` / `Feedback`; Resend email adapter + disabled SMS/WhatsApp stubs; triggers from `transitionEnrollment` + 3 crons; `/admin/{messages,templates,announcements,feedback}` + public `/feedback`. Live email NOT verified (no `RESEND_API_KEY`); SMS/WhatsApp provider not chosen (`docs/research/messaging-providers.md`) |
 
 ---
 
@@ -380,7 +381,7 @@ erDiagram
 
 ### 5.2 Planned additions 🔵
 
-Only seams for later streams remain planned: invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5); a messaging outbox keyed off the status transitions (Stream 7, D10). None are built.
+Only seams for later streams remain planned: invoices from `plannedClasses × ratePerClass` + `Material` (Stream 5). The Stream 7 messaging outbox is built, see §5.4.
 
 ### 5.3 Scheduling tables (Stream 4) 🟡
 
@@ -391,6 +392,31 @@ Only seams for later streams remain planned: invoices from `plannedClasses × ra
 | `class_sessions` | `enrollmentId`, `studentId`, `instructorId`, `locationId?`, `mode`, `startsAt`/`endsAt` (`timestamptz`), `durationMins` 45\|60, `status`, `sequence`, `rescheduledFromId?`, `notes?` | **No money columns (D12).** Composite FK `(enrollmentId, studentId) → enrollments(id, studentId)`. DB: exclusion constraints `class_sessions_instructor_no_overlap` / `class_sessions_student_no_overlap` over `tstzrange(startsAt, endsAt, '[)')` where status in (scheduled, held); partial unique `(enrollmentId, sequence)` where status in (scheduled, held, missed); `endsAt = startsAt + durationMins` CHECK. These constraints are raw SQL in the migration, invisible to Prisma |
 
 **Traps 🟡:** instants are UTC, the academy is Africa/Lagos (UTC+1, no DST); `missed` keeps its class number, `cancelled` frees it; a reschedule makes a **new** session row with the same `sequence`; legacy `preferredDays` may hold `Monday`-style names.
+
+---
+
+### 5.4 Communications (Stream 7) 🟡
+
+```mermaid
+flowchart LR
+  T["transitionEnrollment (won CAS)"] -->|emitEnrollmentEvent, same tx| O[(outbound_messages)]
+  A["POST /api/enrollments, reschedule"] -->|emitEnrollmentEvent| O
+  C1["cron birthdays / new-month"] -->|compose + enqueue| O
+  AN["/admin/announcements"] -->|queueAnnouncement| O
+  F["POST /api/feedback"] -->|admin notice| O
+  O -->|drain: after(), cron, Send now| P{"ChannelProvider"}
+  P -->|EMAIL| R["Resend (works)"]
+  P -->|SMS, WHATSAPP| S["stubs: skipped"]
+```
+
+| Table | Purpose |
+| --- | --- |
+| `message_templates` | admin overrides of code-default copy per event key; `channels[]`, `subject`, `body`, `shortBody`, `isActive` |
+| `outbound_messages` | one row per (event, channel, recipient); unique `idempotencyKey`; `status` queued/sent/failed/skipped; `scheduledFor`, `lockedAt` lease |
+| `announcements` | admin broadcast record; messages carry `batchId` = its id |
+| `feedback` | public/admin feedback; `allowTestimonial`, `status`, `testimonialId` |
+
+`birthday_email_logs` is retained but no longer written (read as an exclusion only). Details: `docs/sop/communications.md`.
 
 ---
 
@@ -439,6 +465,9 @@ Only seams for later streams remain planned: invoices from `plannedClasses × ra
 | GET/POST | `/api/admin/enrollments/[id]/schedule` | JWT | GET plan + preferences + teaching instructors; POST assign + generate (`dryRun`, `allowPartial`, `overrideAvailability` + `overrideReason`). 409 `INSTRUCTOR_BUSY`/`STUDENT_BUSY` never overridable; 422 `UNPLACEABLE`. Audit `schedule.generate`, `schedule.availability_override` | 🟢 live |
 | POST | `/api/admin/sessions/[id]/reschedule` | JWT | New row, same `sequence`, old row `rescheduled`. Audit `session.reschedule` | 🟢 live |
 | POST | `/api/admin/sessions/[id]/status` | JWT | held / missed / cancelled / revert. Audit `session.status` | 🟢 live |
+| ANY | `/api/admin/messages` (+`retry`, `dispatch`), `/api/admin/templates` (+`[key]`, `preview`), `/api/admin/announcements` (+`preview`), `/api/admin/feedback` (+`[id]`, `[id]/promote`) | JWT | Stream 7 admin APIs | 🟡 |
+| POST | `/api/feedback` | public (honeypot + throttle) | Feedback form | 🟡 |
+| GET | `/api/cron/new-month`, `/api/cron/messages` | `CRON_SECRET` | New-month message; outbox drain | 🟡 |
 | PATCH | `/api/admin/students/[id]`, `/api/admin/parents*`, `/api/admin/instructors*`, `GET /api/cron/birthdays` | JWT / `CRON_SECRET` | Unchanged by this shipment (student edit, parents, roster, birthdays) | 🟡 |
 
 \* D5: public read endpoints for enrollment detail/list were unauthenticated at HEAD `713a3b2`; see §8.
@@ -469,7 +498,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 | **D7** | Where do price, format and location live? | ✅ DECIDED + BUILT | `CourseOffering` (course × location × format) replaces `Course.pricing/availableModes/location`; the old columns are deprecated, not dropped |
 | **D8** | How is price stored? | ✅ DECIDED + BUILT | Per class, per duration: `OfferingRate (offering, durationMins, pricePerClass)`; plan snapshots `Enrollment.ratePerClass` |
 | **D9** | Seat counting | ✅ DECIDED + BUILT | Retired. Columns kept, not enforced or decremented anywhere (POST, wizard, webhook, verify route) |
-| **D10** | Messaging | ✅ Decided, **not built** | Behind a channel interface; email now, WhatsApp/SMS later (Stream 7) |
+| **D10** | Messaging | ✅ DECIDED + BUILT | Channel-agnostic outbox; Resend email works, SMS/WhatsApp are disabled stubs recording `skipped` until John picks a provider (research: `docs/research/messaging-providers.md`). Builder calls C1–C15 in `docs/superpowers/specs/2026-11-03-communications-design.md` |
 | **D11** | Commercial config | ✅ DECIDED + BUILT | Assessment fee per location, offerings, rates, materials are all admin-editable data; `lib/application-fee.ts` (hardcoded tiers) is deleted; `lib/locations.ts` survives only as seed input |
 
 **D12 (2026-11-03, Adebayo): the assessment fee is charged ONCE PER STUDENT** (legacy payments count; public covered applications are created `pending` (coverage link set) and an admin confirms; an admin walk-in for a covered student starts at `assessment_paid`; a payment that arrives anyway is stored `duplicate` and refunded by hand). **Builder decisions B1–B17** (left open by the spec; recorded in `docs/sop/assessment-first-admission.md`): B1 `Location.slug`, chooser = `?location=<slug>`; B2 `Assessment` uses `preferredDate` + `preferredTimeBand`; B3 `Assessment.address/landmark` for home visits; B4 public enrol creates `Assessment{requested}` with the pending enrollment; B5 `assessed → assessment_scheduled` re-assessment move; B6 "offerable" predicate; B7 walk-in `offeringId` optional; B8 public POST requires `offeringId`; B9 duplicate guard blocks only non-`pending`, non-`cancelled`; B10 `PAYSTACK_BASE_URL` override for the local mock; B11 seat enforcement removed; B12 webhook payment + enrollment move in one transaction; B13 DB defaults on deprecated `Course` NOT NULL columns.
@@ -536,7 +565,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 - **Browser verification** of the new public and admin flows is not recorded in this document.
 - Migration 2 (dormant `Enrollment` identity columns) and **Migration 3** (deprecated `Course` price/format/location/seat columns) — both deferred.
 - **Rates are not entered:** all migrated offerings are inactive with no rates, so every course shows "Enrolment opening soon" until an admin sets rates (no pricing data came from John yet).
-- Notifications for scheduled/rescheduled classes (Stream 7 hooks are no-ops); a student-facing schedule view; travel-time between locations; parent capture at registration (Stream 6); messaging providers, WhatsApp, feedback (Stream 7, D10); site content (Stream 8).
+- A student-facing schedule view; travel-time between locations; parent capture at registration (Stream 6); a real SMS/WhatsApp provider (Stream 7 built the outbox and stubs only), inbound email/WhatsApp, promote-feedback-to-testimonial wiring (waits for Stream 8's model); site content (Stream 8). **Class notifications:** the `class_scheduled` / `class_reminder` templates are reserved in the outbox but nothing emits them yet.
 - A student login/dashboard, refunds, coupons. Policy text still contradicts the non-refundable fee (refund schedule in `components/site/enroll/policy-dialog.tsx`; `/policies` dashboard/PayPal/instalment claims) — deliberately **not edited** here, needs the client's review.
 - Per-student vs per-application fee rule (open business question, §8).
 - `GET /api/receipts/application-fee/[enrollmentId]` is still unauthenticated (pre-existing); the webhook cannot detect a cash fee recorded while a Paystack charge is in flight (double fee needs an admin refund decision).

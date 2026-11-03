@@ -7,7 +7,7 @@ import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
 import { validatePreferences } from '@/lib/scheduling/preferences'
 import { offerableOfferingWhere } from '@/lib/offerings'
-import { sendEnrollmentConfirmation, sendApplicationFeeCovered } from '@/lib/email'
+import { emitEnrollmentEvent } from '@/lib/messaging/enrollment-events'
 import { isThrottled } from '@/lib/throttle'
 import { findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
 import type { Prisma } from '@prisma/client'
@@ -286,8 +286,9 @@ export async function POST(req: NextRequest) {
       if (covered) {
         if (covered.created) {
           try {
-            // Greet by the STORED name, never the request body: this email goes to whatever address was typed in.
-            await sendApplicationFeeCovered({ firstName: student.firstName, email: normalizedEmail, courseName: course.title })
+            // Through the outbox (applicant only; greets by the STORED student name, never the request body:
+            // this goes to whatever address was typed in). Idempotent per enrollment.
+            await emitEnrollmentEvent(prisma, covered.id, 'application_covered')
           } catch (emailError) {
             console.error('Failed to send application-received email:', emailError)
           }
@@ -385,21 +386,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Best-effort "application received" acknowledgement to the student. Sent only
-    // after payment has been successfully initialized, so it references a real,
-    // resumable application. Transactional and guarded — a mail failure must not
-    // fail the enrollment or delay the redirect to Paystack.
+    // "Application received" acknowledgement, through the outbox (spec C7). Queued only after payment has
+    // been successfully initialized, so it references a real, resumable application. Transactional,
+    // idempotent per enrollment, and guarded: a failure must not fail the enrollment or delay the redirect.
     try {
-      await sendEnrollmentConfirmation({
-        firstName,
-        lastName,
-        email,
-        courseName: course.title,
-        enrollmentId: enrollment.id,
-        applicationFee: applicationFeeData.amount,
-      })
-    } catch (emailError) {
-      console.error('Failed to send enrollment acknowledgement email:', emailError)
+      await emitEnrollmentEvent(prisma, enrollment.id, 'application_received')
+    } catch (emitError) {
+      console.error('Failed to queue application-received message:', emitError)
     }
 
     // Return enrollment details with payment URL

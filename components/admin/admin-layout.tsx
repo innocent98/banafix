@@ -24,7 +24,10 @@ import {
   GraduationCap,
   Users,
   Award,
-  MapPin
+  MapPin,
+  Mail,
+  FileText,
+  Megaphone
 } from "lucide-react"
 
 interface AdminLayoutProps {
@@ -101,6 +104,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: "/admin/parents",
       description: "Parent/guardian records"
     },
+    { id: "messages", label: "Messages", icon: Mail, href: "/admin/messages", description: "Outbox and delivery log" },
+    { id: "templates", label: "Templates", icon: FileText, href: "/admin/templates", description: "Edit automatic messages" },
+    { id: "announcements", label: "Announcements", icon: Megaphone, href: "/admin/announcements", description: "Message students and parents" },
+    { id: "feedback", label: "Feedback", icon: MessageSquare, href: "/admin/feedback", description: "Feedback and testimonials" },
     // {
     //   id: "students",
     //   label: "Students",

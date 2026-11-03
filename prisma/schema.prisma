@@ -678,3 +678,91 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+// ── Stream 7: communications (outbox, templates, announcements, feedback) ─────────────
+// Spec: docs/superpowers/specs/2026-11-03-communications-design.md
+
+// Admin-editable copy per event. Defaults live in code (lib/messaging/default-templates.ts);
+// a row here overrides them. Plain text with {{mergeFields}}.
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique            // lib/messaging/events.ts TEMPLATE_KEYS
+  name      String
+  category  String                      // TRANSACTIONAL | MARKETING
+  channels  String[]                    // EMAIL | SMS | WHATSAPP switched on for this template
+  subject   String
+  body      String
+  shortBody String?                     // SMS/WhatsApp variant
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("message_templates")
+}
+
+// One row per (event, channel, recipient). The unique idempotencyKey is what makes replays safe.
+model OutboundMessage {
+  id                String    @id @default(cuid())
+  channel           String    // EMAIL | SMS | WHATSAPP
+  recipientType     String    // student | guardian | parent | admin
+  recipientId       String?
+  toName            String?
+  toAddress         String?   // email address or phone number; null when none on file
+  templateKey       String    // a TEMPLATE_KEY or 'announcement'
+  category          String    // TRANSACTIONAL | MARKETING
+  subject           String?
+  body              String
+  html              String?
+  status            String    @default("queued") // queued | sent | failed | skipped
+  provider          String?
+  providerMessageId String?
+  error             String?
+  attempts          Int       @default(0)
+  idempotencyKey    String    @unique
+  batchId           String?   // Announcement.id for broadcasts
+  enrollmentId      String?
+  scheduledFor      DateTime? // not sent before this instant (e.g. feedback request +30d)
+  lockedAt          DateTime? // drain lease; a stale lock is reclaimed
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([templateKey])
+  @@index([batchId])
+  @@index([createdAt])
+  @@map("outbound_messages")
+}
+
+model Announcement {
+  id               String   @id @default(cuid())
+  subject          String
+  body             String
+  channels         String[]
+  category         String   // MARKETING (consent respected) | TRANSACTIONAL (operational notice)
+  audience         Json     // { scope, locationId?, courseId?, includeApplicants }
+  recipientCount   Int      @default(0)
+  createdByAdminId String?
+  createdAt        DateTime @default(now())
+
+  @@map("announcements")
+}
+
+model Feedback {
+  id               String   @id @default(cuid())
+  authorName       String
+  relationship     String?  // e.g. "Parent of a piano student"
+  email            String?
+  rating           Int?     // 1-5, optional
+  text             String
+  source           String   // EMAIL | WEB | WHATSAPP | ADMIN
+  allowTestimonial Boolean  @default(false) // permission to quote publicly
+  status           String   @default("new") // new | reviewed | archived
+  testimonialId    String?  // set when promoted (Stream 8 Testimonial.id)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("feedback")
+}
