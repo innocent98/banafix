@@ -38,6 +38,33 @@ async function main() {
     })
   }
 
+  // Locations (D11: admin-editable data). Seed only: the app never reads this list at runtime.
+  // Fee tiers are those formerly hardcoded in lib/application-fee.ts. Online + Diaspora are ONLINE-kind.
+  const seedLocations = [
+    { name: 'Lagos', kind: 'PHYSICAL', assessmentFee: 5000 },
+    { name: 'Abuja', kind: 'PHYSICAL', assessmentFee: 5000 },
+    { name: 'Akure', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Ondo', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Port Harcourt', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Ibadan', kind: 'PHYSICAL', assessmentFee: 2000 },
+    { name: 'Online', kind: 'ONLINE', assessmentFee: 5000 },
+    { name: 'Diaspora', kind: 'ONLINE', assessmentFee: 8000 },
+  ] as const
+
+  for (const [order, loc] of seedLocations.entries()) {
+    await prisma.location.upsert({
+      where: { name: loc.name },
+      update: {},
+      create: {
+        name: loc.name,
+        slug: loc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        kind: loc.kind,
+        assessmentFee: loc.assessmentFee,
+        order,
+      },
+    })
+  }
+
   console.log('✅ Created delivery modes')
 
   // Create sample course data based on existing frontend structure

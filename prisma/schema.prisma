@@ -32,6 +32,8 @@ model DeliveryMode {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  offerings CourseOffering[]
+
   @@map("delivery_modes")
 }
 
@@ -42,21 +44,23 @@ model Course {
   description String?
   instrument  String   // Guitar, Piano, Drums, Vocals, Violin, Production
   level       String   // Beginner, Intermediate, Advanced, All Levels
-  duration    String   // "12 weeks", "8 weeks"
-  location    String   // "Lagos", "Abuja", "Online"
+  duration    String   @default("") // "12 weeks", "8 weeks"  (DEPRECATED display text; assessment-first rework)
+  location    String   @default("") // DEPRECATED (D7): location now lives on CourseOffering -> Location. Kept for legacy rows.
 
   // Session fields
   session          String?   // "Fall 2024", "Summer 2025", "Spring 2025"
   sessionStartDate DateTime? // Actual start date for the session
 
   // Delivery modes and pricing (JSON objects for flexibility)
-  availableModes   String[]  // Array of delivery mode names that are active for this course
-  pricing          Json      // {"On-site": 25000, "One-on-One": 30000, "Online": 20000, "Home Training": 35000}
+  // DEPRECATED (D7/D8): formats + prices now live on CourseOffering / OfferingRate. Kept (not dropped)
+  // for legacy rows and the legacy tuition balance until Stream 5. New courses leave these at defaults.
+  availableModes   String[]  @default([]) // Array of delivery mode names
+  pricing          Json      @default("{}") // {"On-site": 25000, ...} per MODE, never per class
 
-  // Capacity management
+  // Capacity management — DEPRECATED (D9): seat counting retired, columns kept but not enforced.
   totalSeats     Int     @default(20)
   seatsLeft      Int     @default(20)
-  unlimitedSeats Boolean @default(false) // When true, capacity checks are bypassed
+  unlimitedSeats Boolean @default(false)
 
   // Course content
   outcomes    String[] // Learning outcomes
@@ -82,6 +86,8 @@ model Course {
   curriculum  CurriculumModule[]
   faqs        CourseFAQ[]
   enrollments Enrollment[]
+  offerings   CourseOffering[]
+  materials   Material[]
 
   @@index([instructorId])
   @@map("courses")
@@ -103,6 +109,7 @@ model Instructor {
   updatedAt    DateTime @updatedAt
 
   courses      Course[]
+  assessments  Assessment[]
 
   @@map("instructors")
 }
@@ -241,12 +248,25 @@ model Enrollment {
   agreeToRefundPolicy Boolean @default(false)
   consentToEmails     Boolean @default(false)
 
-  // Application Fee Payment (location-based: Lagos/Abuja ₦5,000, Online/Other ₦2,000, Diaspora ₦8,000)
+  // Assessment fee payment (column names keep the legacy 'application' wording). Amount comes from Location.assessmentFee.
   applicationPaid     Boolean @default(false)
-  applicationFeeAmount Int?    // Calculated based on course location
+  applicationFeeAmount Int?    // Snapshot of Location.assessmentFee at application time
 
-  // Enrollment Status
-  status       String   @default("pending") // pending, application_paid, enrolled, cancelled
+  // Enrollment Status (guard + allowed moves: lib/enrollment-status.ts)
+  // pending -> assessment_paid -> assessment_scheduled -> assessed -> plan_agreed -> enrolled; cancelled from any non-terminal.
+  // Legacy rows keep 'pending' / 'enrolled'. The fee is the "assessment fee" in UI copy; column names stay.
+  status       String   @default("pending")
+
+  // Location/offering the student applied for (backfilled for legacy rows; nullable)
+  locationId   String?
+  offeringId   String?
+
+  // Plan fields — set when the plan is agreed after assessment. ratePerClass is a SNAPSHOT:
+  // later OfferingRate edits never move an existing student's price.
+  durationMins   Int?
+  classesPerWeek Int?
+  plannedClasses Int?
+  ratePerClass   Int?
 
   // Additional Information
   couponCode   String?
@@ -259,10 +279,15 @@ model Enrollment {
   // Relations
   course              Course              @relation(fields: [courseId], references: [id])
   student             Student             @relation(fields: [studentId], references: [id])
+  location            Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  offering            CourseOffering?     @relation("EnrollmentOffering", fields: [offeringId], references: [id], onDelete: SetNull)
   applicationPayments ApplicationPayment[]
   tuitionPayments     TuitionPayment[]
+  assessments         Assessment[]
 
   @@index([studentId])
+  @@index([locationId])
+  @@index([offeringId])
   @@map("enrollments")
 }
 
@@ -339,6 +364,112 @@ model TuitionPayment {
   enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("tuition_payments")
+}
+
+enum LocationKind {
+  PHYSICAL
+  ONLINE
+}
+
+// A place (or online/diaspora "virtual place") where Banafix teaches. Admin-editable (D11).
+model Location {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  slug          String       @unique // public chooser key: /courses?location=<slug>
+  kind          LocationKind @default(PHYSICAL)
+  assessmentFee Int          // whole naira, non-refundable; replaces calculateApplicationFee
+  isActive      Boolean      @default(true)
+  order         Int          @default(0)
+  address       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  offerings     CourseOffering[]
+  enrollments   Enrollment[]
+
+  @@map("locations")
+}
+
+// course x location x format. Replaces Course.pricing/availableModes/location (D7).
+model CourseOffering {
+  id                    String   @id @default(cuid())
+  courseId              String
+  locationId            String
+  deliveryModeId        String
+  classesPerWeekOptions Int[]    @default([1, 2])
+  isActive              Boolean  @default(false) // legacy-migrated offerings are inactive with no rates
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  location     Location     @relation(fields: [locationId], references: [id])
+  deliveryMode DeliveryMode @relation(fields: [deliveryModeId], references: [id])
+  rates        OfferingRate[]
+  enrollments  Enrollment[] @relation("EnrollmentOffering")
+  recommendedFor Assessment[] @relation("AssessmentRecommendedOffering")
+
+  @@unique([courseId, locationId, deliveryModeId])
+  @@index([locationId])
+  @@map("course_offerings")
+}
+
+// Per-class price for an offering at a class duration (45 / 60 min). D8.
+model OfferingRate {
+  id           String   @id @default(cuid())
+  offeringId   String
+  durationMins Int
+  pricePerClass Int     // whole naira per class
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  offering     CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  @@unique([offeringId, durationMins])
+  @@map("offering_rates")
+}
+
+// Course-level books/materials (consumed by Stream 5 invoicing; admin-editable now).
+model Material {
+  id        String   @id @default(cuid())
+  courseId  String
+  name      String
+  price     Int      // whole naira
+  required  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("materials")
+}
+
+// An assessment of a student (many per enrollment: re-assessment). Result is editable and audited.
+model Assessment {
+  id                     String    @id @default(cuid())
+  enrollmentId           String
+  status                 String    @default("requested") // requested, scheduled, completed, cancelled, no_show
+  arrangement            String    // HOME | CENTRE | ONLINE
+  preferredDate          DateTime?
+  preferredTimeBand      String?   // morning | afternoon | evening | flexible
+  address                String?   // home-visit location (arrangement HOME)
+  landmark               String?
+  scheduledAt            DateTime?
+  assessorId             String?
+  resultLevel            String?
+  resultNotes            String?
+  recommendedOfferingId  String?
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  enrollment             Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  assessor               Instructor?     @relation(fields: [assessorId], references: [id], onDelete: SetNull)
+  recommendedOffering    CourseOffering? @relation("AssessmentRecommendedOffering", fields: [recommendedOfferingId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId])
+  @@map("assessments")
 }
 
 // System Settings for global configuration
