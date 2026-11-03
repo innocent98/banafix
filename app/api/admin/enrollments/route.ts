@@ -3,10 +3,18 @@ import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { getAssessmentFee, AssessmentFeeError, ASSESSMENT_FEE_CURRENCY } from '@/lib/assessment-fee'
 import { logAdminAction } from '@/lib/audit'
+import { transitionEnrollment } from '@/lib/enrollment-transition'
+import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
+
+const parseDate = (v: unknown): Date | null => {
+  if (typeof v !== 'string' || !v) return null
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d
+}
 
 // POST /api/admin/enrollments - admin registers a student directly (walk-in).
-// Captures the same info as the public enrollment form, and can mark the
-// application fee paid in cash at registration (self-service uses Paystack).
+// Picker is location -> course -> optional offering (B7). Creates the enrollment, a requested
+// Assessment, and (optionally) records the cash assessment fee and schedules the assessment now.
 export const POST = withAuth(async (req: NextRequest, admin) => {
   try {
     const data = await req.json()
@@ -22,7 +30,12 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       address,
       landmark,
       courseId,
-      selectedMode,
+      locationId,
+      offeringId,
+      arrangement = 'CENTRE',
+      preferredDate,
+      preferredTimeBand,
+      scheduleAssessmentAt, // optional: schedule the assessment immediately (needs feePaid)
       priorLevel,
       schedulePreference,
       preferredDays,
@@ -38,17 +51,36 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       paymentMethod = 'cash',
     } = data
 
-    if (!firstName || !lastName || !email || !courseId || !selectedMode) {
-      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, selectedMode', 400)
+    if (!firstName || !lastName || !email || !courseId || !locationId) {
+      return createErrorResponse('Required fields missing: firstName, lastName, email, locationId, courseId', 400)
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return createErrorResponse('Invalid email format', 400)
     }
+    if (!isArrangement(arrangement)) return createErrorResponse('arrangement must be HOME, CENTRE or ONLINE', 400)
+    if (preferredTimeBand && !isTimeBand(preferredTimeBand)) {
+      return createErrorResponse('preferredTimeBand must be morning, afternoon, evening or flexible', 400)
+    }
+    const preferredOn = preferredDate ? parseDate(preferredDate) : null
+    if (preferredDate && !preferredOn) return createErrorResponse('preferredDate is not a valid date', 400)
+    const scheduledAt = scheduleAssessmentAt ? parseDate(scheduleAssessmentAt) : null
+    if (scheduleAssessmentAt && !scheduledAt) return createErrorResponse('scheduleAssessmentAt is not a valid date/time', 400)
+    if (scheduledAt && !feePaid) {
+      return createErrorResponse('Mark the assessment fee paid to schedule the assessment now', 400)
+    }
 
     const course = await prisma.course.findUnique({ where: { id: courseId } })
     if (!course) return createErrorResponse('Course not found', 404)
-    if (!course.availableModes.includes(selectedMode)) {
-      return createErrorResponse('Selected delivery mode is not available for this course', 400)
+
+    let offering: { id: string; deliveryMode: { name: string } } | null = null
+    if (offeringId) {
+      offering = await prisma.courseOffering.findFirst({
+        where: { id: offeringId, courseId, locationId },
+        select: { id: true, deliveryMode: { select: { name: true } } },
+      })
+      if (!offering) {
+        return createErrorResponse('offeringId must be an offering of this course at the selected location', 400)
+      }
     }
 
     const normalizedEmail = String(email).trim().toLowerCase()
@@ -82,73 +114,114 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     if (existingLive) {
       return createErrorResponse('This student already has an application for this course', 400)
     }
-    await prisma.enrollment.deleteMany({ where: { studentId: student.id, courseId, status: 'pending' } })
-
-    // INTERIM (location picker lands with the admin UI): location from the course's legacy text.
-    const location = await prisma.location.findFirst({
-      where: { name: { equals: course.location.trim(), mode: 'insensitive' } },
-      select: { id: true },
-    })
-    if (!location) return createErrorResponse('No location is configured for this course', 400)
     let feeAmount: number
     try {
-      feeAmount = await getAssessmentFee(prisma, location.id)
+      feeAmount = await getAssessmentFee(prisma, locationId)
     } catch (e) {
       if (e instanceof AssessmentFeeError) return createErrorResponse(e.message, 400)
       throw e
     }
     const fee = { amount: feeAmount, currency: ASSESSMENT_FEE_CURRENCY }
 
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        studentId: student.id,
-        courseId,
-        locationId: location.id,
-        selectedMode,
-        priorLevel,
-        schedulePreference,
-        preferredDays: preferredDays || [],
-        musicExperience,
-        goals,
-        specialRequests,
-        agreeToTerms,
-        agreeToRefundPolicy,
-        consentToEmails,
-        couponCode,
-        waitlistNotes,
-        applicationFeeAmount: fee.amount,
-        applicationPaid: Boolean(feePaid),
-        status: feePaid ? 'assessment_paid' : 'pending', // fee buys an assessment, not enrolment (D6)
-      },
-    })
+    // Stale unpaid application for this course is replaced by this registration.
+    await prisma.enrollment.deleteMany({ where: { studentId: student.id, courseId, status: 'pending' } })
 
-    // Record the cash application-fee payment when marked paid.
-    if (feePaid) {
-      await prisma.applicationPayment.create({
+    // Enrollment + Assessment + (fee payment, status moves) in ONE transaction. The walk-in is
+    // created `pending`, then moved by the guard so every step is a legal, compare-and-set move.
+    const { enrollment, assessment, finalStatus } = await prisma.$transaction(async (tx) => {
+      const enrollment = await tx.enrollment.create({
         data: {
-          enrollmentId: enrollment.id,
-          amount: fee.amount,
-          currency: fee.currency,
-          paymentMethod: paymentMethod || 'cash',
-          paystackStatus: 'success',
-          status: 'completed',
-          paidAt: new Date(),
-          receiptNumber: `APP-${Date.now()}-${enrollment.id.slice(-6)}`,
-          billingEmail: normalizedEmail,
-          billingName: `${firstName} ${lastName}`,
+          studentId: student.id,
+          courseId,
+          locationId,
+          offeringId: offering?.id ?? null,
+          selectedMode: offering?.deliveryMode.name ?? '',
+          priorLevel,
+          schedulePreference,
+          preferredDays: preferredDays || [],
+          musicExperience,
+          goals,
+          specialRequests,
+          agreeToTerms,
+          agreeToRefundPolicy,
+          consentToEmails,
+          couponCode,
+          waitlistNotes,
+          applicationFeeAmount: fee.amount,
+          applicationPaid: false,
+          status: 'pending',
         },
       })
-    }
+      let assessment = await tx.assessment.create({
+        data: {
+          enrollmentId: enrollment.id,
+          status: 'requested',
+          arrangement,
+          preferredDate: preferredOn,
+          preferredTimeBand: preferredTimeBand || null,
+          address: arrangement === 'HOME' ? address || null : null,
+          landmark: arrangement === 'HOME' ? landmark || null : null,
+        },
+      })
+      let finalStatus = 'pending'
+
+      if (feePaid) {
+        // Record the cash/offline assessment-fee payment and move pending -> assessment_paid.
+        await tx.applicationPayment.create({
+          data: {
+            enrollmentId: enrollment.id,
+            amount: fee.amount,
+            currency: fee.currency,
+            paymentMethod: paymentMethod || 'cash',
+            paystackStatus: 'success',
+            status: 'completed',
+            paidAt: new Date(),
+            receiptNumber: `APP-${Date.now()}-${enrollment.id.slice(-6)}`,
+            billingEmail: normalizedEmail,
+            billingName: `${firstName} ${lastName}`,
+          },
+        })
+        if (!(await transitionEnrollment(tx, enrollment.id, 'pending', 'assessment_paid', { applicationPaid: true }))) {
+          throw new Error('STATE_CHANGED')
+        }
+        finalStatus = 'assessment_paid'
+
+        if (scheduledAt) {
+          assessment = await tx.assessment.update({ where: { id: assessment.id }, data: { status: 'scheduled', scheduledAt } })
+          if (!(await transitionEnrollment(tx, enrollment.id, 'assessment_paid', 'assessment_scheduled'))) {
+            throw new Error('STATE_CHANGED')
+          }
+          finalStatus = 'assessment_scheduled'
+        }
+      }
+      return { enrollment: { ...enrollment, status: finalStatus, applicationPaid: Boolean(feePaid) }, assessment, finalStatus }
+    })
 
     await logAdminAction({
       adminId: admin.id,
       action: 'enrollment.admin_create',
       entityType: 'enrollment',
       entityId: enrollment.id,
-      metadata: { courseId, feePaid: Boolean(feePaid), paymentMethod: feePaid ? paymentMethod : null, status: feePaid ? 'assessment_paid' : 'pending' },
+      metadata: {
+        courseId,
+        locationId,
+        offeringId: offering?.id ?? null,
+        feePaid: Boolean(feePaid),
+        paymentMethod: feePaid ? paymentMethod : null,
+        toStatus: feePaid ? 'assessment_paid' : 'pending',
+      },
     })
+    if (scheduledAt) {
+      await logAdminAction({
+        adminId: admin.id,
+        action: 'assessment.schedule',
+        entityType: 'enrollment',
+        entityId: enrollment.id,
+        metadata: { assessmentId: assessment.id, scheduledAt: scheduledAt.toISOString(), fromStatus: 'assessment_paid', toStatus: finalStatus },
+      })
+    }
 
-    return createResponse({ enrollment, message: 'Student registered' }, 201)
+    return createResponse({ enrollment, assessment, message: 'Student registered' }, 201)
   } catch (error: any) {
     console.error('Admin register student error:', error)
     return createErrorResponse('Failed to register student', 500)

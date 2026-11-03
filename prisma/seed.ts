@@ -218,6 +218,32 @@ async function main() {
 
   console.log('✅ Created sample course with instructor, curriculum, and FAQs')
 
+  // Sample offerings for local development ONLY (illustrative per-class rates, not business data).
+  // Production gets its offerings and rates from /admin (D11); the migration creates them inactive.
+  const sampleOfferings = [
+    { location: 'Lagos', mode: 'On-site', rates: { 45: 4000, 60: 5000 } },
+    { location: 'Lagos', mode: 'One-on-One', rates: { 45: 5500, 60: 7000 } },
+    { location: 'Online', mode: 'Online', rates: { 60: 4000 } },
+  ]
+  for (const o of sampleOfferings) {
+    const location = await prisma.location.findUnique({ where: { name: o.location } })
+    const deliveryMode = await prisma.deliveryMode.findUnique({ where: { name: o.mode } })
+    if (!location || !deliveryMode) continue
+    const offering = await prisma.courseOffering.upsert({
+      where: { courseId_locationId_deliveryModeId: { courseId: sampleCourse.id, locationId: location.id, deliveryModeId: deliveryMode.id } },
+      update: {},
+      create: { courseId: sampleCourse.id, locationId: location.id, deliveryModeId: deliveryMode.id, isActive: true },
+    })
+    for (const [mins, price] of Object.entries(o.rates)) {
+      await prisma.offeringRate.upsert({
+        where: { offeringId_durationMins: { offeringId: offering.id, durationMins: Number(mins) } },
+        update: {},
+        create: { offeringId: offering.id, durationMins: Number(mins), pricePerClass: price },
+      })
+    }
+  }
+  console.log('✅ Created sample offerings with rates')
+
   // Create system settings
   const systemSettings = [
     { key: 'platform_name', value: 'Banafix', type: 'text' },

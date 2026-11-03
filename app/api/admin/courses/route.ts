@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAuth } from '@/lib/middleware'
 import { createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
+import { offerableOfferingWhere } from '@/lib/offerings'
 import { getCourseExpirationCutoff, getCourseStatus } from '@/lib/course-utils'
 
 // GET /api/admin/courses - List all courses
@@ -54,6 +55,7 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
               curriculum: true,
               faqs: true,
               enrollments: true,
+              offerings: { where: offerableOfferingWhere() },
             },
           },
         },
@@ -136,11 +138,12 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         instrument,
         level,
         duration,
-        location,
+        // location / pricing / availableModes are deprecated: omitted values fall back to DB defaults
+        ...(location !== undefined ? { location } : {}),
         session,
         sessionStartDate: sessionStartDate ? new Date(sessionStartDate) : null,
-        availableModes: availableModes || [],
-        pricing: pricing || {},
+        ...(availableModes !== undefined ? { availableModes } : {}),
+        ...(pricing !== undefined ? { pricing } : {}),
         totalSeats: totalSeats || 20,
         seatsLeft: totalSeats || 20,
         unlimitedSeats: unlimitedSeats ?? false,

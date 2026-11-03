@@ -22,7 +22,8 @@ import {
   X,
   GraduationCap,
   Users,
-  Award
+  Award,
+  MapPin
 } from "lucide-react"
 
 interface AdminLayoutProps {
@@ -70,6 +71,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: GraduationCap,
       href: "/admin/enrollments",
       description: "Student enrollments & payments"
+    },
+    {
+      id: "locations",
+      label: "Locations",
+      icon: MapPin,
+      href: "/admin/locations",
+      description: "Locations & assessment fees"
     },
     {
       id: "parents",

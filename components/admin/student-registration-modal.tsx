@@ -17,13 +17,32 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserPlus } from "lucide-react"
+import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BANDS, TIME_BAND_LABELS } from "@/lib/assessment-vocab"
+import { formatNaira } from "@/lib/site"
 
 interface CourseLite {
   id: string
   title: string
-  location?: string
-  availableModes: string[]
+  instrument?: string
+  level?: string
 }
+
+interface LocationLite {
+  id: string
+  name: string
+  kind: string
+  assessmentFee: number
+  isActive: boolean
+}
+
+interface OfferingLite {
+  id: string
+  isActive: boolean
+  location: { id: string; name: string }
+  deliveryMode: { name: string }
+}
+
+const NO_OFFERING = "none"
 
 interface StudentRegistrationModalProps {
   isOpen: boolean
@@ -42,8 +61,13 @@ const EMPTY = {
   guardianEmail: "",
   address: "",
   landmark: "",
+  locationId: "",
   courseId: "",
-  selectedMode: "",
+  offeringId: "",
+  arrangement: "CENTRE",
+  preferredDate: "",
+  preferredTimeBand: "",
+  scheduleAssessmentAt: "",
   priorLevel: "",
   schedulePreference: "",
   musicExperience: "",
@@ -64,6 +88,8 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const [consentToEmails, setConsentToEmails] = useState(false)
   const [courses, setCourses] = useState<CourseLite[]>([])
+  const [locations, setLocations] = useState<LocationLite[]>([])
+  const [offerings, setOfferings] = useState<OfferingLite[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
@@ -76,21 +102,45 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     setPaymentMethod("cash")
     setConsentToEmails(false)
     setError("")
-    fetch(`/api/admin/courses`, { headers: { Authorization: `Bearer ${token()}` } })
+    setOfferings([])
+    const headers = { Authorization: `Bearer ${token()}` }
+    fetch(`/api/admin/locations`, { headers })
       .then((r) => r.json())
-      .then((d) => setCourses(d.courses ?? d.data ?? []))
+      .then((d) => setLocations((d.locations ?? []).filter((l: LocationLite) => l.isActive)))
+      .catch(() => {})
+    // Published + active courses only; the picker does not require an offering at the location.
+    fetch(`/api/admin/courses?limit=200`, { headers })
+      .then((r) => r.json())
+      .then((d) =>
+        setCourses((d.courses ?? d.data ?? []).filter((c: CourseLite & { isActive?: boolean; isPublished?: boolean }) => c.isActive !== false && c.isPublished !== false)),
+      )
       .catch(() => {})
   }, [isOpen])
 
-  const selectedCourse = courses.find((c) => c.id === form.courseId)
+  // Offerings of the chosen course (filtered to the chosen location below).
+  useEffect(() => {
+    setOfferings([])
+    if (!isOpen || !form.courseId) return
+    let cancelled = false
+    fetch(`/api/admin/courses/${form.courseId}/offerings`, { headers: { Authorization: `Bearer ${token()}` } })
+      .then((r) => (r.ok ? r.json() : { offerings: [] }))
+      .then((d) => !cancelled && setOfferings(d.offerings ?? []))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, form.courseId])
+
+  const selectedLocation = locations.find((l) => l.id === form.locationId)
+  const locationOfferings = offerings.filter((o) => o.location.id === form.locationId)
   const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }))
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.courseId || !form.selectedMode) {
-      setError("First name, last name, email, course and delivery mode are required")
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.locationId || !form.courseId) {
+      setError("First name, last name, email, location and course are required")
       return
     }
     setSaving(true)
@@ -98,7 +148,16 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
       const res = await fetch("/api/admin/enrollments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ ...form, feePaid, paymentMethod, consentToEmails }),
+        body: JSON.stringify({
+          ...form,
+          offeringId: form.offeringId || undefined,
+          preferredDate: form.preferredDate || undefined,
+          preferredTimeBand: form.preferredTimeBand || undefined,
+          scheduleAssessmentAt: feePaid && form.scheduleAssessmentAt ? new Date(form.scheduleAssessmentAt).toISOString() : undefined,
+          feePaid,
+          paymentMethod,
+          consentToEmails,
+        }),
       })
       const d = await res.json()
       if (res.ok) {
@@ -123,7 +182,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
             Register Student (walk-in)
           </DialogTitle>
           <DialogDescription>
-            Create a student and enrollment directly. Mark the application fee paid if it was collected in cash.
+            Register a student for an assessment. Mark the assessment fee paid if it was collected in cash.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,31 +218,52 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
             </div>
           </section>
 
-          {/* Course */}
+          {/* Location, course, format */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">Course</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground">Location and course</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label>Course *</Label>
-                <Select value={form.courseId} onValueChange={(v) => setForm((p) => ({ ...p, courseId: v, selectedMode: "" }))}>
-                  <SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger>
+                <Label>Location *</Label>
+                <Select value={form.locationId} onValueChange={(v) => setForm((p) => ({ ...p, locationId: v, offeringId: "" }))}>
+                  <SelectTrigger><SelectValue placeholder="Select a location" /></SelectTrigger>
                   <SelectContent>
-                    {courses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.title}{c.location ? ` — ${c.location}` : ""}</SelectItem>
+                    {locations.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>{l.name} ({l.kind === "ONLINE" ? "Online" : "Physical"})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Delivery mode *</Label>
-                <Select value={form.selectedMode} onValueChange={(v) => setForm((p) => ({ ...p, selectedMode: v }))} disabled={!selectedCourse}>
-                  <SelectTrigger><SelectValue placeholder={selectedCourse ? "Select a mode" : "Pick a course first"} /></SelectTrigger>
+                <Label>Course *</Label>
+                <Select value={form.courseId} onValueChange={(v) => setForm((p) => ({ ...p, courseId: v, offeringId: "" }))}>
+                  <SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger>
                   <SelectContent>
-                    {(selectedCourse?.availableModes ?? []).map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    {courses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Format (optional)</Label>
+                <Select
+                  value={form.offeringId || NO_OFFERING}
+                  onValueChange={(v) => setForm((p) => ({ ...p, offeringId: v === NO_OFFERING ? "" : v }))}
+                  disabled={!form.courseId || !form.locationId}
+                >
+                  <SelectTrigger><SelectValue placeholder={form.courseId && form.locationId ? "Decide at assessment" : "Pick a location and course first"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_OFFERING}>Decide at assessment</SelectItem>
+                    {locationOfferings.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.deliveryMode.name}{o.isActive ? "" : " (inactive)"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.courseId && form.locationId && locationOfferings.length === 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This course has no offering at {selectedLocation?.name ?? "this location"} yet. You can still register the student; the format and rate are agreed after the assessment.
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Prior level</Label>
@@ -201,12 +281,46 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
             <div><Label htmlFor="specialRequests">Special requests</Label><Textarea id="specialRequests" rows={2} value={form.specialRequests} onChange={set("specialRequests")} /></div>
           </section>
 
+          {/* Assessment */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground">Assessment</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <Label>Arrangement</Label>
+                <Select value={form.arrangement} onValueChange={(v) => setForm((p) => ({ ...p, arrangement: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ARRANGEMENTS.map((a) => <SelectItem key={a} value={a}>{ARRANGEMENT_LABELS[a]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label htmlFor="preferredDate">Preferred date</Label><Input id="preferredDate" type="date" value={form.preferredDate} onChange={set("preferredDate")} /></div>
+              <div>
+                <Label>Preferred time</Label>
+                <Select value={form.preferredTimeBand || "any"} onValueChange={(v) => setForm((p) => ({ ...p, preferredTimeBand: v === "any" ? "" : v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">No preference</SelectItem>
+                    {TIME_BANDS.map((b) => <SelectItem key={b} value={b}>{TIME_BAND_LABELS[b]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {form.arrangement === "HOME" && (
+              <p className="text-xs text-muted-foreground">The address and landmark above are used for the home visit.</p>
+            )}
+          </section>
+
           {/* Payment */}
           <section className="space-y-3 rounded-lg border p-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm font-semibold">Application fee paid (cash)</Label>
-                <p className="text-xs text-muted-foreground">On — record a cash payment and enroll now. Off — leave pending; can be marked paid later.</p>
+                <Label className="text-sm font-semibold">
+                  Assessment fee paid{selectedLocation ? ` (${formatNaira(selectedLocation.assessmentFee)})` : ""}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  On: record the payment and move to Assessment paid. Off: leave pending; mark it paid later. The fee is set per location and is non-refundable.
+                </p>
               </div>
               <Switch checked={feePaid} onCheckedChange={setFeePaid} />
             </div>
@@ -221,6 +335,12 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
                     <SelectItem value="pos">POS / Card</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {feePaid && (
+              <div className="max-w-xs">
+                <Label htmlFor="scheduleAssessmentAt">Schedule assessment now (optional)</Label>
+                <Input id="scheduleAssessmentAt" type="datetime-local" value={form.scheduleAssessmentAt} onChange={set("scheduleAssessmentAt")} />
               </div>
             )}
             <div className="flex items-center gap-2">

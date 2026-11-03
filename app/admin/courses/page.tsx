@@ -46,6 +46,7 @@ interface Course {
     curriculum: number
     faqs: number
     enrollments: number
+    offerings: number // offerable: active, active location, at least one rate
   }
   createdAt: string
   updatedAt: string
@@ -405,6 +406,7 @@ export default function CoursesPage() {
                     <TableRow>
                       <TableHead>Course</TableHead>
                       <TableHead>Instructor</TableHead>
+                      <TableHead>Offerings</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Enrollment</TableHead>
                       <TableHead>Revenue</TableHead>
@@ -434,6 +436,17 @@ export default function CoursesPage() {
                               {course.instructor?.name || "No instructor assigned"}
                             </p>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {course._count.offerings > 0 ? (
+                            <Badge variant="outline">
+                              {course._count.offerings} active offering{course._count.offerings === 1 ? "" : "s"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-orange-600 border-orange-600">
+                              No active offerings
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
