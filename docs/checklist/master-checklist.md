@@ -3,14 +3,15 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-03):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email delivery pending a real `RESEND_API_KEY`) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 2+3, 4 and 5 built, Stream 7 built (PR #13 open, unmerged)**, others planned
+**Snapshot (2026-11-04):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email key set 2026-11-04, real send test pending) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 1, 2+3, 4, 5, 7 and 8 built and MERGED to `banafix` 2026-11-04 (PRs #10-#15); Stream 6 (registration + parents) and Stream 0 ops items remain**
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
 
 ### Stream 0 — Unblock operations (config, not code)
-- [ ] Real `RESEND_API_KEY` + verify `banafix.com` sender domain (blocks every email)
-- [ ] `CRON_SECRET` in Vercel; direct DB URL + prod snapshot, then deploy pending migrations
+- [x] Real `RESEND_API_KEY` set on the server (2026-11-04); `banafix.com` domain verified, `CRON_SECRET` and `FEEDBACK_EMAIL` set (Adebayo). A real send test is still outstanding
+- [x] Prod backup taken, failed `20261103190000_per_class_tuition` record marked rolled back by Adebayo (2026-11-03, deploys unblocked); all migrations now applied to production
+- [ ] Separate **Preview database** (Vercel Preview currently migrates the one production DB on every PR push)
 - [ ] John's Paystack account + keys → one real test-mode charge to close the live-webhook gap
 - [ ] Official contact + feedback email addresses and forwarding (`FEEDBACK_EMAIL` env is consumed by Stream 7)
 
@@ -20,7 +21,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] Add Vitest for pure logic (no test runner exists today)
 - [x] ~~Testimonials / trusted-by / events data-ready~~ → moved into Stream 8 (admin-managed content, D11)
 
-### Stream 2 — Location + offering model  *(foundation for 3–5)*  ✅ built 2026-11-03, branch `feature/assessment-first-admission` (PR open, not merged)
+### Stream 2 — Location + offering model  *(foundation for 3–5)*  ✅ built 2026-11-03, branch `feature/assessment-first-admission` (PR #12 merged 2026-11-04, `cec794d`; live on production)
 - [x] `Location` entity (physical/online, assessment fee, active) + admin CRUD (`/admin/locations`); seeded from the old `lib/locations.ts` + `lib/application-fee.ts` tiers by the migration and `prisma/seed.ts`
 - [x] `CourseOffering` (course × location × format) + `OfferingRate` (per-class price per duration) + classes-per-week options; admin Offerings matrix with bulk "set rate"
 - [x] `Material` (course-level books/materials: name, price, required) + admin Materials tab
@@ -42,7 +43,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [x] Admin pipeline view (stage filters, schedule + result + plan forms, confirm/cancel); walk-in per spec
 - SOP: [`docs/sop/assessment-first-admission.md`](../sop/assessment-first-admission.md) · Plan/ledger: `docs/superpowers/plans/2026-11-03-streams-2-3-assessment-first.md`
 
-### Stream 4 — Scheduling  ✅ built 2026-11-03, branch `feature/scheduling-availability` (PR #15 open against `banafix`, unmerged; migration not yet applied to production)
+### Stream 4 — Scheduling  ✅ built 2026-11-03, branch `feature/scheduling-availability` (PR #15 merged 2026-11-04, `553c8b7`; migration applied to production)
 - [x] Structured instructor availability (weekly windows per weekday × location × mode CENTRE/HOME/ONLINE) + `InstructorCourse` many-to-many (backfilled; `Course.instructorId` kept for `/tutors`); availability editor on the instructor page
 - [x] `ClassSession` (enrollment, instructor, start/end, 45|60, status, `sequence`, no money columns, D12) with **database-enforced** conflict prevention: `btree_gist` exclusion constraints per instructor and per student over scheduled/held; friendly 409; real-DB concurrency tests (10-way races) pass
 - [x] Student preferences: days, morning/afternoon/evening, optional from/to, 1 or 2 classes a week (wizard + walk-in); recurring-session generator honouring preferences, availability and busy time; unplaced classes reported
@@ -53,7 +54,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] Follow-ups: S7 notification hooks (`TODO(S7)` in `lib/scheduling/hooks.ts`); `/tutors` should read the many-to-many list; cancelled enrollments should cancel their classes
 - SOP: [`docs/sop/scheduling.md`](../sop/scheduling.md) · FE guide: [`docs/fe-integration-guide-scheduling.md`](../fe-integration-guide-scheduling.md) · Spec/plan: `docs/superpowers/specs/2026-11-03-scheduling-design.md`, `docs/superpowers/plans/2026-11-03-stream4-scheduling.md`
 
-### Stream 5 — Per-class tuition  ✅ built 2026-11-03, branch `feature/per-class-tuition` (PR open against `feature/assessment-first-admission`, unmerged)
+### Stream 5 — Per-class tuition  ✅ built 2026-11-03, branch `feature/per-class-tuition` (PR #14 merged 2026-11-04, `8ffdda7`)
 - [x] Charge ledger `TuitionCharge` (CLASSES + MATERIAL, price snapshot, voided never deleted); created with the plan; top-ups at today's rate; derived balance + `classesCovered` (pure, unit-tested; S4 can reuse)
 - [x] Partial payments (balance = charges − counted payments; credit on overpayment; overpayment needs confirmation); legacy enrollments keep the old `Course.pricing` balance, isolated and tested
 - [x] Manual recording kept (cash / bank transfer / POS / card / cheque / mobile money / other)
@@ -71,7 +72,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 ### Stream 6 — Registration + parents
 - [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
 
-### Stream 7 — Communications  ✅ built 2026-11-03, branch `feature/communications-outbox` (PR #13, merged-up with banafix 2026-11-04, unmerged)
+### Stream 7 — Communications  ✅ built 2026-11-03, branch `feature/communications-outbox` (PR #13 merged 2026-11-04, `ebf9659`)
 - [x] Channel-agnostic outbox (`OutboundMessage`, unique idempotency key) + admin-editable `MessageTemplate` (defaults in code) + `ChannelProvider` interface; Resend email adapter; **SMS/WhatsApp stubs record `skipped`**
 - [x] Triggers from one place: `transitionEnrollment` (assessment scheduled/paid slot, assessed, plan agreed, enrolled) + application received + reschedule; cron birthdays (student + parent), new-month, outbox drain; delayed feedback request (+30 days)
 - [x] Consent respected for marketing-type messages (birthday, new-month, announcement, feedback request); transactional always sends; operational-notice override
