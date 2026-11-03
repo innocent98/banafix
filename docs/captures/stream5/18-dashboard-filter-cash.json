@@ -1,66 +1,66 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/payments?locationId=t5_loc_1793722161679&method=cash",
+    "path": "/api/admin/payments?locationId=t5_loc_1793722763498&method=cash",
     "body": null
   },
   "status": 200,
   "response": {
     "payments": [
       {
-        "id": "cmw0vv4nk001p07knq3fnx5xl",
-        "enrollmentId": "t5_e4_1793722161679",
+        "id": "cmw0w84qt001t0767cp3kawrp",
+        "enrollmentId": "t5_e4_1793722763498",
         "amount": 90000,
         "status": "completed",
         "method": "cash",
         "channel": null,
         "reference": null,
-        "receiptNumber": "TUI-1793722165323-ZLFD",
+        "receiptNumber": "TUI-1793722771958-WWRE",
         "description": null,
-        "paidAt": "2026-11-03T16:09:25.328Z",
-        "createdAt": "2026-11-03T16:09:25.329Z",
+        "paidAt": "2026-11-03T16:19:31.972Z",
+        "createdAt": "2026-11-03T16:19:31.973Z",
         "paymentUrl": null,
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722161679@example.com",
+        "email": "t5stu1793722763498@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722161679"
+        "location": "T5 Loc 1793722763498"
       },
       {
-        "id": "cmw0vv27t000n07knpoucgumf",
-        "enrollmentId": "t5_e1_1793722161679",
+        "id": "cmw0w7yln000r07678bcgvajj",
+        "enrollmentId": "t5_e1_1793722763498",
         "amount": 20000,
         "status": "completed",
         "method": "cash",
         "channel": null,
         "reference": null,
-        "receiptNumber": "TUI-1793722162166-35EH",
+        "receiptNumber": "TUI-1793722764008-Z0D9",
         "description": "First part",
-        "paidAt": "2026-11-03T16:09:22.169Z",
-        "createdAt": "2026-11-03T16:09:22.170Z",
+        "paidAt": "2026-11-03T16:19:24.010Z",
+        "createdAt": "2026-11-03T16:19:24.011Z",
         "paymentUrl": null,
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722161679@example.com",
+        "email": "t5stu1793722763498@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722161679"
+        "location": "T5 Loc 1793722763498"
       }
     ],
     "outstanding": [
       {
-        "enrollmentId": "t5_e6_1793722161679",
+        "enrollmentId": "t5_e6_1793722763498",
         "enrollmentStatus": "enrolled",
         "student": "Ada Placeholder",
-        "email": "t5stu1793722161679@example.com",
+        "email": "t5stu1793722763498@example.com",
         "course": "T5 Guitar",
-        "location": "T5 Loc 1793722161679",
+        "location": "T5 Loc 1793722763498",
         "mode": "ledger",
         "charged": 10000,
         "paid": 7000,
         "outstanding": 3000,
         "classesCovered": 1,
         "classesPurchased": 2,
-        "lastPaymentAt": "2026-11-03T16:09:25.602Z"
+        "lastPaymentAt": "2026-11-03T16:19:32.212Z"
       }
     ],
     "totals": {

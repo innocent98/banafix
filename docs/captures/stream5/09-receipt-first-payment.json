@@ -1,18 +1,18 @@
 {
   "request": {
     "method": "GET",
-    "path": "/api/admin/tuition-payments/cmw0vv27t000n07knpoucgumf/receipt",
+    "path": "/api/admin/tuition-payments/cmw0w7yln000r07678bcgvajj/receipt",
     "body": null
   },
   "status": 200,
   "response": {
     "receiptData": {
-      "receiptNumber": "TUI-1793722162166-35EH",
+      "receiptNumber": "TUI-1793722764008-Z0D9",
       "enrollment": {
-        "id": "t5_e1_1793722161679",
+        "id": "t5_e1_1793722763498",
         "firstName": "Ada",
         "lastName": "Placeholder",
-        "email": "t5stu1793722161679@example.com"
+        "email": "t5stu1793722763498@example.com"
       },
       "course": {
         "title": "T5 Guitar",
@@ -21,7 +21,7 @@
       },
       "payment": {
         "amount": 20000,
-        "paidAt": "2026-11-03T16:09:22.169Z",
+        "paidAt": "2026-11-03T16:19:24.010Z",
         "description": "First part",
         "paymentMethod": "cash"
       },
