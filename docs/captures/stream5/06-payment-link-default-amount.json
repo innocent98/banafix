@@ -1,16 +1,16 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/t5_e1_1793721017135/tuition/payment-link",
+    "path": "/api/admin/enrollments/t5_e1_1793722059350/tuition/payment-link",
     "body": {}
   },
   "status": 201,
   "response": {
     "payment": {
-      "id": "cmw0v6l8t0021076wcncv1op6",
+      "id": "cmw0vsw79002z07rgm6tvb3uf",
       "amount": 24500,
-      "paymentUrl": "http://127.0.0.1:4010/pay/tuition_1793721020428_1tdbxv",
-      "reference": "tuition_1793721020428_1tdbxv"
+      "paymentUrl": "http://127.0.0.1:4010/pay/tuition_1793722061054_3ccc93",
+      "reference": "tuition_1793722061054_3ccc93"
     },
     "reused": false
   }

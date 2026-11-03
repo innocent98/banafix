@@ -3,7 +3,7 @@ import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
 import { transitionEnrollment } from '@/lib/enrollment-transition'
-import { buildPlanSnapshot } from '@/lib/offering-rates'
+import { buildPlanSnapshot, toWholeNumber } from '@/lib/offering-rates'
 import { buildPlanCharges } from '@/lib/tuition-plan-charges'
 
 // POST /api/admin/enrollments/[id]/plan - agree the plan after assessment.
@@ -40,9 +40,9 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     const snapshot = buildPlanSnapshot({
       rates: offering.rates,
       classesPerWeekOptions: offering.classesPerWeekOptions,
-      durationMins: Number(durationMins),
-      classesPerWeek: Number(classesPerWeek),
-      plannedClasses: Number(plannedClasses),
+      durationMins: toWholeNumber(durationMins),
+      classesPerWeek: toWholeNumber(classesPerWeek),
+      plannedClasses: toWholeNumber(plannedClasses),
     })
     if (!snapshot.ok) return createErrorResponse(snapshot.error, 400)
 
@@ -82,8 +82,17 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
         where: { enrollmentId: id, origin: 'PLAN', voidedAt: null },
         data: { voidedAt: new Date(), voidedBy: admin.id, voidReason: 'Plan edited' },
       })
+      // A material already charged as an ADJUSTMENT (added after an earlier plan) must not be charged twice.
+      const adjusted = new Set(
+        (
+          await tx.tuitionCharge.findMany({
+            where: { enrollmentId: id, origin: 'ADJUSTMENT', voidedAt: null, materialId: { not: null } },
+            select: { materialId: true },
+          })
+        ).map((c) => c.materialId),
+      )
       await tx.tuitionCharge.createMany({
-        data: charges.lines.map((l) => ({
+        data: charges.lines.filter((l) => !l.materialId || !adjusted.has(l.materialId)).map((l) => ({
           enrollmentId: id,
           kind: l.kind,
           origin: 'PLAN',

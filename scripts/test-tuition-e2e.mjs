@@ -259,6 +259,50 @@ check('dashboard: payment on the cancelled enrollment is visible with its status
 r = await api('GET', `/api/admin/payments?locationId=${ids.loc}&q=nobody-matches-this-zzz`)
 check('dashboard: search with no match is empty, not an error', r.status === 200 && r.json.payments.length === 0)
 
+// ───────────── 9. review fixes (Opus pass) ─────────────
+// 9a. double submit: two concurrent full-balance payments, no overpayment confirmation -> exactly one wins
+const E7 = enrollment({ status: 'plan_agreed' })
+psql(`insert into tuition_charges (id,"enrollmentId",kind,origin,quantity,"unitPrice",description) values ('t5_c7_${t}','${E7}','CLASSES','PLAN',2,5000,'2 classes')`)
+const race = await Promise.all([1, 2].map(() => api('POST', `/api/admin/enrollments/${E7}/tuition`, { amount: 10000, paymentMethod: 'cash', sendReceipt: false })))
+check('double submit: exactly one of two concurrent full payments is recorded, the other refused (400)', race.filter((x) => x.status === 201).length === 1 && race.filter((x) => x.status === 400).length === 1, race.map((x) => x.status))
+check('double submit: one payment row, no phantom credit', num(`select count(*) from tuition_payments where "enrollmentId"='${E7}'`) === 1 && audits(E7, 'tuition.overpayment') === 0)
+// 9b. concurrent link creation for the same amount -> one link
+const E8 = enrollment({ status: 'plan_agreed' })
+psql(`insert into tuition_charges (id,"enrollmentId",kind,origin,quantity,"unitPrice",description) values ('t5_c8_${t}','${E8}','CLASSES','PLAN',2,5000,'2 classes')`)
+const links = await Promise.all([1, 2, 3].map(() => api('POST', `/api/admin/enrollments/${E8}/tuition/payment-link`, { amount: 4000 })))
+check('3 concurrent link clicks create ONE pending link (the others reuse it or are told it is in flight)', num(`select count(*) from tuition_payments where "enrollmentId"='${E8}' and status='pending'`) === 1 && links.filter((l) => l.status === 201).length === 1 && links.every((l) => [200, 201, 409].includes(l.status)), links.map((l) => l.status))
+// 9c. cancelled link does not expose its URL
+r = await api('GET', `/api/admin/enrollments/${E6}/tuition`)
+check('GET tuition: a cancelled/completed link exposes no paymentUrl', r.json.payments.every((p) => p.status === 'pending' || p.paymentUrl === null))
+r = await api('GET', `/api/admin/enrollments/${E8}/tuition`)
+check('GET tuition: a pending link still exposes its paymentUrl', r.json.payments.some((p) => p.status === 'pending' && String(p.paymentUrl).startsWith(mock)))
+// 9d. plan edit never double-charges a material already added as an adjustment
+const E9 = enrollment({ status: 'assessed', plan: false })
+await api('POST', `/api/admin/enrollments/${E9}/plan`, { offeringId: ids.offering, durationMins: 60, classesPerWeek: 1, plannedClasses: 4 })
+r = await api('POST', `/api/admin/enrollments/${E9}/tuition/charges`, { kind: 'MATERIAL', materialId: ids.matOpt })
+check('optional material added later as an adjustment (201)', r.status === 201, r)
+await api('POST', `/api/admin/enrollments/${E9}/plan`, { offeringId: ids.offering, durationMins: 60, classesPerWeek: 1, plannedClasses: 4, materialIds: [ids.matOpt] })
+check('plan edit with that material does not charge it twice', num(`select count(*) from tuition_charges where "enrollmentId"='${E9}' and "materialId"='${ids.matOpt}' and "voidedAt" is null`) === 1)
+// 9e. input bounds: 400, never a 500
+for (const [label, v] of [['3e9 classes', 3000000000], ['boolean', true], ['1001 classes', 1001], ['string 1e3', '1e3']]) {
+  const E = enrollment({ status: 'assessed', plan: false })
+  r = await api('POST', `/api/admin/enrollments/${E}/plan`, { offeringId: ids.offering, durationMins: 60, classesPerWeek: 1, plannedClasses: v })
+  check(`plannedClasses ${label} -> 400 (not 500)`, r.status === 400, r)
+}
+// 9f. a charge cannot be added to a cancelled enrollment, and a payment cannot be recorded on one
+r = await api('POST', `/api/admin/enrollments/${E3}/tuition/charges`, { kind: 'CLASSES', quantity: 1 })
+check('charge on a cancelled enrollment refused (400)', r.status === 400, r)
+r = await api('POST', `/api/admin/enrollments/${E3}/tuition`, { amount: 100, paymentMethod: 'cash', sendReceipt: false })
+check('manual payment on a cancelled enrollment refused (400)', r.status === 400, r)
+// 9g. overpayment by link settling after cash was recorded in the meantime is still flagged (current ledger)
+const E10 = enrollment({ status: 'plan_agreed' })
+psql(`insert into tuition_charges (id,"enrollmentId",kind,origin,quantity,"unitPrice",description) values ('t5_c10_${t}','${E10}','CLASSES','PLAN',2,5000,'2 classes')`)
+r = await api('POST', `/api/admin/enrollments/${E10}/tuition/payment-link`, {})
+const l10 = r.json.payment
+await api('POST', `/api/admin/enrollments/${E10}/tuition`, { amount: 10000, paymentMethod: 'cash', sendReceipt: false })
+await webhook('charge.success', { reference: l10.reference })
+check('link paid after cash filled the balance: credit audited from the CURRENT ledger', audits(E10, 'tuition.overpayment') === 1)
+
 for (const [name, c] of Object.entries(captures)) writeFileSync(`${captureDir}/${name}.json`, JSON.stringify(c, null, 2) + '\n')
 const failed = results.filter((x) => !x).length
 console.log(`\n${results.length - failed}/${results.length} checks passed; captures in ${captureDir}`)

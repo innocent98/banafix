@@ -19,6 +19,16 @@ export function planTotal(ratePerClass: number, plannedClasses: number): number 
   return ratePerClass * plannedClasses
 }
 
+/** Largest class count one plan may hold (a typo guard; also keeps quantity x rate inside an int column). */
+export const MAX_PLANNED_CLASSES = 1000
+
+/** A whole number from a JSON number or a digit string; NaN for anything else (booleans, null, '1e3', ...). */
+export function toWholeNumber(v: unknown): number {
+  if (typeof v === 'number') return Number.isInteger(v) ? v : NaN
+  if (typeof v === 'string' && /^\d+$/.test(v.trim())) return Number(v.trim())
+  return NaN
+}
+
 export type PlanSnapshot =
   | {
       ok: true
@@ -51,8 +61,8 @@ export function buildPlanSnapshot(input: {
       error: `Classes per week must be one of: ${classesPerWeekOptions.join(', ')}`,
     }
   }
-  if (!Number.isInteger(plannedClasses) || plannedClasses <= 0) {
-    return { ok: false, error: 'Planned classes must be a whole number greater than 0' }
+  if (!Number.isInteger(plannedClasses) || plannedClasses <= 0 || plannedClasses > MAX_PLANNED_CLASSES) {
+    return { ok: false, error: `Planned classes must be a whole number from 1 to ${MAX_PLANNED_CLASSES}` }
   }
   return { ok: true, ratePerClass: rate, durationMins, classesPerWeek, plannedClasses }
 }

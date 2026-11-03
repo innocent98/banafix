@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/t5_e1_1793721017135/tuition",
+    "path": "/api/admin/enrollments/t5_e1_1793722059350/tuition",
     "body": {
       "amount": 20000,
       "paymentMethod": "cash",
@@ -12,29 +12,29 @@
   "status": 201,
   "response": {
     "payment": {
-      "id": "cmw0v6k6b001x076w3cvi8vec",
-      "enrollmentId": "t5_e1_1793721017135",
+      "id": "cmw0vsvmn002v07rgt3ds06v6",
+      "enrollmentId": "t5_e1_1793722059350",
       "amount": 20000,
       "currency": "NGN",
       "paymentMethod": "cash",
       "description": "First part",
       "status": "completed",
-      "paidAt": "2026-11-03T15:50:19.042Z",
-      "receiptNumber": "TUI-1793721019037-0WA1",
+      "paidAt": "2026-11-03T16:07:40.319Z",
+      "receiptNumber": "TUI-1793722060313-82XB",
       "receiptGenerated": false,
       "receiptSent": false,
       "paystackReference": null,
       "paystackChannel": null,
       "paymentUrl": null,
-      "recordedBy": "t5_admin_1793721017135",
+      "recordedBy": "t5_admin_1793722059350",
       "adminNotes": null,
-      "createdAt": "2026-11-03T15:50:19.043Z",
-      "updatedAt": "2026-11-03T15:50:19.043Z",
+      "createdAt": "2026-11-03T16:07:40.319Z",
+      "updatedAt": "2026-11-03T16:07:40.319Z",
       "enrollment": {
         "student": {
           "firstName": "Ada",
           "lastName": "Placeholder",
-          "email": "t5stu1793721017135@example.com"
+          "email": "t5stu1793722059350@example.com"
         }
       }
     },

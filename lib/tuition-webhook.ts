@@ -4,6 +4,8 @@ import { logAdminAction } from './audit'
 import { chargeMatches } from './assessment-payment'
 import { settleTuitionPayment, tuitionMetadataMatches } from './tuition-payment'
 import { loadTuitionReceiptData } from './tuition-receipt-data'
+import { computeTuitionBalance } from './tuition-balance'
+import { COUNTED_STATUSES, toLedgerCharges } from './tuition-ledger'
 import { generateTuitionReceiptPDF } from './receipt'
 import { sendTuitionReceipt } from './email'
 import type { PaystackVerifyResponse } from './paystack'
@@ -98,21 +100,41 @@ export async function handleTuitionChargeSuccess(
     })
   }
 
+  // Overpayment is judged on the CURRENT ledger (all active charges, all counted payments), not on the
+  // point-in-time receipt: a cash payment recorded while the link was open must still be flagged.
+  try {
+    const current = await prisma.enrollment.findUnique({
+      where: { id: payment.enrollmentId },
+      select: {
+        ratePerClass: true,
+        plannedClasses: true,
+        selectedMode: true,
+        tuitionCharges: true,
+        tuitionPayments: { where: { status: { in: [...COUNTED_STATUSES] } }, select: { amount: true, status: true } },
+      },
+    })
+    if (current) {
+      const balance = computeTuitionBalance(current, toLedgerCharges(current.tuitionCharges), current.tuitionPayments, null)
+      if (balance.mode === 'ledger' && balance.credit > 0) {
+        await logAdminAction({
+          adminId: null,
+          action: 'tuition.overpayment',
+          entityType: 'enrollment',
+          entityId: payment.enrollmentId,
+          metadata: { tuitionPaymentId: payment.id, credit: balance.credit, charged: balance.charged, paid: balance.paid, via: 'paystack' },
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Failed to evaluate overpayment for payment:', payment.id, error)
+  }
+
   // Receipt (student copy + admin copy inside sendTuitionReceipt). Best-effort: an email failure must
   // never bubble up, or Paystack would retry an already-processed event.
   // TODO(S7): route this send through the communications outbox instead of calling lib/email.ts directly.
   try {
     const receiptData = await loadTuitionReceiptData(prisma, payment.id)
     if (!receiptData) return
-    if (receiptData.ledger && receiptData.ledger.credit > 0) {
-      await logAdminAction({
-        adminId: null,
-        action: 'tuition.overpayment',
-        entityType: 'enrollment',
-        entityId: payment.enrollmentId,
-        metadata: { tuitionPaymentId: payment.id, credit: receiptData.ledger.credit, via: 'paystack' },
-      })
-    }
     const pdf = generateTuitionReceiptPDF(receiptData)
     const sent = await sendTuitionReceipt(receiptData, pdf)
     await prisma.tuitionPayment.update({ where: { id: payment.id }, data: { receiptGenerated: true, receiptSent: sent } })

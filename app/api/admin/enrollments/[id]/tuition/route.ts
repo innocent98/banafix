@@ -69,30 +69,38 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     }
 
     const pricing = (enrollment.course.pricing ?? null) as Record<string, number> | null
-    const before = computeTuitionBalance(enrollment, toLedgerCharges(enrollment.tuitionCharges), enrollment.tuitionPayments, pricing)
-
-    // Ledger rows: amount must be whole naira, not above what is owed unless the admin confirmed (T8).
-    // Legacy rows keep their old behaviour (any positive amount) but still must be whole naira (an Int column).
-    const check = checkPaymentAmount(
-      before.mode === 'ledger' ? before.outstanding : MAX_PAYMENT_NAIRA,
-      amount,
-      before.mode === 'ledger' ? allowOverpayment === true : true,
-    )
-    if (!check.ok) return createErrorResponse(check.error, 400)
-    const paid = check.amount
-
     const receiptNumber = generateReceiptNumber('TUI')
-    // Ledger: a recorded payment is `completed`; wording on the receipt follows the balance (T7).
-    // Legacy: the admin's Full/Part marker.
-    const status = before.mode === 'ledger' ? 'completed' : paymentType === 'partial' ? 'partial' : 'completed'
+    const allow = allowOverpayment === true
 
-    // The payment and the plan_agreed -> enrolled move are ONE transaction (compare-and-set), so a
-    // failed move cannot leave a recorded payment behind for an admin retry to duplicate.
-    const { tuitionPayment, admitted } = await prisma.$transaction(async (tx) => {
+    // ONE transaction. Its FIRST statement row-locks the enrollment (and re-checks the status, so a
+    // cancellation that landed after our read is refused); the balance is then RE-READ under the lock and
+    // the amount re-checked, so a double submit or two admins cannot both pass the overpayment guard (T8).
+    // The payment and the plan_agreed -> enrolled move (compare-and-set) share the transaction.
+    const outcome = await prisma.$transaction(async (tx) => {
+      const locked = await tx.enrollment.updateMany({
+        where: { id: enrollmentId, status: { in: ['plan_agreed', 'enrolled'] } },
+        data: { updatedAt: new Date() },
+      })
+      if (locked.count === 0) return { error: 'status' as const }
+      const current = await tx.enrollment.findUnique({ where: { id: enrollmentId }, include: enrollmentForBalance })
+      if (!current) return { error: 'status' as const }
+
+      const before = computeTuitionBalance(current, toLedgerCharges(current.tuitionCharges), current.tuitionPayments, pricing)
+      // Ledger rows: whole naira, not above what is owed unless confirmed. Legacy rows keep the old
+      // behaviour (any positive amount) but still must be whole naira (an Int column).
+      const check = checkPaymentAmount(
+        before.mode === 'ledger' ? before.outstanding : MAX_PAYMENT_NAIRA,
+        amount,
+        before.mode === 'ledger' ? allow : true,
+      )
+      if (!check.ok) return { error: 'amount' as const, message: check.error }
+
+      // Ledger: a recorded payment is `completed`; wording follows the balance (T7). Legacy: the admin's marker.
+      const status = before.mode === 'ledger' ? 'completed' : paymentType === 'partial' ? 'partial' : 'completed'
       const tuitionPayment = await tx.tuitionPayment.create({
         data: {
           enrollmentId,
-          amount: paid,
+          amount: check.amount,
           paymentMethod,
           description,
           status,
@@ -104,17 +112,21 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
         },
       })
       const admitted =
-        enrollment.status === 'plan_agreed' &&
-        (await transitionEnrollment(tx, enrollmentId, 'plan_agreed', 'enrolled'))
-      return { tuitionPayment, admitted }
+        current.status === 'plan_agreed' && (await transitionEnrollment(tx, enrollmentId, 'plan_agreed', 'enrolled'))
+      const after = computeTuitionBalance(
+        current,
+        toLedgerCharges(current.tuitionCharges),
+        [...current.tuitionPayments, { amount: check.amount, status }],
+        pricing,
+      )
+      return { tuitionPayment, admitted, after, status, paid: check.amount }
     })
-
-    const after = computeTuitionBalance(
-      enrollment,
-      toLedgerCharges(enrollment.tuitionCharges),
-      [...enrollment.tuitionPayments, { amount: paid, status }],
-      pricing,
-    )
+    if ('error' in outcome) {
+      return outcome.error === 'status'
+        ? createErrorResponse('Tuition can only be recorded while the enrollment is plan agreed or enrolled; refresh and try again', 409)
+        : createErrorResponse(outcome.message as string, 400)
+    }
+    const { tuitionPayment, admitted, after, status, paid } = outcome
 
     await logAdminAction({
       adminId: admin.id,
@@ -216,7 +228,8 @@ export const GET = withAuth(async (_req: NextRequest, _admin, context: { params:
       mode: summary.mode,
       enrollment: rest,
       charges: tuitionCharges,
-      payments: tuitionPayments,
+      // A cancelled or failed link can still be paid at Paystack, so only a pending one exposes its URL.
+      payments: tuitionPayments.map((pay) => ({ ...pay, paymentUrl: pay.status === 'pending' ? pay.paymentUrl : null })),
       summary,
     })
   } catch (error) {

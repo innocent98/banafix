@@ -60,7 +60,11 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
 
     const result = await prisma.$transaction(async (tx) => {
       // Row lock: serialises with other charge/void/plan writes for this enrollment.
-      await tx.enrollment.updateMany({ where: { id }, data: { updatedAt: new Date() } })
+      const locked = await tx.enrollment.updateMany({
+        where: { id, status: { in: ['plan_agreed', 'enrolled'] } },
+        data: { updatedAt: new Date() },
+      })
+      if (locked.count === 0) return { error: 'status' as const }
       const existing = await tx.tuitionCharge.count({ where: { enrollmentId: id } })
       if (existing === 0) return { error: 'ledger' as const }
       if (line.materialId) {
@@ -75,6 +79,7 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
       return { charge }
     })
     if ('error' in result) {
+      if (result.error === 'status') return createErrorResponse('The enrollment changed (cancelled?) while you were editing; refresh and try again', 409)
       return result.error === 'ledger'
         ? createErrorResponse('This enrollment has no tuition ledger yet; save the plan first', 409)
         : createErrorResponse('This material is already charged to the student', 409)

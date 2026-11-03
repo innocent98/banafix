@@ -50,38 +50,52 @@ export const POST = withAuth(async (req: NextRequest, admin, context: { params: 
     if (!check.ok) return createErrorResponse(check.error, 400)
     const amount = check.amount
 
-    // Double click / retry: hand back the same pending link for the same amount.
-    const existing = await prisma.tuitionPayment.findFirst({
-      where: {
-        enrollmentId: id,
-        status: 'pending',
-        amount,
-        paystackReference: { not: null },
-        paymentUrl: { not: null },
-        createdAt: { gte: new Date(Date.now() - REUSE_WINDOW_MS) },
-      },
-      orderBy: { createdAt: 'desc' },
+    // Lock the enrollment, then look for a reusable pending link and create the row in ONE transaction, so
+    // two near-simultaneous clicks cannot both create a link. (Double click / retry: hand back the same
+    // pending link for the same amount.)
+    const reference = generatePaymentReference('tuition')
+    const created = await prisma.$transaction(async (tx) => {
+      const locked = await tx.enrollment.updateMany({
+        where: { id, status: { in: ['plan_agreed', 'enrolled'] } },
+        data: { updatedAt: new Date() },
+      })
+      if (locked.count === 0) return { kind: 'gone' as const }
+      const existing = await tx.tuitionPayment.findFirst({
+        where: {
+          enrollmentId: id,
+          status: 'pending',
+          amount,
+          paystackReference: { not: null },
+          createdAt: { gte: new Date(Date.now() - REUSE_WINDOW_MS) },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (existing) return { kind: 'existing' as const, existing }
+      const row = await tx.tuitionPayment.create({
+        data: {
+          enrollmentId: id,
+          amount,
+          paymentMethod: ONLINE_PAYMENT_METHOD,
+          description: 'Online tuition payment',
+          status: 'pending',
+          receiptNumber: generateReceiptNumber('TUI'),
+          paystackReference: reference,
+          recordedBy: admin.id,
+        },
+      })
+      return { kind: 'created' as const, row }
     })
-    if (existing) {
+    if (created.kind === 'gone') return createErrorResponse('The enrollment changed (cancelled?); refresh and try again', 409)
+    if (created.kind === 'existing') {
+      const existing = created.existing
+      // Created a moment ago and Paystack has not answered yet: do not make a second link for the same amount.
+      if (!existing.paymentUrl) return createErrorResponse('A payment link for this amount is being created; try again in a moment', 409)
       return createResponse(
         { payment: { id: existing.id, amount: existing.amount, paymentUrl: existing.paymentUrl, reference: existing.paystackReference }, reused: true },
         200,
       )
     }
-
-    const reference = generatePaymentReference('tuition')
-    const row = await prisma.tuitionPayment.create({
-      data: {
-        enrollmentId: id,
-        amount,
-        paymentMethod: ONLINE_PAYMENT_METHOD,
-        description: 'Online tuition payment',
-        status: 'pending',
-        receiptNumber: generateReceiptNumber('TUI'),
-        paystackReference: reference,
-        recordedBy: admin.id,
-      },
-    })
+    const row = created.row
 
     let paymentUrl: string
     try {

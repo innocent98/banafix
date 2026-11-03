@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "path": "/api/admin/enrollments/t5_e1_1793721017135/tuition/payment-link",
+    "path": "/api/admin/enrollments/t5_e1_1793722059350/tuition/payment-link",
     "body": {
       "amount": 24501
     }
