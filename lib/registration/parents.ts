@@ -35,7 +35,7 @@ export async function parentIdsByPhone(db: Pick<ParentDb, '$queryRaw'>, phone: s
   if (!key) return []
   const rows = await db.$queryRaw<{ id: string }[]>`
     SELECT id FROM parents
-    WHERE phone IS NOT NULL AND right(regexp_replace(phone, '\D', '', 'g'), 10) = ${key}
+    WHERE phone IS NOT NULL AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = ${key}
     LIMIT 5`
   return rows.map((r) => r.id)
 }

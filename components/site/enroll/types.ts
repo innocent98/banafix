@@ -37,6 +37,12 @@ export interface EnrollCourse {
  * server derives the location, format and assessment fee from it.
  */
 export interface EnrollFormData {
+  /**
+   * Who the application is for. 'child' (anyone under 18) makes the guardian block required and the
+   * student's own email optional; the server enforces the same rule, and a date of birth under 18
+   * makes it a child application whatever is chosen here.
+   */
+  registeringFor: "self" | "child" | ""
   firstName: string
   lastName: string
   email: string
@@ -80,6 +86,7 @@ export interface EnrollFormData {
 }
 
 export const EMPTY_FORM: EnrollFormData = {
+  registeringFor: "",
   firstName: "",
   lastName: "",
   email: "",

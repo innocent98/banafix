@@ -8,14 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Users, Plus, Pencil, Trash2, Search } from "lucide-react"
+import { Users, Plus, Pencil, Trash2, Search, UserPlus } from "lucide-react"
 import { ParentFormModal } from "@/components/admin/parent-form-modal"
+import { StudentRegistrationModal } from "@/components/admin/student-registration-modal"
+
+interface ChildEnrollment {
+  id: string
+  status: string
+  course: { title: string }
+  location: { name: string } | null
+}
 
 interface Child {
   id: string
   firstName: string
   lastName: string
   email: string
+  enrollments?: ChildEnrollment[]
 }
 
 interface Parent {
@@ -27,6 +36,8 @@ interface Parent {
   birthdayMonth?: number | null
   birthdayDay?: number | null
   children: Child[]
+  /** Derived from the children's applications past the unconfirmed stage; never stored on the parent. */
+  marketingConsent?: boolean
 }
 
 const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -38,6 +49,7 @@ export default function ParentsPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [addChildFor, setAddChildFor] = useState<Parent | null>(null)
 
   const loadParents = async () => {
     setLoading(true)
@@ -104,7 +116,7 @@ export default function ParentsPage() {
               Parents
             </h1>
             <p className="text-sm text-muted-foreground">
-              Parent/guardian records mapped to enrolled students.
+              Parent/guardian records mapped to their children, including applicants.
             </p>
           </div>
           <Button
@@ -150,6 +162,7 @@ export default function ParentsPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Children</TableHead>
+                      <TableHead>Marketing</TableHead>
                       <TableHead>Birthday</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -169,20 +182,41 @@ export default function ParentsPage() {
                           {p.children.length === 0 ? (
                             <span className="text-xs text-muted-foreground">None</span>
                           ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {p.children.map((c) => (
-                                <Badge key={c.id} variant="secondary">
-                                  {c.firstName} {c.lastName}
-                                </Badge>
-                              ))}
+                            <div className="space-y-1">
+                              {p.children.map((c) => {
+                                const live = (c.enrollments ?? []).filter((e) => e.status !== "cancelled")
+                                return (
+                                  <div key={c.id} className="flex flex-wrap items-center gap-1">
+                                    <Badge variant="secondary">
+                                      {c.firstName} {c.lastName}
+                                    </Badge>
+                                    {live.slice(0, 3).map((e) => (
+                                      <span key={e.id} className="text-xs text-muted-foreground">
+                                        {e.course.title}{e.location ? ` · ${e.location.name}` : ""} ({e.status.replace(/_/g, " ")})
+                                      </span>
+                                    ))}
+                                    {live.length === 0 && (
+                                      <span className="text-xs text-muted-foreground">no live application</span>
+                                    )}
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={p.marketingConsent ? "default" : "outline"}>
+                            {p.marketingConsent ? "Consented" : p.children.length === 0 ? "No child linked" : "No consent"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{formatBirthday(p)}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setAddChildFor(p)} title="Register another child for this parent">
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -222,6 +256,13 @@ export default function ParentsPage() {
           setEditId(null)
         }}
         onSaved={loadParents}
+      />
+
+      <StudentRegistrationModal
+        isOpen={addChildFor !== null}
+        initialParent={addChildFor ? { id: addChildFor.id, name: addChildFor.name, email: addChildFor.email, phone: addChildFor.phone } : null}
+        onClose={() => setAddChildFor(null)}
+        onRegistered={loadParents}
       />
     </AdminLayout>
   )

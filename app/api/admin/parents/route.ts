@@ -3,7 +3,7 @@ import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
 
-const CHILD_SELECT = { id: true, firstName: true, lastName: true, email: true } as const
+import { PARENT_CHILD_SELECT as CHILD_SELECT, withMarketingFlag } from '@/lib/registration/parent-view'
 
 // Validate optional birthday month/day. Returns an error message or null.
 function validateBirthday(month: unknown, day: unknown): string | null {
@@ -33,7 +33,7 @@ export const GET = withAuth(async (req: NextRequest, admin) => {
       include: { children: { select: CHILD_SELECT } },
       orderBy: { createdAt: 'desc' },
     })
-    return createResponse({ parents })
+    return createResponse({ parents: parents.map(withMarketingFlag) })
   } catch (error) {
     console.error('List parents error:', error)
     return createErrorResponse('Failed to fetch parents', 500)

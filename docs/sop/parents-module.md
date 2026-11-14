@@ -43,3 +43,6 @@ children; a child can have multiple guardians.
 ## Follow-ups
 - req #4 (birthdays) consumes `Parent.birthdayMonth`/`birthdayDay` + `Student.dateOfBirth`.
 - Consider a month `<select>` (Jan–Dec) instead of a numeric input for nicer UX.
+
+## Updated 2026-11-14 (Stream 6)
+Parents are now also created/linked from the public enrol wizard and the walk-in modal (exact guardian email; unique phone on the admin path), the child picker lists any live applicant (not only `enrolled` students) and shows their stage, and the list/detail routes return each child's applications plus a derived `marketingConsent`. Details: `docs/sop/registration-and-parents.md`.

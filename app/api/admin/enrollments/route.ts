@@ -20,6 +20,7 @@ import { validatePreferences } from '@/lib/scheduling/preferences'
 import { validateRegistrant } from '@/lib/registration/validate'
 import { chooseStudentEmail, NoStudentEmailError } from '@/lib/registration/student'
 import { attachGuardian } from '@/lib/registration/attach'
+import { parentIdsByPhone } from '@/lib/registration/parents'
 
 const parseDate = (v: unknown): Date | null => {
   if (typeof v !== 'string' || !v) return null
@@ -77,12 +78,22 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     }
 
     // An existing parent picked by the admin supplies the guardian details (their stored record is
-    // never edited from here, S6-5).
+    // never edited from here, S6-5). A guardian given by phone alone resolves to an existing parent
+    // only when exactly ONE parent has that number; several is ambiguous, so nobody is linked.
     let guardianName = bodyGuardianName
     let guardianEmail = bodyGuardianEmail
     let guardianPhone = bodyGuardianPhone
-    if (parentId != null && parentId !== '') {
-      const picked = await prisma.parent.findUnique({ where: { id: String(parentId) } })
+    let pickedParentId: string | null = parentId != null && parentId !== '' ? String(parentId) : null
+    let resolvedByPhone = false
+    if (!pickedParentId && !String(bodyGuardianEmail ?? '').trim() && String(bodyGuardianPhone ?? '').trim()) {
+      const ids = await parentIdsByPhone(prisma, String(bodyGuardianPhone))
+      if (ids.length === 1) {
+        pickedParentId = ids[0]
+        resolvedByPhone = true
+      }
+    }
+    if (pickedParentId) {
+      const picked = await prisma.parent.findUnique({ where: { id: pickedParentId } })
       if (!picked) return createErrorResponse('parentId does not match a parent', 400)
       guardianName = picked.name
       guardianEmail = picked.email
@@ -286,7 +297,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     const parentLink = await attachGuardian(who, student.id, {
       enrollmentId: enrollment.id,
       adminId: admin.id,
-      parentId: parentId ? String(parentId) : null,
+      parentId: pickedParentId,
     })
 
     await logAdminAction({
@@ -302,6 +313,7 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         feeCovered,
         paymentMethod: feePaid && !feeCovered ? paymentMethod : null,
         minor: who.minor,
+        parentResolvedByPhone: resolvedByPhone,
         parentId: parentLink && parentLink.outcome !== 'none' ? parentLink.parentId : null,
         toStatus: finalStatus === 'pending' ? 'pending' : 'assessment_paid',
       },

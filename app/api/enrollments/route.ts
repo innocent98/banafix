@@ -12,7 +12,7 @@ import { isThrottled } from '@/lib/throttle'
 import { validateRegistrant } from '@/lib/registration/validate'
 import { chooseStudentEmail, NoStudentEmailError } from '@/lib/registration/student'
 import { attachGuardian } from '@/lib/registration/attach'
-import { sameMailbox } from '@/lib/registration/identity'
+import { normalizeEmail } from '@/lib/registration/identity'
 import { findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
 import type { Prisma } from '@prisma/client'
 
@@ -173,7 +173,8 @@ export async function POST(req: NextRequest) {
     // already recorded with this same guardian email. Otherwise anyone could hang their own address
     // on an existing student by typing that student's email (S6-5).
     const before = await prisma.student.findUnique({ where: { email: normalizedEmail }, select: { guardianEmail: true } })
-    const guardianTrusted = !before || (who.guardian?.email != null && sameMailbox(before.guardianEmail, who.guardian.email))
+    // Exact normalised equality, the same key `linkParentToStudent` matches Parent.email on (no +tag folding).
+    const guardianTrusted = !before || (who.guardian?.email != null && normalizeEmail(before.guardianEmail) === who.guardian.email)
 
     // Find-or-create the person. Email is immutable and identifies the person.
     // O4 (reconciled with the edit-student module): on RE-enrollment we do NOT
