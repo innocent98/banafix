@@ -21,6 +21,8 @@ interface Child {
   firstName: string
   lastName: string
   email: string
+  /** Picker results only: the child's furthest live application. */
+  status?: string | null
 }
 
 interface ParentFormModalProps {
@@ -39,6 +41,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
   const [results, setResults] = useState<Child[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [samePhone, setSamePhone] = useState<{ id: string; name: string; email: string }[]>([])
 
   const token = () => (typeof window !== "undefined" ? localStorage.getItem("admin_token") : null)
 
@@ -49,6 +52,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
     setQuery("")
     setResults([])
     setError("")
+    setSamePhone([])
     if (parentId) {
       fetch(`/api/admin/parents/${parentId}`, { headers: { Authorization: `Bearer ${token()}` } })
         .then((r) => r.json())
@@ -64,6 +68,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
             birthdayDay: p.birthdayDay != null ? String(p.birthdayDay) : "",
           })
           setChildren(p.children ?? [])
+          setSamePhone(d.samePhoneParents ?? [])
         })
         .catch(() => setError("Failed to load parent"))
     }
@@ -151,7 +156,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
             {parentId ? "Edit Parent" : "Add Parent"}
           </DialogTitle>
           <DialogDescription>
-            Parent/guardian details and the enrolled students they are responsible for.
+            Parent/guardian details and the children they are responsible for.
           </DialogDescription>
         </DialogHeader>
 
@@ -203,9 +208,17 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
             </div>
           </div>
 
+          {samePhone.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                Possible duplicate: {samePhone.map((p) => `${p.name} (${p.email})`).join(", ")} {samePhone.length === 1 ? "has" : "have"} the same phone number. Records are never merged automatically.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Children picker */}
           <div>
-            <Label>Children (enrolled students)</Label>
+            <Label>Children</Label>
             {children.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {children.map((c) => (
@@ -222,7 +235,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
               <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="Search enrolled students by name or email…"
+                placeholder="Search students by name or email…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -238,7 +251,7 @@ export function ParentFormModal({ parentId, isOpen, onClose, onSaved }: ParentFo
                       onClick={() => addChild(r)}
                       className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
                     >
-                      <span>{r.firstName} {r.lastName}</span>
+                      <span>{r.firstName} {r.lastName}{r.status ? ` · ${r.status.replace(/_/g, " ")}` : ""}</span>
                       <span className="text-xs text-muted-foreground">{r.email}</span>
                     </button>
                   ))}

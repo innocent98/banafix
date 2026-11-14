@@ -99,7 +99,9 @@ export function StepPayment({
           onChange={(next) => onChange("consentToEmails", next)}
         >
           <span className="font-semibold text-bfx-muted">Optional. </span>
-          Send me course updates, practice tips and offers from Banafix.
+          {form.registeringFor === "child"
+            ? "As the parent or guardian, I'd like course updates, practice tips and offers from Banafix sent to me."
+            : "Send me course updates, practice tips and offers from Banafix."}
         </ConsentRow>
       </div>
 

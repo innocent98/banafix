@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { UserPlus } from "lucide-react"
+import { UserPlus, Search, X } from "lucide-react"
 import { ARRANGEMENTS, ARRANGEMENT_LABELS, TIME_BANDS, TIME_BAND_LABELS } from "@/lib/assessment-vocab"
 import { formatNaira } from "@/lib/site"
 import {
@@ -51,10 +51,19 @@ interface OfferingLite {
 
 const NO_OFFERING = "none"
 
+export interface ParentLite {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+}
+
 interface StudentRegistrationModalProps {
   isOpen: boolean
   onClose: () => void
   onRegistered: () => void
+  /** Open pre-set to "add a child of this parent" (from /admin/parents). */
+  initialParent?: ParentLite | null
 }
 
 const EMPTY = {
@@ -88,7 +97,7 @@ const PRIOR_LEVELS = [
   { v: "advanced", l: "Advanced" },
 ]
 
-export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: StudentRegistrationModalProps) {
+export function StudentRegistrationModal({ isOpen, onClose, onRegistered, initialParent = null }: StudentRegistrationModalProps) {
   const [form, setForm] = useState({ ...EMPTY })
   const [feePaid, setFeePaid] = useState(true)
   const [paymentMethod, setPaymentMethod] = useState("cash")
@@ -100,6 +109,11 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [coveredNote, setCoveredNote] = useState("")
+  // Stream 6: adult or minor, and the parent the child belongs to (an existing record, or typed below).
+  const [registeringFor, setRegisteringFor] = useState<"self" | "child">("self")
+  const [parent, setParent] = useState<ParentLite | null>(null)
+  const [parentQuery, setParentQuery] = useState("")
+  const [parentResults, setParentResults] = useState<ParentLite[]>([])
 
   const token = () => (typeof window !== "undefined" ? localStorage.getItem("admin_token") : null)
 
@@ -113,6 +127,10 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     setError("")
     setCoveredNote("")
     setOfferings([])
+    setRegisteringFor(initialParent ? "child" : "self")
+    setParent(initialParent)
+    setParentQuery("")
+    setParentResults([])
     const headers = { Authorization: `Bearer ${token()}` }
     fetch(`/api/admin/locations`, { headers })
       .then((r) => r.json())
@@ -125,7 +143,24 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
         setCourses((d.courses ?? d.data ?? []).filter((c: CourseLite & { isActive?: boolean; isPublished?: boolean }) => c.isActive !== false && c.isPublished !== false)),
       )
       .catch(() => {})
-  }, [isOpen])
+  }, [isOpen, initialParent])
+
+  // Search existing parents for the child's guardian (Stream 6).
+  useEffect(() => {
+    const q = parentQuery.trim()
+    if (!isOpen || !q) {
+      setParentResults([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/admin/parents?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token()}` } })
+      .then((r) => r.json())
+      .then((d) => !cancelled && setParentResults((d.parents ?? []).slice(0, 8)))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [parentQuery, isOpen])
 
   // Offerings of the chosen course (filtered to the chosen location below).
   useEffect(() => {
@@ -150,8 +185,17 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
     e.preventDefault()
     setError("")
     setCoveredNote("")
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.locationId || !form.courseId) {
-      setError("First name, last name, email, location and course are required")
+    const isChild = registeringFor === "child"
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.locationId || !form.courseId) {
+      setError("First name, last name, location and course are required")
+      return
+    }
+    if (!isChild && !form.email.trim()) {
+      setError("Email is required for an adult student")
+      return
+    }
+    if (isChild && !parent && !(form.guardianName.trim() && (form.guardianEmail.trim() || form.guardianPhone.trim()))) {
+      setError("A student under 18 needs a parent or guardian: pick an existing parent, or enter their name and an email or phone")
       return
     }
     if (scheduleTimeError(prefs.preferredFromTime, prefs.preferredToTime)) {
@@ -165,6 +209,8 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         body: JSON.stringify({
           ...form,
+          registeringFor,
+          parentId: isChild && parent ? parent.id : undefined,
           ...schedulePrefsPayload(prefs),
           offeringId: form.offeringId || undefined,
           preferredDate: form.preferredDate || undefined,
@@ -178,9 +224,14 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
       const d = await res.json().catch(() => ({}))
       if (res.ok) {
         onRegistered()
-        if (d.feeCovered) {
+        const notes: string[] = []
+        if (d.feeCovered) notes.push("Assessment fee already covered for this student, no fee recorded.")
+        if (isChild && !d.parent) notes.push("No parent record was created or matched (the guardian has no email and no existing parent has that phone). Add or attach one from Parents.")
+        if (d.parent?.outcome === "created") notes.push("A new parent record was created for the guardian.")
+        if (d.parent?.outcome === "linked") notes.push("The child was added to the existing parent record (it was not changed).")
+        if (d.feeCovered || (isChild && !d.parent)) {
           // Keep the dialog open so the note is read; the list behind it already refreshed.
-          setCoveredNote("Registered. Assessment fee already covered for this student, no fee recorded.")
+          setCoveredNote(`Registered. ${notes.join(" ")}`)
         } else {
           onClose()
         }
@@ -214,23 +265,75 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
           {/* Student */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Student</h3>
+            <div className="flex gap-2" role="radiogroup" aria-label="Who is registering">
+              <Button type="button" size="sm" variant={registeringFor === "self" ? "default" : "outline"} aria-pressed={registeringFor === "self"} onClick={() => setRegisteringFor("self")}>Adult (18+)</Button>
+              <Button type="button" size="sm" variant={registeringFor === "child" ? "default" : "outline"} aria-pressed={registeringFor === "child"} onClick={() => setRegisteringFor("child")}>Child (under 18)</Button>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div><Label htmlFor="firstName">First name *</Label><Input id="firstName" value={form.firstName} onChange={set("firstName")} required /></div>
               <div><Label htmlFor="lastName">Last name *</Label><Input id="lastName" value={form.lastName} onChange={set("lastName")} required /></div>
-              <div><Label htmlFor="email">Email *</Label><Input id="email" type="email" value={form.email} onChange={set("email")} required /></div>
+              <div>
+                <Label htmlFor="email">{registeringFor === "child" ? "Student email (optional)" : "Email *"}</Label>
+                <Input id="email" type="email" value={form.email} onChange={set("email")} required={registeringFor !== "child"} />
+                {registeringFor === "child" && (
+                  <p className="mt-1 text-xs text-muted-foreground">Leave blank if the child has none: they are registered under the guardian&apos;s mailbox.</p>
+                )}
+              </div>
               <div><Label htmlFor="phone">Phone</Label><Input id="phone" value={form.phone} onChange={set("phone")} /></div>
               <div><Label htmlFor="dateOfBirth">Date of birth</Label><Input id="dateOfBirth" type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")} /></div>
             </div>
           </section>
 
-          {/* Guardian */}
+          {/* Parent / guardian */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">Guardian (for minors)</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div><Label htmlFor="guardianName">Name</Label><Input id="guardianName" value={form.guardianName} onChange={set("guardianName")} /></div>
-              <div><Label htmlFor="guardianPhone">Phone</Label><Input id="guardianPhone" value={form.guardianPhone} onChange={set("guardianPhone")} /></div>
-              <div><Label htmlFor="guardianEmail">Email</Label><Input id="guardianEmail" type="email" value={form.guardianEmail} onChange={set("guardianEmail")} /></div>
-            </div>
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              {registeringFor === "child" ? "Parent / guardian (required)" : "Guardian (optional)"}
+            </h3>
+            {parent ? (
+              <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                <span>
+                  Linked to existing parent <strong>{parent.name}</strong> ({parent.email}). Their record is not changed.
+                </span>
+                {!initialParent && (
+                  <button type="button" onClick={() => setParent(null)} aria-label="Unlink parent"><X className="h-4 w-4" /></button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input className="pl-8" placeholder="Find an existing parent by name or email…" value={parentQuery} onChange={(e) => setParentQuery(e.target.value)} />
+                </div>
+                {parentResults.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border">
+                    {parentResults.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setParent(p)
+                          setParentQuery("")
+                          setParentResults([])
+                          setRegisteringFor("child")
+                        }}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                      >
+                        <span>{p.name}</span>
+                        <span className="text-xs text-muted-foreground">{p.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Or enter the guardian below. An existing parent with the same email is matched automatically (a phone number alone is only used when no email is given); an existing parent&apos;s details are never overwritten, and a new parent is created otherwise.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div><Label htmlFor="guardianName">Name</Label><Input id="guardianName" value={form.guardianName} onChange={set("guardianName")} /></div>
+                  <div><Label htmlFor="guardianPhone">Phone</Label><Input id="guardianPhone" value={form.guardianPhone} onChange={set("guardianPhone")} /></div>
+                  <div><Label htmlFor="guardianEmail">Email</Label><Input id="guardianEmail" type="email" value={form.guardianEmail} onChange={set("guardianEmail")} /></div>
+                </div>
+              </>
+            )}
           </section>
 
           {/* Address */}
@@ -372,7 +475,7 @@ export function StudentRegistrationModal({ isOpen, onClose, onRegistered }: Stud
             )}
             <div className="flex items-center gap-2">
               <Switch checked={consentToEmails} onCheckedChange={setConsentToEmails} id="consent" />
-              <Label htmlFor="consent" className="text-sm">Student consents to email updates</Label>
+              <Label htmlFor="consent" className="text-sm">{registeringFor === "child" ? "Parent/guardian consents to email updates" : "Student consents to email updates"}</Label>
             </div>
           </section>
 

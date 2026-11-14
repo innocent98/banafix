@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-04):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email key set 2026-11-04, real send test pending) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 1, 2+3, 4, 5, 7 and 8 built and MERGED to `banafix` 2026-11-04 (PRs #10-#15); Stream 6 (registration + parents) and Stream 0 ops items remain**
+**Snapshot (2026-11-04):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email key set 2026-11-04, real send test pending) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 1, 2+3, 4, 5, 7 and 8 built and MERGED to `banafix` 2026-11-04 (PRs #10-#15); Stream 6 (registration + parents) built 2026-11-14, PR open, not merged; Stream 0 ops items remain**
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -69,8 +69,18 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] John decides: **tuition refund policy** (not built); whether `plan_agreed → enrolled` should wait for the first class to be paid (built: any counted payment)
 - SOP: [`docs/sop/per-class-tuition.md`](../sop/per-class-tuition.md) · Spec: `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream5-per-class-tuition.md` · API guide: [`docs/fe-integration-guide-per-class-tuition.md`](../fe-integration-guide-per-class-tuition.md)
 
-### Stream 6 — Registration + parents
-- [ ] Public form + walk-in modal capture parent, level, format, location, schedule, course; create/link `Parent`; multiple children
+### Stream 6 — Registration + parents  ✅ built 2026-11-14, branch `feature/registration-and-parents` (PR open against `banafix`, not merged; **no migration**)
+- [x] Public wizard + walk-in modal capture adult-or-child, guardian, level, format, location, schedule, course; create-or-link `Parent`; many children per parent (levels/format/location/schedule/course were already S2-S4)
+- [x] Minor rule (server-side): declared child or date of birth under 18 ⇒ guardian required (name + email public; name + email/phone admin)
+- [x] Child with no email keyed on a guardian +tag alias (siblings stay distinct students; twins split on birth date)
+- [x] Parent matching: exact email, else unique phone (admin only, no email given); never name; ambiguous = none; public form never overwrites a parent or links to an existing student it did not create
+- [x] No new enumeration leak (identical response shape, proven on real routes); per-guardian-email throttle; 12-child public link cap
+- [x] Consent: parent marketing derived from children's enrollments past `pending`/`cancelled`; unlinked parent has none (announcements + birthdays)
+- [x] Admin: parent view with children + stages + marketing badge, "Register another child", walk-in parent search/attach, same-phone duplicate notice, child picker lists any live applicant
+- [x] Verified: unit tests (59), tsc, 22-check scripted journey on a scratch DB, browser spot checks (see SOP)
+- [~] Not verified: fee-covered public path with a guardian; real mail to a +tag alias; walk-in modal submit from the browser
+- [ ] Adebayo to decide: email-verified linking from the public form (S6-5)
+- SOP: [`docs/sop/registration-and-parents.md`](../sop/registration-and-parents.md) · Design calls S6-1..S6-9: `docs/superpowers/specs/2026-11-14-registration-parents-design.md`
 
 ### Stream 7 — Communications  ✅ built 2026-11-03, branch `feature/communications-outbox` (PR #13 merged 2026-11-04, `ebf9659`)
 - [x] Channel-agnostic outbox (`OutboundMessage`, unique idempotency key) + admin-editable `MessageTemplate` (defaults in code) + `ChannelProvider` interface; Resend email adapter; **SMS/WhatsApp stubs record `skipped`**
@@ -309,7 +319,8 @@ Everything below (parents, birthdays, edit) leans on this — built and verified
 - [ ] Wave 2 tuition must route the Paystack webhook by reference prefix (`app_fee_`) before the ApplicationPayment lookup
 - [ ] `GET /api/receipts/application-fee/[enrollmentId]` still unauthenticated; D5 otherwise partly closed
 - [ ] Drop deprecated `Course` columns + dormant `Enrollment` identity columns; remove `lib/locations.ts`, stale "Seats Utilization" stat, Basic-tab `location` select
-- [ ] Parent child-picker lists only `enrolled` students; admin "Record tuition" button shows on rows the server refuses
+- [x] Parent child-picker lists only `enrolled` students — fixed in Stream 6 (any live applicant)
+- [ ] Admin "Record tuition" button shows on rows the server refuses
 
 - [ ] Real Paystack test charge with "pass charges to customer" ON and OFF: confirms `requested_amount` semantics used by the fee amount check (independent review H1; fixed from the spec, proven on the mock only)
 - [ ] Same-day runbook after deploy: enter per-class rates in `/admin` (online intake is closed until then): `docs/sop/assessment-first-admission.md`

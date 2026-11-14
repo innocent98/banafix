@@ -418,3 +418,13 @@ Note: the heading text on the `/policies` page itself (not changed in this pass)
 
 ## Behaviour note (for John, not a wording change)
 A student who has already paid the assessment fee and applies again for another course is **not charged**, and the policy text says so. Behind the scenes the new application waits as **Pending** until a team member confirms it in admin (so a stranger typing a paid student's email cannot create an assessment booking for them). The student sees "Application received... our team will confirm your application with you". Nothing in the policy wording needs to change for this; tell us if you would prefer such applications to be accepted automatically.
+
+---
+
+## Behaviour note (for John): parents and children (Stream 6)
+- **Under-18s need a parent or guardian.** The enrolment form now asks "myself or my child"; for a child it requires the parent/guardian name, email and phone. If a date of birth shows the student is under 18, the guardian is required even if "myself" was chosen. At the front desk the guardian needs a name and an email or phone number.
+- **A child does not need an email.** Children without their own email are filed under the parent's email address, so one parent can register several children. Messages go to the parent's inbox. (Mail providers that do not support "+" addresses, for example Yahoo, may not deliver to these; tell us if many of your families use them.)
+- **Marketing emails to parents** are sent only if a child's application has reached the paid stage and the box was ticked. An application that was never paid cannot opt a parent in. A parent with no linked child is never sent marketing.
+- **Decision for you / Adebayo:** should a parent be asked to confirm by email before a new application is added under their record? Today it is added on the typed email alone (it grants nothing beyond being listed in admin, and does not change the parent's details).
+  John's answer: ______________________________
+

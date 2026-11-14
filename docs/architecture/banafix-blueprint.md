@@ -42,7 +42,7 @@
 | Migration 2 — drop dormant `Enrollment` identity columns | ❌ **Deferred** | Unchanged: nullable, unread, still in DB and `schema.prisma` |
 | Migration 3 — drop deprecated `Course` price/format/location/seat columns | ❌ **Deferred** | New follow-up (staged-migration precedent). Columns now carry DB defaults (B13) so new courses can be created without them |
 | Edit student record (admin) | 🟡 Code | `PATCH /api/admin/students/[id]` (email immutable) + edit modal + `student.update` audit; O4 reconciled |
-| Parent records + parent↔child mapping | 🟡 Code | `Parent` model + m-n `_ParentChildren`; `/admin/parents` CRUD |
+| Parent records + parent↔child mapping | 🟡 Code | `Parent` model + m-n `_ParentChildren`; `/admin/parents` CRUD; **Stream 6 (2026-11-14):** the public wizard and walk-in create/link a Parent (exact guardian email; unique phone on the admin path), a child with no email is keyed on `guardian+child@domain`, `registeringFor` + `parentId` request fields, parent consent counts only enrollments past `pending`. See `docs/sop/registration-and-parents.md` |
 | Instructor roster (reusable, many courses) | 🟡 Code | `Instructor` one-to-many (`Course.instructorId`); `/admin/instructors`. Now also `Assessment.assessorId → Instructor`, and many-to-many `InstructorCourse` (Stream 4) |
 | **Scheduling** (Stream 4): instructor availability, `ClassSession`, conflict prevention | 🟡 Code | `InstructorAvailability` (weekday × location × mode), `ClassSession` with `btree_gist` **exclusion constraints** per instructor and per student (active = scheduled/held), generator from the plan + student preferences, audited availability override. Migration `20261103170000_scheduling` verified on an ephemeral Postgres 🟢; concurrent bookings proven on a real DB 🟢 (§10). Detail: `docs/sop/scheduling.md`, FE contract `docs/fe-integration-guide-scheduling.md` |
 | Admin: availability editor, `/admin/schedule` timetable, assign / reschedule / mark held-missed-cancelled | 🟡 Code | Week grid (desktop) / agenda (phone); every mutation writes an `AuditLog` row inside its transaction. Some dialogs not browser-checked (§10) |
@@ -480,7 +480,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 
 - ~~**Stream 4 — Scheduling**~~ built; see §1, §5.3 and `docs/sop/scheduling.md`. Stream 5 joins `ClassSession` on `(enrollmentId, sequence)` for paid-class derivation (D12); Stream 7 wires the `TODO(S7)` hooks in `lib/scheduling/hooks.ts`.
 - **Stream 5 — Per-class tuition:** ✅ built (see §3b, §5, §6). Not built: refunds (John's policy), instalment plans, coupons, student portal, routing receipts through the S7 outbox (`TODO(S7)` markers at three send sites).
-- **Stream 6/7/8:** parent capture at registration, messaging outbox (D10) consuming the status transitions as triggers, site content.
+- **Stream 6 built 2026-11-14 (PR open); 7/8:** messaging outbox (D10) consuming the status transitions as triggers, site content.
 
 ---
 
@@ -565,7 +565,7 @@ Reqs #1–#4 and the audit-log foundation are built (see §1); their design note
 - **Browser verification** of the new public and admin flows is not recorded in this document.
 - Migration 2 (dormant `Enrollment` identity columns) and **Migration 3** (deprecated `Course` price/format/location/seat columns) — both deferred.
 - **Rates are not entered:** all migrated offerings are inactive with no rates, so every course shows "Enrolment opening soon" until an admin sets rates (no pricing data came from John yet).
-- A student-facing schedule view; travel-time between locations; parent capture at registration (Stream 6); a real SMS/WhatsApp provider (Stream 7 built the outbox and stubs only), inbound email/WhatsApp, promote-feedback-to-testimonial wiring (waits for Stream 8's model); site content (Stream 8). **Class notifications:** the `class_scheduled` / `class_reminder` templates are reserved in the outbox but nothing emits them yet.
+- A student-facing schedule view; travel-time between locations; a real SMS/WhatsApp provider (Stream 7 built the outbox and stubs only), inbound email/WhatsApp, promote-feedback-to-testimonial wiring (waits for Stream 8's model); site content (Stream 8). **Class notifications:** the `class_scheduled` / `class_reminder` templates are reserved in the outbox but nothing emits them yet.
 - A student login/dashboard, refunds, coupons. Policy text still contradicts the non-refundable fee (refund schedule in `components/site/enroll/policy-dialog.tsx`; `/policies` dashboard/PayPal/instalment claims) — deliberately **not edited** here, needs the client's review.
 - Per-student vs per-application fee rule (open business question, §8).
 - `GET /api/receipts/application-fee/[enrollmentId]` is still unauthenticated (pre-existing); the webhook cannot detect a cash fee recorded while a Paystack charge is in flight (double fee needs an admin refund decision).

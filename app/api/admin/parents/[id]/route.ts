@@ -3,7 +3,8 @@ import { withAuth, createResponse, createErrorResponse } from '@/lib/middleware'
 import { prisma } from '@/lib/prisma'
 import { logAdminAction } from '@/lib/audit'
 
-const CHILD_SELECT = { id: true, firstName: true, lastName: true, email: true } as const
+import { PARENT_CHILD_SELECT as CHILD_SELECT, withMarketingFlag } from '@/lib/registration/parent-view'
+import { parentIdsByPhone } from '@/lib/registration/parents'
 
 function validateBirthday(month: unknown, day: unknown): string | null {
   if (month == null && day == null) return null
@@ -24,7 +25,12 @@ export const GET = withAuth(async (req: NextRequest, admin, context: { params: P
       include: { children: { select: CHILD_SELECT } },
     })
     if (!parent) return createErrorResponse('Parent not found', 404)
-    return createResponse({ parent })
+    // Other parents with the same phone number: a possible duplicate for the admin to review (never auto-merged).
+    const samePhone = (await parentIdsByPhone(prisma, parent.phone)).filter((pid) => pid !== parent.id)
+    const samePhoneParents = samePhone.length
+      ? await prisma.parent.findMany({ where: { id: { in: samePhone } }, select: { id: true, name: true, email: true } })
+      : []
+    return createResponse({ parent: withMarketingFlag(parent), samePhoneParents })
   } catch (error) {
     console.error('Get parent error:', error)
     return createErrorResponse('Failed to fetch parent', 500)

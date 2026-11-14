@@ -89,6 +89,9 @@ function describeServerError(message: string): { text: string; retryable: boolea
     "Home assessments need an address":
       "Home assessments need an address. Go back to the first step and add it.",
     "Invalid email format": "Check your email address, then try again.",
+    "Invalid guardian email format": "Check the parent or guardian email address, then try again.",
+    "A student under 18 needs a parent or guardian: their name and email address":
+      "A student under 18 needs a parent or guardian. Go back to the details step and add their name, email and phone.",
   }
   const text = known[message]
   return text ? { text, retryable: false } : { text: message, retryable: true }
@@ -213,9 +216,13 @@ export function EnrollWizard() {
 
   /* ------------------------------------------------------------ validation */
 
+  const isChild = form.registeringFor === "child"
   const trimmedEmail = form.email.trim()
   const emailValid = EMAIL_REGEX.test(trimmedEmail)
-  const emailError = emailTouched && form.email && !emailValid ? "Enter a valid email address." : undefined
+  const guardianEmailValid = EMAIL_REGEX.test(form.guardianEmail.trim())
+  // A child's own email is optional; when given it must still be valid.
+  const emailError =
+    emailTouched && trimmedEmail && !emailValid ? "Enter a valid email address." : undefined
 
   const needsAddress = form.arrangement === "HOME"
 
@@ -230,19 +237,31 @@ export function EnrollWizard() {
     }
 
     if (step === 1) {
-      if (
-        !form.firstName.trim() ||
-        !form.lastName.trim() ||
-        !form.email.trim() ||
-        !form.phone.trim() ||
-        !form.priorLevel
-      ) {
-        return "Fill in your name, email, phone and current level to continue."
+      if (!form.registeringFor) return "Say whether you are registering yourself or a child."
+      if (isChild) {
+        if (!form.firstName.trim() || !form.lastName.trim() || !form.priorLevel) {
+          return "Fill in the student's name and current level to continue."
+        }
+        if (!form.guardianName.trim() || !form.guardianEmail.trim() || !form.guardianPhone.trim()) {
+          return "A student under 18 needs a parent or guardian: their name, email and phone."
+        }
+        if (!guardianEmailValid) return "Enter a valid parent or guardian email to continue."
+        if (trimmedEmail && !emailValid) return "Enter a valid email for the student, or leave it blank."
+      } else {
+        if (
+          !form.firstName.trim() ||
+          !form.lastName.trim() ||
+          !form.email.trim() ||
+          !form.phone.trim() ||
+          !form.priorLevel
+        ) {
+          return "Fill in your name, email, phone and current level to continue."
+        }
+        if (!emailValid) return "Enter a valid email address to continue."
       }
       if (scheduleTimeError(form.preferredFromTime, form.preferredToTime)) {
         return "Your earliest class time must be before your latest."
       }
-      if (!emailValid) return "Enter a valid email address to continue."
       return ""
     }
 
@@ -254,7 +273,7 @@ export function EnrollWizard() {
     }
 
     return ""
-  }, [step, form, emailValid, needsAddress, offering])
+  }, [step, form, emailValid, guardianEmailValid, isChild, needsAddress, offering])
 
   const blocked = blockedReason !== ""
 
@@ -295,7 +314,12 @@ export function EnrollWizard() {
       // classes per week (omitted when empty).
       const payload = {
         ...form,
-        email: form.email.trim(),
+        // Empty optional contact fields are omitted: a child may have no email of their own.
+        email: form.email.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        guardianName: form.guardianName.trim() || undefined,
+        guardianEmail: form.guardianEmail.trim() || undefined,
+        guardianPhone: form.guardianPhone.trim() || undefined,
         courseId: course.id,
         preferredDate: form.preferredDate || undefined,
         preferredTimeBand: form.preferredTimeBand || undefined,
