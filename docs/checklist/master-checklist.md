@@ -3,7 +3,7 @@
 Single source of truth for what's done, in progress, and ahead. An item is checked **only when
 built and verified**. See [`docs/architecture/banafix-blueprint.md`](../architecture/banafix-blueprint.md) for the full map.
 
-**Snapshot (2026-11-04):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email key set 2026-11-04, real send test pending) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 1, 2+3, 4, 5, 7 and 8 built and MERGED to `banafix` 2026-11-04 (PRs #10-#15); Stream 6 (registration + parents) built 2026-11-14, PR open, not merged; Stream 0 ops items remain**
+**Snapshot (2026-11-14):** Modules — ✅ 12 done (four requested modules + foundation + instructor roster + public UI redesign + admin UX/walk-in registration; email key set 2026-11-04, real send test pending) · 🆕 8 streams from the 2026-11-03 client meeting — **Streams 1, 2+3, 4, 5, 7 and 8 built and MERGED to `banafix` 2026-11-04 (PRs #10-#15); Stream 6 (registration + parents) built 2026-11-14, PR open, not merged; Stream 0 ops items remain**
 
 ## 🆕 Client meeting 2026-11-03 — assessment-first academy platform  *(Streams 2+3 built, see below; others planned)*
 Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/2026-11-03-assessment-first-admission-design.md`](../superpowers/specs/2026-11-03-assessment-first-admission-design.md) (Streams 2+3). **Principle (D11): every price, fee, format, duration, material and availability is admin-editable data. John fills it in via `/admin`; none of it blocks code.** Order: 0+1 now → 2 → 3 → 4/5 → 6/7 → 8.
@@ -69,7 +69,7 @@ Source: meeting summary (John walkthrough). Design: [`docs/superpowers/specs/202
 - [ ] John decides: **tuition refund policy** (not built); whether `plan_agreed → enrolled` should wait for the first class to be paid (built: any counted payment)
 - SOP: [`docs/sop/per-class-tuition.md`](../sop/per-class-tuition.md) · Spec: `docs/superpowers/specs/2026-11-03-per-class-tuition-design.md` · Plan/ledger: `docs/superpowers/plans/2026-11-03-stream5-per-class-tuition.md` · API guide: [`docs/fe-integration-guide-per-class-tuition.md`](../fe-integration-guide-per-class-tuition.md)
 
-### Stream 6 — Registration + parents  ✅ built 2026-11-14, branch `feature/registration-and-parents` (PR open against `banafix`, not merged; **no migration**)
+### Stream 6 — Registration + parents  ✅ built 2026-11-14, branch `feature/registration-and-parents` (PR #16 merged 2026-11-14, `36ac7d9`; **no migration**)
 - [x] Public wizard + walk-in modal capture adult-or-child, guardian, level, format, location, schedule, course; create-or-link `Parent`; many children per parent (levels/format/location/schedule/course were already S2-S4)
 - [x] Minor rule (server-side): declared child or date of birth under 18 ⇒ guardian required (name + email public; name + email/phone admin)
 - [x] Child with no email keyed on a guardian +tag alias (siblings stay distinct students; twins split on birth date)
