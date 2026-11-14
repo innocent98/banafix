@@ -9,6 +9,10 @@ import { validatePreferences } from '@/lib/scheduling/preferences'
 import { offerableOfferingWhere } from '@/lib/offerings'
 import { emitEnrollmentEvent } from '@/lib/messaging/enrollment-events'
 import { isThrottled } from '@/lib/throttle'
+import { validateRegistrant } from '@/lib/registration/validate'
+import { chooseStudentEmail, NoStudentEmailError } from '@/lib/registration/student'
+import { attachGuardian } from '@/lib/registration/attach'
+import { sameMailbox } from '@/lib/registration/identity'
 import { findCoveringFeePayment, lockStudent } from '@/lib/assessment-payment'
 import type { Prisma } from '@prisma/client'
 
@@ -18,7 +22,9 @@ export async function POST(req: NextRequest) {
     const data = await req.json()
 
     const {
-      // Student Information
+      // Student Information. `registeringFor` ('self' | 'child') is optional: without it the date of
+      // birth alone decides whether a guardian is required.
+      registeringFor,
       firstName,
       lastName,
       email,
@@ -71,9 +77,13 @@ export async function POST(req: NextRequest) {
     } = data
 
     // Validation
-    if (!firstName || !lastName || !email || !courseId || !offeringId) {
-      return createErrorResponse('Required fields missing: firstName, lastName, email, courseId, offeringId', 400)
+    if (!firstName || !lastName || !courseId || !offeringId) {
+      return createErrorResponse('Required fields missing: firstName, lastName, courseId, offeringId', 400)
     }
+
+    // Adult or minor, and whether a guardian (and so a Parent record) is required (S6-2).
+    const who = validateRegistrant({ registeringFor, dateOfBirth, email, guardianName, guardianEmail, guardianPhone })
+    if (!who.ok) return createErrorResponse(who.error, 400)
 
     if (!isArrangement(arrangement)) {
       return createErrorResponse('Invalid assessment arrangement', 400)
@@ -96,17 +106,17 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('You must agree to the terms and conditions and refund policy', 400)
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return createErrorResponse('Invalid email format', 400)
-    }
-
     // Unauthenticated and it can email an address and create applications: throttle per IP and per
     // email (best-effort, per instance), after validation so a typo does not burn the allowance.
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const emailKey = String(email).trim().toLowerCase()
-    if (isThrottled(`enrol:ip:${ip}`, 10, 10 * 60 * 1000) || isThrottled(`enrol:email:${emailKey}`, 5, 10 * 60 * 1000)) {
+    const emailKey = (who.ownEmail ?? who.guardian?.email) as string
+    const guardianKey = who.guardian?.email
+    if (
+      isThrottled(`enrol:ip:${ip}`, 10, 10 * 60 * 1000) ||
+      isThrottled(`enrol:email:${emailKey}`, 5, 10 * 60 * 1000) ||
+      // One guardian address cannot be used to spray children/applications either (S6-4).
+      (guardianKey && guardianKey !== emailKey && isThrottled(`enrol:guardian:${guardianKey}`, 8, 10 * 60 * 1000))
+    ) {
       return createErrorResponse('Too many applications. Please wait a few minutes and try again.', 429)
     }
 
@@ -147,7 +157,23 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('This format is not currently open for enrolment at that location', 400)
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase()
+    // The person's identity address: their own email, or for a minor without one a +tag of the
+    // guardian's mailbox, so siblings of one guardian stay distinct students (S6-3).
+    let normalizedEmail: string
+    try {
+      normalizedEmail = await chooseStudentEmail(prisma, who, { firstName, lastName })
+    } catch (e) {
+      if (e instanceof NoStudentEmailError) return createErrorResponse(e.message, 400)
+      throw e
+    }
+    // The payer (Paystack receipts) is the guardian for a minor, the student otherwise.
+    const payerEmail = who.minor ? ((who.guardian?.email ?? normalizedEmail) as string) : normalizedEmail
+
+    // An unauthenticated request may attach a guardian only to a student it just created, or to one
+    // already recorded with this same guardian email. Otherwise anyone could hang their own address
+    // on an existing student by typing that student's email (S6-5).
+    const before = await prisma.student.findUnique({ where: { email: normalizedEmail }, select: { guardianEmail: true } })
+    const guardianTrusted = !before || (who.guardian?.email != null && sameMailbox(before.guardianEmail, who.guardian.email))
 
     // Find-or-create the person. Email is immutable and identifies the person.
     // O4 (reconciled with the edit-student module): on RE-enrollment we do NOT
@@ -161,8 +187,11 @@ export async function POST(req: NextRequest) {
       create: {
         email: normalizedEmail,
         firstName, lastName,
-        phone, dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        address, landmark, guardianName, guardianPhone, guardianEmail,
+        phone, dateOfBirth: who.dateOfBirth,
+        address, landmark,
+        guardianName: who.guardian?.name ?? null,
+        guardianPhone: who.guardian?.phone ?? null,
+        guardianEmail: who.guardian?.email ?? null,
       },
     })
 
@@ -285,6 +314,7 @@ export async function POST(req: NextRequest) {
       }
       if (covered) {
         if (covered.created) {
+          if (guardianTrusted) await attachGuardian(who, student.id, { enrollmentId: covered.id })
           try {
             // Through the outbox (applicant only; greets by the STORED student name, never the request body:
             // this goes to whatever address was typed in). Idempotent per enrollment.
@@ -324,7 +354,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: 'pending', // Will be updated after payment
         paystackReference: generatePaymentReference('app_fee'),
         receiptNumber,
-        billingEmail: email,
+        billingEmail: payerEmail,
         billingName: `${firstName} ${lastName}`,
         billingAddress,
         billingCity,
@@ -343,7 +373,7 @@ export async function POST(req: NextRequest) {
 
     // Initialize Paystack payment
     const paymentData = createApplicationFeePayment({
-      email,
+      email: payerEmail,
       firstName,
       lastName,
       enrollmentId: enrollment.id,
@@ -377,6 +407,10 @@ export async function POST(req: NextRequest) {
         data: { status: 'cancelled' },
       })
     }
+
+    // Parent/guardian create-or-link, only now that the application is real (payment initialised).
+    // Never changes an existing parent's data and never alters the response (S6-1, S6-4, S6-5).
+    if (guardianTrusted) await attachGuardian(who, student.id, { enrollmentId: enrollment.id })
 
     // Update application payment with Paystack access code
     await prisma.applicationPayment.update({

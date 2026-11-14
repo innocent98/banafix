@@ -1,4 +1,5 @@
 import type { Recipient } from './types'
+import { sameMailbox } from '@/lib/registration/identity'
 
 export interface EnrollmentContact {
   studentId: string
@@ -19,7 +20,9 @@ export function enrollmentRecipients(c: EnrollmentContact): Recipient[] {
   const gEmail = c.guardianEmail?.trim() || null
   const gPhone = c.guardianPhone?.trim() || null
   if (!gEmail && !gPhone) return out
-  const sameEmail = gEmail && gEmail.toLowerCase() === c.email.toLowerCase()
+  // Same mailbox, ignoring a +tag: a child registered without an email of their own is keyed on
+  // `guardian+child@domain` (Stream 6), and the guardian must not get every message twice.
+  const sameEmail = gEmail && sameMailbox(gEmail, c.email)
   const samePhone = !gEmail && gPhone && gPhone === c.phone
   if (sameEmail || samePhone) return out
 

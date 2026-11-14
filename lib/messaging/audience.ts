@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import type { Recipient } from './types'
+import { parentConsentFlags } from './consent'
 
 export type AudienceScope = 'students' | 'parents' | 'both'
 
@@ -62,14 +63,14 @@ export async function resolveAudience(db: AudienceDb, f: AudienceFilter): Promis
       where: parentWhere(f),
       select: {
         id: true, name: true, email: true, phone: true,
-        children: { select: { enrollments: { select: { consentToEmails: true } } } },
+        children: { select: { enrollments: { select: { consentToEmails: true, status: true } } } },
       },
       orderBy: { createdAt: 'asc' },
     })
     for (const p of parents) {
       people.push({
         recipient: { type: 'parent', id: p.id, name: p.name, email: p.email, phone: p.phone },
-        consent: p.children.flatMap((c) => c.enrollments.map((e) => e.consentToEmails)),
+        consent: parentConsentFlags(p.children),
       })
     }
   }

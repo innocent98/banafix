@@ -17,6 +17,9 @@ import {
 class LiveApplicationError extends Error {}
 import { isArrangement, isTimeBand } from '@/lib/assessment-vocab'
 import { validatePreferences } from '@/lib/scheduling/preferences'
+import { validateRegistrant } from '@/lib/registration/validate'
+import { chooseStudentEmail, NoStudentEmailError } from '@/lib/registration/student'
+import { attachGuardian } from '@/lib/registration/attach'
 
 const parseDate = (v: unknown): Date | null => {
   if (typeof v !== 'string' || !v) return null
@@ -31,14 +34,16 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
   try {
     const data = await req.json()
     const {
+      registeringFor, // optional 'self' | 'child'; without it the date of birth decides
+      parentId, // optional: an existing Parent picked in the modal; the child is linked to it
       firstName,
       lastName,
       email,
       phone,
       dateOfBirth,
-      guardianName,
-      guardianPhone,
-      guardianEmail,
+      guardianName: bodyGuardianName,
+      guardianPhone: bodyGuardianPhone,
+      guardianEmail: bodyGuardianEmail,
       address,
       landmark,
       courseId,
@@ -67,12 +72,30 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       paymentMethod = 'cash',
     } = data
 
-    if (!firstName || !lastName || !email || !courseId || !locationId) {
-      return createErrorResponse('Required fields missing: firstName, lastName, email, locationId, courseId', 400)
+    if (!firstName || !lastName || !courseId || !locationId) {
+      return createErrorResponse('Required fields missing: firstName, lastName, locationId, courseId', 400)
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return createErrorResponse('Invalid email format', 400)
+
+    // An existing parent picked by the admin supplies the guardian details (their stored record is
+    // never edited from here, S6-5).
+    let guardianName = bodyGuardianName
+    let guardianEmail = bodyGuardianEmail
+    let guardianPhone = bodyGuardianPhone
+    if (parentId != null && parentId !== '') {
+      const picked = await prisma.parent.findUnique({ where: { id: String(parentId) } })
+      if (!picked) return createErrorResponse('parentId does not match a parent', 400)
+      guardianName = picked.name
+      guardianEmail = picked.email
+      guardianPhone = picked.phone ?? undefined
     }
+
+    // Adult or minor, and whether a guardian is required (S6-2). An admin may register a minor whose
+    // guardian has only a phone (no Parent record is created then unless one matches by phone).
+    const who = validateRegistrant(
+      { registeringFor, dateOfBirth, email, guardianName, guardianEmail, guardianPhone },
+      { allowGuardianWithoutEmail: true },
+    )
+    if (!who.ok) return createErrorResponse(who.error, 400)
     if (!isArrangement(arrangement)) return createErrorResponse('arrangement must be HOME, CENTRE or ONLINE', 400)
     // Structured scheduling preferences (days, time bands, optional from/to, classes per week).
     const prefs = validatePreferences({ preferredDays, preferredTimeBands, preferredFromTime, preferredToTime, preferredClassesPerWeek })
@@ -99,7 +122,14 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       }
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase()
+    // The identity address: own email, or for a minor without one a +tag of the guardian's mailbox (S6-3).
+    let normalizedEmail: string
+    try {
+      normalizedEmail = await chooseStudentEmail(prisma, who, { firstName, lastName })
+    } catch (e) {
+      if (e instanceof NoStudentEmailError) return createErrorResponse(e.message, 400)
+      throw e
+    }
 
     // Find-or-create the person. On an admin walk-in the admin is the authoritative
     // source, so provided fields refresh the stored record.
@@ -108,18 +138,21 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
       update: {
         firstName, lastName,
         phone: phone ?? undefined,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+        dateOfBirth: who.dateOfBirth ?? undefined,
         address: address ?? undefined,
         landmark: landmark ?? undefined,
-        guardianName: guardianName ?? undefined,
-        guardianPhone: guardianPhone ?? undefined,
-        guardianEmail: guardianEmail ?? undefined,
+        guardianName: who.guardian?.name ?? undefined,
+        guardianPhone: who.guardian?.phone ?? undefined,
+        guardianEmail: who.guardian?.email ?? undefined,
       },
       create: {
         email: normalizedEmail,
         firstName, lastName,
-        phone, dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        address, landmark, guardianName, guardianPhone, guardianEmail,
+        phone, dateOfBirth: who.dateOfBirth,
+        address, landmark,
+        guardianName: who.guardian?.name ?? null,
+        guardianPhone: who.guardian?.phone ?? null,
+        guardianEmail: who.guardian?.email ?? null,
       },
     })
 
@@ -249,6 +282,13 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     }
     const { enrollment, assessment, finalStatus, feeCovered } = created
 
+    // Create-or-link the Parent now the registration is committed (audited inside; never fails the request).
+    const parentLink = await attachGuardian(who, student.id, {
+      enrollmentId: enrollment.id,
+      adminId: admin.id,
+      parentId: parentId ? String(parentId) : null,
+    })
+
     await logAdminAction({
       adminId: admin.id,
       action: 'enrollment.admin_create',
@@ -261,6 +301,8 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
         feePaid: Boolean(feePaid),
         feeCovered,
         paymentMethod: feePaid && !feeCovered ? paymentMethod : null,
+        minor: who.minor,
+        parentId: parentLink && parentLink.outcome !== 'none' ? parentLink.parentId : null,
         toStatus: finalStatus === 'pending' ? 'pending' : 'assessment_paid',
       },
     })
@@ -275,7 +317,14 @@ export const POST = withAuth(async (req: NextRequest, admin) => {
     }
 
     return createResponse(
-      { enrollment, assessment, feeCovered, message: feeCovered ? 'Student registered; assessment fee already covered' : 'Student registered' },
+      {
+        enrollment,
+        assessment,
+        feeCovered,
+        // Which parent the child is now under (null when there is no guardian, or a phone-only guardian matched nobody).
+        parent: parentLink && parentLink.outcome !== 'none' ? { id: parentLink.parentId, outcome: parentLink.outcome } : null,
+        message: feeCovered ? 'Student registered; assessment fee already covered' : 'Student registered',
+      },
       201,
     )
   } catch (error: any) {

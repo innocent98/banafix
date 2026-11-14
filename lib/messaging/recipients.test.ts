@@ -25,4 +25,9 @@ describe('enrollmentRecipients', () => {
     const r = enrollmentRecipients({ ...base, firstName: '', lastName: '' })
     expect(r[0].name).toBe('ada@x.test')
   })
+  it('drops a guardian whose address is the student’s +tag alias (one mailbox, one message)', () => {
+    const r = enrollmentRecipients({ ...base, email: 'mum+ada@x.test', guardianName: 'Mum', guardianEmail: 'mum@x.test' })
+    expect(r).toHaveLength(1)
+    expect(r[0].type).toBe('student')
+  })
 })

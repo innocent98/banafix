@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { parentConsentFlags } from '@/lib/messaging/consent'
 
 export interface BirthdayRecipient {
   type: 'student' | 'parent'
@@ -45,7 +46,7 @@ export async function collectBirthdayRecipients(
       where: { birthdayMonth: month, birthdayDay: day },
       select: {
         id: true, name: true, email: true, phone: true,
-        children: { select: { enrollments: { select: { consentToEmails: true } } } },
+        children: { select: { enrollments: { select: { consentToEmails: true, status: true } } } },
       },
     }),
     prisma.birthdayEmailLog.findMany({ where: { year }, select: { recipientType: true, recipientId: true } }),
@@ -72,7 +73,7 @@ export async function collectBirthdayRecipients(
     name: p.name,
     email: p.email,
     phone: p.phone,
-    consent: p.children.flatMap((c) => c.enrollments.map((e) => e.consentToEmails)),
+    consent: parentConsentFlags(p.children),
   }))
 
   return [...students, ...parentRecipients].filter((r) => !sentKey.has(`${r.type}:${r.id}`))
